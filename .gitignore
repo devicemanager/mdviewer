@@ -31,6 +31,3 @@ fastlane/test_output
 # Claude Code
 .claude/
 
-# Private scripts
-build-notarize.sh
-
