@@ -19,6 +19,14 @@ targets:
     sources:
       - path: MDViewer/MDViewerQL
         createIntermediateGroups: true
+      # Shared with the app target so the Quick Look preview can serve local
+      # images via the mdviewer-local:// scheme.
+      - path: MDViewer/Views/Renderer/LocalSchemeHandler.swift
+      # Bundle the marked.js/KaTeX/Mermaid renderer into the appex as a folder
+      # reference so the extension is self-contained (Bundle.main/Web/...).
+      - path: MDViewer/Resources/Web
+        type: folder
+        buildPhase: resources
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.mdviewer.app.qlextension
@@ -41,8 +49,8 @@ targets:
           - Resources
           - MDViewerQL
         createIntermediateGroups: true
-      # アセットカタログ（アプリアイコン）はビルドでコンパイルする必要があるため
-      # 明示的にソースへ含める。Resources 全体は上で excludes しているので個別指定。
+      # The asset catalog (app icon) must be compiled during the build, so
+      # include it in sources explicitly. Resources as a whole is excluded above, so specify it individually.
       - path: MDViewer/Resources/Assets.xcassets
     dependencies:
       - package: swift-markdown
@@ -80,3 +88,27 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     entitlements:
       path: MDViewer/MDViewer.entitlements
+    scheme:
+      testTargets:
+        - MDViewerTests
+      gatherCoverageData: false
+
+  MDViewerTests:
+    type: bundle.unit-test
+    platform: macOS
+    deploymentTarget: "14.0"
+    sources:
+      - path: MDViewerTests
+        createIntermediateGroups: true
+    dependencies:
+      - target: MDViewer
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.mdviewer.app.tests
+        SWIFT_VERSION: 5.9
+        MACOSX_DEPLOYMENT_TARGET: "14.0"
+        GENERATE_INFOPLIST_FILE: "YES"
+        CODE_SIGN_IDENTITY: "-"
+        CODE_SIGNING_REQUIRED: "NO"
+        CODE_SIGNING_ALLOWED: "YES"
+        ENABLE_HARDENED_RUNTIME: "NO"
