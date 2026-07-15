@@ -6,6 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.1.3] — 2026-07-15
+
+### Added
+- **Quick Look preview**: press Space on a `.md` file in Finder to see it fully rendered — syntax highlighting, KaTeX math, and Mermaid diagrams — without opening the app. Implemented as a sandboxed Quick Look extension.
+
+### Changed
+- Added the MIT `LICENSE` file and credited original author Masanori Sakai (@Masakai).
+- Internal documentation and code comments translated to English.
+
+---
+
 ## [1.1.2] — 2026-06-14
 
 ### Changed
@@ -84,4 +95,4 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - In-page text search (⌘F)
 - Japanese / English localization
 - Developer ID signing and Apple notarization
-- Landing page (English and Japanese) at https://masakai.github.io/mdviewer/
+- Landing page (English and Japanese)
