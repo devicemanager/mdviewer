@@ -2,25 +2,28 @@
 
 ## Release Process
 
-**必須**: リリース前に必ず公証付きビルドを実行すること。
+**Required**: Always run the notarized build before releasing.
 
 ```bash
 ./build-notarize.sh
 ```
 
-このスクリプトがビルド・署名・公証・staple・zip作成をすべて行う。
-生成された `build/MDViewer.zip`（staple済み）をGitHub Releaseにアップロードしてからリリースすること。
+This script handles building, signing, notarization, stapling, and zip creation.
+Upload the generated `build/MDViewer.zip` (stapled) to GitHub Release before publishing.
 
-### 手順
+### Steps
 
-1. `./build-notarize.sh` を実行
-2. 成功したら `build/MDViewer.zip` が生成される
-3. `gh release create vX.X.X build/MDViewer.zip ...` でリリース作成
-4. zipなしのリリースは不可
+1. Run `./build-notarize.sh`
+2. On success, `build/MDViewer.zip` is generated
+3. Create the release with `gh release create vX.X.X build/MDViewer.zip ...`
+4. Do not release without the zip
 
-### アプリパスワード・公証の設定
+### App Password & Notarization Settings
 
-- Keychainプロファイル名: `notarytool-password`
-- Apple ID: REDACTED
-- Team ID: REDACTED
-- パスワードを再生成した場合は `xcrun notarytool store-credentials "notarytool-password"` で再登録
+Credentials are **not** stored in the repo. `build-notarize.sh` reads your Apple ID
+and Team ID from environment variables and uses a Keychain-stored notarization profile.
+
+- Set `APPLE_ID` and `TEAM_ID` in your environment before running the build.
+- Keychain profile name: `notarytool-password` — create it once with
+  `xcrun notarytool store-credentials "notarytool-password"` (stores the app-specific
+  password in your Keychain; re-run to update it if the password is regenerated).

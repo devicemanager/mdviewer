@@ -28,6 +28,7 @@
 		A525A3D209D48DA76E6AF7A2 /* RenderViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = CF0507FC7630CC161B17A4AC /* RenderViewModel.swift */; };
 		A68A96B026F1AF057C8DA634 /* Localizable.strings in Resources */ = {isa = PBXBuildFile; fileRef = F06389C0B223D8C40FFAFF15 /* Localizable.strings */; };
 		A739EF050629669FD0DF7D9C /* FileWatcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = C09A371577BF803F4ACDBAC2 /* FileWatcher.swift */; };
+		AA1234567890ABCDEF123456 /* Markdown in Frameworks */ = {isa = PBXBuildFile; productRef = AA1234567890ABCDEF654321 /* Markdown */; };
 		B498686705F579F54A6B1B74 /* RenderViewModelTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F6E4A2AD373F6041D40DEA56 /* RenderViewModelTests.swift */; };
 		BD552CED92488D339AEC4229 /* AppearancePrefsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 298DB17004CE01CE37DC9066 /* AppearancePrefsView.swift */; };
 		C1DD0EBC2146C7AB379CA57C /* SidebarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 78804F6494175E634ED2FBB5 /* SidebarView.swift */; };
@@ -126,6 +127,14 @@
 			buildActionMask = 2147483647;
 			files = (
 				70D7AEF2D01DFE1F3B8D1CFD /* Markdown in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		AA9876543210FEDCBA987654 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				AA1234567890ABCDEF123456 /* Markdown in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -341,6 +350,7 @@
 			buildPhases = (
 				3B2EB3413926734CCBCAFD64 /* Sources */,
 				C6427B8C27716E08B30F52BD /* Resources */,
+				AA9876543210FEDCBA987654 /* Frameworks */,
 			);
 			buildRules = (
 			);
@@ -348,6 +358,7 @@
 			);
 			name = MDViewerQL;
 			packageProductDependencies = (
+				AA1234567890ABCDEF654321 /* Markdown */,
 			);
 			productName = MDViewerQL;
 			productReference = DD2FF3AED56FF466EF5E548E /* MDViewerQL.appex */;
@@ -361,8 +372,6 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
-				TargetAttributes = {
-				};
 			};
 			buildConfigurationList = 143BBF338B8553C13608D81A /* Build configuration list for PBXProject "MDViewer" */;
 			developmentRegion = en;
@@ -523,8 +532,10 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_ENTITLEMENTS = MDViewer/MDViewerQL/MDViewerQL.entitlements;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_HARDENED_RUNTIME = NO;
 				INFOPLIST_FILE = MDViewer/MDViewerQL/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -534,6 +545,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mdviewer.app.qlextension;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 			};
@@ -601,8 +613,10 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -612,6 +626,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mdviewer.app.tests;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MDViewer.app/Contents/MacOS/MDViewer";
@@ -625,8 +640,10 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_ENTITLEMENTS = MDViewer/MDViewer.entitlements;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_HARDENED_RUNTIME = NO;
 				INFOPLIST_FILE = MDViewer/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -635,6 +652,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mdviewer.app;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 			};
@@ -709,8 +727,10 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_ENTITLEMENTS = MDViewer/MDViewerQL/MDViewerQL.entitlements;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_HARDENED_RUNTIME = NO;
 				INFOPLIST_FILE = MDViewer/MDViewerQL/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -720,6 +740,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mdviewer.app.qlextension;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 			};
@@ -731,8 +752,10 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -742,6 +765,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mdviewer.app.tests;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MDViewer.app/Contents/MacOS/MDViewer";
@@ -755,8 +779,10 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_ENTITLEMENTS = MDViewer/MDViewer.entitlements;
-				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
+				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_HARDENED_RUNTIME = NO;
 				INFOPLIST_FILE = MDViewer/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -765,6 +791,7 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.mdviewer.app;
+				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 			};
@@ -823,6 +850,11 @@
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
+		AA1234567890ABCDEF654321 /* Markdown */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = F5D59B63973E7D432E1095E5 /* XCRemoteSwiftPackageReference "swift-markdown" */;
+			productName = Markdown;
+		};
 		E19D4B1994888C01C4FF4641 /* Markdown */ = {
 			isa = XCSwiftPackageProductDependency;
 			package = F5D59B63973E7D432E1095E5 /* XCRemoteSwiftPackageReference "swift-markdown" */;

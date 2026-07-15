@@ -38,7 +38,7 @@ MDViewer は、ターミナルから Claude Code や Codex などのツールを
 
 ## インストール
 
-1. [Releases ページ](https://github.com/Masakai/mdviewer/releases/latest) から最新の `MDViewer-x.x.x.zip` をダウンロード
+1. [Releases ページ](https://github.com/devicemanager/mdviewer/releases/latest) から最新の `MDViewer-x.x.x.zip` をダウンロード
 2. 解凍して `MDViewer.app` を **アプリケーション** フォルダにドラッグ
 3. `.md` ファイルをダブルクリック、または Dock の MDViewer アイコンにドロップ
 
@@ -47,7 +47,7 @@ MDViewer は、ターミナルから Claude Code や Codex などのツールを
 Xcode 15 以降が必要です。
 
 ```sh
-git clone https://github.com/Masakai/mdviewer.git
+git clone https://github.com/devicemanager/mdviewer.git
 cd mdviewer
 open MDViewer.xcodeproj
 ```
@@ -76,6 +76,12 @@ open MDViewer.xcodeproj
 | Shiki | 1.x | MIT |
 | KaTeX | 0.16.11 | MIT |
 | Mermaid | 10.x | MIT |
+
+## クレジット
+
+MDViewer はもともと **Masanori Sakai**（[@Masakai](https://github.com/Masakai)）によって作成されました。本リポジトリは [@devicemanager](https://github.com/devicemanager) がメンテナンスするフォークで、**Quick Look プレビュー拡張**（Finder 上で KaTeX 数式や Mermaid 図を含む Markdown を完全にレンダリング）などを追加しています。
+
+MDViewer を作成しオープンソースとして公開してくださった Masanori Sakai 氏に心より感謝します。
 
 ## ライセンス
 

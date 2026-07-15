@@ -38,7 +38,7 @@ Toggle the built-in editor with **⌘E** or the pencil button in the toolbar.
 
 ## Installation
 
-1. Download the latest `MDViewer-x.x.x.zip` from the [Releases page](https://github.com/Masakai/mdviewer/releases/latest)
+1. Download the latest `MDViewer-x.x.x.zip` from the [Releases page](https://github.com/devicemanager/mdviewer/releases/latest)
 2. Unzip and drag `MDViewer.app` to your **Applications** folder
 3. Double-click any `.md` file — or drop it onto the MDViewer icon in the Dock
 
@@ -47,7 +47,7 @@ Toggle the built-in editor with **⌘E** or the pencil button in the toolbar.
 Requires Xcode 15 or later.
 
 ```sh
-git clone https://github.com/Masakai/mdviewer.git
+git clone https://github.com/devicemanager/mdviewer.git
 cd mdviewer
 open MDViewer.xcodeproj
 ```
@@ -76,6 +76,12 @@ All bundled libraries are MIT licensed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY
 | Shiki | 1.x | MIT |
 | KaTeX | 0.16.11 | MIT |
 | Mermaid | 10.x | MIT |
+
+## Credits
+
+MDViewer was originally created by **Masanori Sakai** ([@Masakai](https://github.com/Masakai)). This repository is a fork maintained by [@devicemanager](https://github.com/devicemanager), which adds a **Quick Look preview extension** — full Markdown rendering (including KaTeX math and Mermaid diagrams) directly in Finder — along with related refinements.
+
+Sincere thanks to Masanori Sakai for creating and open-sourcing MDViewer.
 
 ## License
 
