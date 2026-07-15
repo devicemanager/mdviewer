@@ -25,12 +25,12 @@ struct ContentView: View {
                         WelcomeView(documentVM: documentVM)
                     } else {
                         HSplitView {
-                            // エディタペイン: isEditorMode時のみ表示
+                            // Editor pane: shown only when isEditorMode is on
                             if isEditorMode {
                                 MarkdownEditorView(documentVM: documentVM)
                                     .frame(minWidth: 250)
                             }
-                            // プレビューペイン: 常にマウントしておく（破棄しない）
+                            // Preview pane: keep it always mounted (never discard)
                             MarkdownRenderView(
                                 documentVM: documentVM,
                                 renderVM: renderVM,

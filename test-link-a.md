@@ -1,7 +1,7 @@
-# テスト文書 A
+# Test Document A
 
-これはリンクテスト用文書 A です。
+This is link-test document A.
 
-[文書 B を開く](./test-link-b.md)
+[Open Document B](./test-link-b.md)
 
-[全要素テストを開く](./test-all-elements.md)
+[Open the all-elements test](./test-all-elements.md)

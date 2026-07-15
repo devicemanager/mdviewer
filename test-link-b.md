@@ -1,5 +1,5 @@
-# テスト文書 B
+# Test Document B
 
-これはリンクテスト用文書 B です。
+This is link-test document B.
 
-[文書 A に戻る](./test-link-a.md)
+[Back to Document A](./test-link-a.md)
