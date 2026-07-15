@@ -88,6 +88,11 @@ targets:
         ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
     entitlements:
       path: MDViewer/MDViewer.entitlements
+      # Properties MUST be listed here: XcodeGen regenerates this file on every
+      # `xcodegen generate`, overwriting it with an empty dict if left unset.
+      properties:
+        com.apple.security.app-sandbox: false
+        com.apple.security.files.user-selected.read-write: true
     scheme:
       testTargets:
         - MDViewerTests
