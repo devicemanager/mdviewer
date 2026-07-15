@@ -24,6 +24,6 @@
 環境変数から読み取り、Keychain に保存した公証プロファイルを使用する。
 
 - ビルド前に環境変数 `APPLE_ID` と `TEAM_ID` を設定すること。
-- Keychainプロファイル名: `notarytool-password` — 初回のみ
-  `xcrun notarytool store-credentials "notarytool-password"` で作成する
+- Keychainプロファイル名: `notarytool` — 初回のみ
+  `xcrun notarytool store-credentials "notarytool"` で作成する
   （app固有パスワードをKeychainに保存。パスワードを再生成した場合は再実行して更新）。

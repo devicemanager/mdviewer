@@ -24,6 +24,6 @@ Credentials are **not** stored in the repo. `build-notarize.sh` reads your Apple
 and Team ID from environment variables and uses a Keychain-stored notarization profile.
 
 - Set `APPLE_ID` and `TEAM_ID` in your environment before running the build.
-- Keychain profile name: `notarytool-password` — create it once with
-  `xcrun notarytool store-credentials "notarytool-password"` (stores the app-specific
+- Keychain profile name: `notarytool` — create it once with
+  `xcrun notarytool store-credentials "notarytool"` (stores the app-specific
   password in your Keychain; re-run to update it if the password is regenerated).
