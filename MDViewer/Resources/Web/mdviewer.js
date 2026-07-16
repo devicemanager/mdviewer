@@ -103,20 +103,41 @@
             const headingsRef = [];
             const renderer = new marked.Renderer();
 
-            // marked v5+ passes a single token object to renderer methods.
-            renderer.heading = function (token) {
-                const inner = this.parser.parseInline(token.tokens);
-                const anchor = slugify(token.text);
-                headingsRef.push({ level: token.depth, title: token.text, anchor: anchor });
-                return `<h${token.depth} id="${anchor}">${inner}</h${token.depth}>\n`;
+            // marked v18.0.6 dispatches overridden Renderer methods with EITHER
+            // the legacy positional signature (heading(text, level) / code(code,
+            // infostring)) OR the token-object signature (heading(token) /
+            // code(token)) depending on runtime context (observed: legacy in the
+            // main app, token-object in the sandboxed Quick Look extension). These
+            // renderers therefore handle BOTH shapes.
+            renderer.heading = function (a, b) {
+                let level, inner, plain;
+                if (a && typeof a === 'object') {          // token-object dispatch
+                    level = a.depth;
+                    plain = a.text != null ? String(a.text) : '';
+                    inner = (this && this.parser && a.tokens) ? this.parser.parseInline(a.tokens) : plain;
+                } else {                                    // legacy (text, level)
+                    level = b;
+                    inner = a != null ? String(a) : '';
+                    plain = inner.replace(/<[^>]*>/g, '');
+                }
+                const anchor = slugify(plain);
+                headingsRef.push({ level: level, title: plain, anchor: anchor });
+                return `<h${level} id="${anchor}">${inner}</h${level}>\n`;
             };
 
-            renderer.code = function (token) {
-                const lang = (token.lang || '').trim().split(/\s+/)[0];
-                if (lang === 'mermaid') {
-                    return `<div class="mermaid">${escapeHtml(token.text)}</div>`;
+            renderer.code = function (a, b) {
+                let code, lang;
+                if (a && typeof a === 'object') {           // token-object dispatch
+                    code = a.text != null ? a.text : '';
+                    lang = (a.lang || '').trim().split(/\s+/)[0];
+                } else {                                    // legacy (code, infostring)
+                    code = a != null ? a : '';
+                    lang = (b || '').trim().split(/\s+/)[0];
                 }
-                return highlightCode(token.text, lang);
+                if (lang === 'mermaid') {
+                    return `<div class="mermaid">${escapeHtml(code)}</div>`;
+                }
+                return highlightCode(code, lang);
             };
 
             // Pre-process math: protect $...$ from marked parsing
