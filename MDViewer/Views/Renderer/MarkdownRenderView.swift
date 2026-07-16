@@ -8,6 +8,7 @@ struct MarkdownRenderView: View {
 
     @State private var isSearchVisible: Bool = false
     @State private var searchText: String = ""
+    @State private var folderToGrant: URL?
 
     @Environment(\.colorScheme) private var colorScheme
 
@@ -31,14 +32,54 @@ struct MarkdownRenderView: View {
             }
             .onReceive(documentVM.$text) { newText in
                 guard !newText.isEmpty else { return }
+                folderToGrant = nil
                 if let fileURL = documentVM.fileURL {
+                    // Reuse a previously-authorised folder so local images load
+                    // without prompting; the banner appears only if a read fails.
+                    FolderAccessManager.shared.useAccessIfAvailable(for: fileURL.deletingLastPathComponent())
                     renderVM.setBaseURL(fileURL.deletingLastPathComponent())
                 }
                 renderVM.renderMarkdown(newText)
                 sidebarVM.extractTOC(from: newText)
             }
+            .onReceive(NotificationCenter.default.publisher(for: .localResourceAccessDenied)) { note in
+                guard let dir = note.object as? URL else { return }
+                // Only prompt for the currently-open document's directory.
+                if let base = documentVM.fileURL?.deletingLastPathComponent(),
+                   dir.standardizedFileURL == base.standardizedFileURL {
+                    folderToGrant = dir
+                }
+            }
             .onChange(of: colorScheme) { _, newScheme in
                 renderVM.applySystemAppearance(isDark: newScheme == .dark)
+            }
+
+            if let dir = folderToGrant {
+                HStack(spacing: 10) {
+                    Image(systemName: "photo.badge.exclamationmark")
+                        .foregroundStyle(.secondary)
+                    Text("This document references local images.")
+                        .font(.system(size: 12))
+                    Spacer(minLength: 8)
+                    Button("Grant Folder Access…") {
+                        if FolderAccessManager.shared.requestAccess(to: dir) {
+                            folderToGrant = nil
+                            renderVM.renderMarkdown(documentVM.text)
+                        }
+                    }
+                    .controlSize(.small)
+                    Button {
+                        folderToGrant = nil
+                    } label: {
+                        Image(systemName: "xmark")
+                    }
+                    .buttonStyle(.plain)
+                    .foregroundStyle(.secondary)
+                }
+                .padding(.horizontal, 12)
+                .padding(.vertical, 8)
+                .background(.regularMaterial)
+                .transition(.move(edge: .top).combined(with: .opacity))
             }
 
             if isSearchVisible {
@@ -57,6 +98,7 @@ struct MarkdownRenderView: View {
             }
         }
         .animation(.easeInOut(duration: 0.15), value: isSearchVisible)
+        .animation(.easeInOut(duration: 0.15), value: folderToGrant)
         .onAppear {
             renderVM.applyCurrentThemeAndFontSize()
             if !documentVM.text.isEmpty {

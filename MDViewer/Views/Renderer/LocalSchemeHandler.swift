@@ -25,6 +25,12 @@ final class LocalSchemeHandler: NSObject, WKURLSchemeHandler {
     /// layer still gates "ask" until the user consents.
     var allowsRemoteContent = false
 
+    /// Called (on the main thread) with the document's base directory when a
+    /// document-local resource (e.g. a relative image) cannot be read — under the
+    /// App Sandbox this means we lack access to the folder. The app uses this to
+    /// offer on-demand folder access.
+    var onAccessDenied: ((URL) -> Void)?
+
     func webView(_: WKWebView, start urlSchemeTask: any WKURLSchemeTask) {
         guard let url = urlSchemeTask.request.url else {
             urlSchemeTask.didFailWithError(URLError(.badURL))
@@ -102,6 +108,13 @@ final class LocalSchemeHandler: NSObject, WKURLSchemeHandler {
             urlSchemeTask.didReceive(data)
             urlSchemeTask.didFinish()
         } catch {
+            // A document-local read failed. Under the App Sandbox this is almost
+            // always missing folder access rather than a missing file — surface it
+            // so the app can offer to grant access to the document's directory.
+            if host != "bundle" {
+                let baseDir = resolvedBase
+                DispatchQueue.main.async { [weak self] in self?.onAccessDenied?(baseDir) }
+            }
             urlSchemeTask.didFailWithError(error)
         }
     }

@@ -3,6 +3,7 @@ import WebKit
 
 extension Notification.Name {
     static let openLocalDocument = Notification.Name("MDViewer.openLocalDocument")
+    static let localResourceAccessDenied = Notification.Name("MDViewer.localResourceAccessDenied")
 }
 
 struct WebRendererView: NSViewRepresentable {
@@ -46,6 +47,11 @@ struct WebRendererView: NSViewRepresentable {
         // The CSP served to the WebView permits remote images unless the policy is
         // "never" (hard block). The JS layer still gates "ask" until consent.
         context.coordinator.schemeHandler.allowsRemoteContent = RemoteContentPolicy.current.cspAllowsRemote
+        // When a document-local resource can't be read under the sandbox, surface
+        // it so the UI can offer on-demand folder access.
+        context.coordinator.schemeHandler.onAccessDenied = { dir in
+            NotificationCenter.default.post(name: .localResourceAccessDenied, object: dir)
+        }
         loadRenderer(webView: webView)
 
         return webView
