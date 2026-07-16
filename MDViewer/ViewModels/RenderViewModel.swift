@@ -74,8 +74,17 @@ final class RenderViewModel: ObservableObject {
 
     func renderMarkdown(_ markdown: String) {
         guard isRendererReady else { pendingMarkdown = markdown; return }
+        applyRemoteContentPolicy()
         let escaped = escapeForJS(markdown)
         webView?.evaluateJavaScript("MDViewer.setContent('\(escaped)')", completionHandler: nil)
+    }
+
+    /// Push the current remote-content policy into the WebView before rendering.
+    private func applyRemoteContentPolicy() {
+        webView?.evaluateJavaScript(
+            "MDViewer.setRemoteContentPolicy('\(RemoteContentPolicy.current.rawValue)')",
+            completionHandler: nil
+        )
     }
 
     func rendererDidLoad() {
@@ -88,6 +97,7 @@ final class RenderViewModel: ObservableObject {
         }
         if let md = pendingMarkdown {
             pendingMarkdown = nil
+            applyRemoteContentPolicy()
             let escaped = escapeForJS(md)
             webView?.evaluateJavaScript("MDViewer.setContent('\(escaped)')", completionHandler: nil)
         }

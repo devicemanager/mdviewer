@@ -23,6 +23,7 @@ struct WebRendererView: NSViewRepresentable {
         contentController.add(context.coordinator, name: "scrollPositionChanged")
         contentController.add(context.coordinator, name: "linkHovered")
         contentController.add(context.coordinator, name: "linkClicked")
+        contentController.add(context.coordinator, name: "remoteContentBlocked")
         config.userContentController = contentController
 
         // Register the custom scheme for the renderer, its vendored assets, and
@@ -42,6 +43,9 @@ struct WebRendererView: NSViewRepresentable {
         // Point the scheme handler at the bundle's Web resources so it can serve
         // renderer.html + vendored JS/CSS through mdviewer-local://bundle/.
         context.coordinator.schemeHandler.bundleResourceDirectory = HTMLBuilder.webResourcesDirectory()
+        // The CSP served to the WebView permits remote images unless the policy is
+        // "never" (hard block). The JS layer still gates "ask" until consent.
+        context.coordinator.schemeHandler.allowsRemoteContent = RemoteContentPolicy.current.cspAllowsRemote
         loadRenderer(webView: webView)
 
         return webView
@@ -100,8 +104,37 @@ struct WebRendererView: NSViewRepresentable {
                     // custom schemes, etc.). A malicious document must not be able
                     // to make the app open/launch arbitrary handlers.
                 }
+            case "remoteContentBlocked":
+                let count = (message.body as? [String: Any])?["count"] as? Int ?? 0
+                Task { @MainActor in self.promptRemoteContent(count: count) }
             default:
                 break
+            }
+        }
+
+        /// Ask the user whether to load the remote content a document references.
+        @MainActor
+        private func promptRemoteContent(count: Int) {
+            guard let window = webView?.window else { return }
+            let alert = NSAlert()
+            alert.messageText = "Load remote content?"
+            let noun = count == 1 ? "image" : "images"
+            alert.informativeText = "This document references \(count) \(noun) hosted on the internet. "
+                + "Loading them reveals your IP address to those servers."
+            alert.addButton(withTitle: "Load")           // .alertFirstButtonReturn
+            alert.addButton(withTitle: "Don’t Load")      // .alertSecondButtonReturn
+            alert.addButton(withTitle: "Always Allow")    // .alertThirdButtonReturn
+            alert.beginSheetModal(for: window) { [weak self] response in
+                switch response {
+                case .alertFirstButtonReturn:
+                    self?.webView?.evaluateJavaScript("MDViewer.loadRemoteResources()", completionHandler: nil)
+                case .alertThirdButtonReturn:
+                    UserDefaults.standard.set(RemoteContentPolicy.always.rawValue,
+                                              forKey: RemoteContentPolicy.defaultsKey)
+                    self?.webView?.evaluateJavaScript("MDViewer.loadRemoteResources()", completionHandler: nil)
+                default:
+                    break // Don’t Load
+                }
             }
         }
 

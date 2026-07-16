@@ -89,6 +89,28 @@
         });
     }
 
+    // -- Remote (http/https) content policy: 'ask' | 'always' | 'never'.
+    // Set by Swift via setRemoteContentPolicy() before setContent().
+    let remoteContentPolicy = 'ask';
+    let blockedRemoteCount = 0;
+
+    // Gate remote (http/https) resources per policy, operating on the HTML STRING
+    // *before* insertion so nothing ever starts loading (setting innerHTML fetches
+    // images immediately, so removing src afterwards is too late). On 'ask'/'never'
+    // the src attribute of a remote <img> is renamed to data-mdv-remote (restorable
+    // via loadRemoteResources); on 'always' the string is returned unchanged.
+    function gateRemoteResourcesInHTML(htmlString) {
+        blockedRemoteCount = 0;
+        if (remoteContentPolicy === 'always') { return htmlString; }
+        return htmlString.replace(
+            /(<img\b[^>]*?)\ssrc=(["'])(https?:\/\/[^"']*)\2/gi,
+            function (_m, pre, q, url) {
+                blockedRemoteCount++;
+                return pre + ' data-mdv-remote=' + q + url + q;
+            }
+        );
+    }
+
     // -- Public MDViewer API (called from Swift via evaluateJavaScript)
     window.MDViewer = {
 
@@ -188,8 +210,10 @@
                 });
             }
 
+            // Gate remote resources in the HTML string BEFORE insertion so they
+            // never start loading.
             const contentEl = document.getElementById('content');
-            contentEl.innerHTML = html;
+            contentEl.innerHTML = gateRemoteResourcesInHTML(html);
 
             // Resolve relative image paths against the Markdown file's directory
             rewriteLocalResources(contentEl);
@@ -211,6 +235,13 @@
             // Notify Swift render complete
             if (window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.renderComplete) {
                 window.webkit.messageHandlers.renderComplete.postMessage(null);
+            }
+
+            // If remote content was blocked and the policy is "ask", tell Swift
+            // so it can prompt the user to load it.
+            if (blockedRemoteCount > 0 && remoteContentPolicy === 'ask' &&
+                window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.remoteContentBlocked) {
+                window.webkit.messageHandlers.remoteContentBlocked.postMessage({ count: blockedRemoteCount });
             }
         },
 
@@ -263,6 +294,20 @@
             // Re-resolve any images already in the DOM (base may arrive after content).
             const contentEl = document.getElementById('content');
             if (contentEl) { rewriteLocalResources(contentEl); }
+        },
+
+        // Set the remote-content policy ('ask' | 'always' | 'never'). Must be
+        // called before setContent() so gating applies to the rendered document.
+        setRemoteContentPolicy: function (p) {
+            remoteContentPolicy = (p === 'always' || p === 'never') ? p : 'ask';
+        },
+
+        // Load the remote resources that were blocked (restores their src).
+        loadRemoteResources: function () {
+            document.querySelectorAll('img[data-mdv-remote]').forEach(function (img) {
+                img.setAttribute('src', img.getAttribute('data-mdv-remote'));
+                img.removeAttribute('data-mdv-remote');
+            });
         }
     };
 

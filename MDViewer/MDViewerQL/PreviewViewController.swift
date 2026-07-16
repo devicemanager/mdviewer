@@ -107,6 +107,8 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         webView.evaluateJavaScript("MDViewer.setTheme('\(theme)')")
         webView.evaluateJavaScript("MDViewer.setFontSize(15)")
         webView.evaluateJavaScript("MDViewer.setBaseURL('mdviewer-local://localhost/')")
+        // Quick Look always blocks remote content (and cannot prompt).
+        webView.evaluateJavaScript("MDViewer.setRemoteContentPolicy('never')")
         webView.evaluateJavaScript("MDViewer.setContent('\(escapeForJS(markdown))')")
     }
 

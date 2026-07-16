@@ -19,6 +19,12 @@ final class LocalSchemeHandler: NSObject, WKURLSchemeHandler {
     /// served through the custom scheme instead of `loadFileURL`.
     var bundleResourceDirectory: URL?
 
+    /// Whether the served CSP permits remote (http/https) images. Left `false`
+    /// to hard-block remote content at the WebKit level (Quick Look, and the
+    /// "never" policy). Set `true` for the "ask"/"always" policies — the JS
+    /// layer still gates "ask" until the user consents.
+    var allowsRemoteContent = false
+
     func webView(_: WKWebView, start urlSchemeTask: any WKURLSchemeTask) {
         guard let url = urlSchemeTask.request.url else {
             urlSchemeTask.didFailWithError(URLError(.badURL))
@@ -75,9 +81,14 @@ final class LocalSchemeHandler: NSObject, WKURLSchemeHandler {
             // no remote scripts/images/styles/connections. 'wasm-unsafe-eval' is
             // required by Shiki's oniguruma WASM engine.
             if mimeType == "text/html" {
+                // Remote images are permitted only when the policy allows it;
+                // otherwise they are hard-blocked here at the WebKit level.
+                let imgSrc = allowsRemoteContent
+                    ? "img-src 'self' mdviewer-local: data: https: http:; "
+                    : "img-src 'self' mdviewer-local: data:; "
                 headers["Content-Security-Policy"] =
                     "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; "
-                    + "style-src 'self' 'unsafe-inline'; img-src 'self' mdviewer-local: data:; "
+                    + "style-src 'self' 'unsafe-inline'; " + imgSrc
                     + "font-src 'self' mdviewer-local: data:; connect-src 'self' mdviewer-local:; "
                     + "base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'"
             }
