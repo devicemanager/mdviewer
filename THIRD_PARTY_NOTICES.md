@@ -6,13 +6,14 @@ MDViewer bundles the following open-source libraries. Their copyright notices an
 
 ## marked
 
-**Version:** 12.0.2  
+**Version:** 18.0.6  
 **License:** MIT  
 **Source:** https://github.com/markedjs/marked
 
 ```
-marked v12.0.2 - a markdown parser
-Copyright (c) 2011-2024, Christopher Jeffrey. (MIT Licensed)
+marked v18.0.6 - a markdown parser
+Copyright (c) 2018-2026, MarkedJS. (MIT License)
+Copyright (c) 2011-2018, Christopher Jeffrey. (MIT License)
 https://github.com/markedjs/marked
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -38,7 +39,7 @@ SOFTWARE.
 
 ## Shiki
 
-**Version:** 1.x  
+**Version:** 4.3.1  
 **License:** MIT  
 **Source:** https://github.com/shikijs/shiki
 
@@ -71,7 +72,7 @@ SOFTWARE.
 
 ## KaTeX
 
-**Version:** 0.16.11  
+**Version:** 0.17.0  
 **License:** MIT  
 **Source:** https://github.com/KaTeX/KaTeX
 
@@ -110,7 +111,7 @@ Version 1.1. This license is available at http://scripts.sil.org/OFL.
 
 ## Mermaid
 
-**Version:** 10.x  
+**Version:** 11.16.0  
 **License:** MIT  
 **Source:** https://github.com/mermaid-js/mermaid
 
@@ -134,4 +135,29 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+---
+
+## DOMPurify
+
+**Version:** 3.4.12  
+**License:** Apache-2.0 OR MPL-2.0 (dual-licensed)  
+**Source:** https://github.com/cure53/DOMPurify
+
+```
+DOMPurify
+Copyright (c) Cure53 and other contributors
+https://github.com/cure53/DOMPurify
+
+DOMPurify is dual-licensed. You may use it under the terms of EITHER:
+
+  - the Apache License, Version 2.0
+    https://www.apache.org/licenses/LICENSE-2.0
+
+  - the Mozilla Public License, Version 2.0
+    https://www.mozilla.org/MPL/2.0/
+
+The complete license texts for version 3.4.12 are published at:
+https://github.com/cure53/DOMPurify/blob/3.4.12/LICENSE
 ```
