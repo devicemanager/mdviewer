@@ -12,7 +12,7 @@ _Last verified: 2026-07-16._
 
 | Library | Version | SHA-256 (local file) | Verified vs official |
 |---|---|---|---|
-| marked | 12.0.2 | `15fabce5b65898b32b03f5ed25e9f891a729ad4c0d6d877110a7744aa847a894` | ✅ identical to CDN |
+| marked | 18.0.6 (UMD) | `62ad5de5bea6d79b4c47e5c0b5cbe4be61e25ee8994595c2cc0969b2a144cc5d` | ✅ identical to CDN (`lib/marked.umd.js` — marked 18 ships no pre-minified single file; vendored as `marked.min.js`) |
 | KaTeX | 0.17.0 | `45fbe318fea878fdc0a111913dc1f87894b2c439360d0228c086ef313f213efc` | ✅ identical to CDN |
 | mermaid | 11.16.0 | `74d7c46dabca328c2294733910a8aa1ed0c37451776e8d5295da38a2b758fb9b` | ✅ identical to CDN |
 | Shiki | custom bundle (~1.x) | `f52bfbe8e7d17145858b82064d31befb5edd5bd467e9ca2d40decff3d0df27d8` | ⚠️ hand-rolled IIFE bundle — cannot single-file hash-verify (see Phase 2: rebuilt reproducibly via `tools/shiki-bundle/`) |

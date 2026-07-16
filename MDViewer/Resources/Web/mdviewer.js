@@ -103,17 +103,20 @@
             const headingsRef = [];
             const renderer = new marked.Renderer();
 
-            renderer.heading = function (text, level, raw) {
-                const anchor = slugify(typeof raw === 'string' ? raw : text);
-                headingsRef.push({ level: level, title: typeof raw === 'string' ? raw : text, anchor: anchor });
-                return `<h${level} id="${anchor}">${text}</h${level}>\n`;
+            // marked v5+ passes a single token object to renderer methods.
+            renderer.heading = function (token) {
+                const inner = this.parser.parseInline(token.tokens);
+                const anchor = slugify(token.text);
+                headingsRef.push({ level: token.depth, title: token.text, anchor: anchor });
+                return `<h${token.depth} id="${anchor}">${inner}</h${token.depth}>\n`;
             };
 
-            renderer.code = function (code, lang) {
+            renderer.code = function (token) {
+                const lang = (token.lang || '').trim().split(/\s+/)[0];
                 if (lang === 'mermaid') {
-                    return `<div class="mermaid">${escapeHtml(code)}</div>`;
+                    return `<div class="mermaid">${escapeHtml(token.text)}</div>`;
                 }
-                return highlightCode(code, lang);
+                return highlightCode(token.text, lang);
             };
 
             // Pre-process math: protect $...$ from marked parsing
