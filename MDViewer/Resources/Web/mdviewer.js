@@ -134,6 +134,18 @@
 
             let html = marked.parse(processed, { renderer: renderer });
 
+            // SECURITY: sanitize the user-controlled Markdown-derived HTML before
+            // inserting trusted KaTeX/Mermaid output. DOMPurify strips <script>,
+            // on* event handlers, javascript: URLs, etc. Math is restored AFTER
+            // this step so KaTeX's own markup is not stripped.
+            if (typeof DOMPurify !== 'undefined') {
+                html = DOMPurify.sanitize(html, {
+                    USE_PROFILES: { html: true, svg: true, svgFilters: true, mathMl: true },
+                    FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'link', 'meta', 'base', 'form'],
+                    FORBID_ATTR: ['srcset', 'formaction', 'ping']
+                });
+            }
+
             // Restore math
             if (typeof katex !== 'undefined') {
                 mathBlocks.forEach(function (m, i) {

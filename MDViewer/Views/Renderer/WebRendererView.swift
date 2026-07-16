@@ -90,9 +90,14 @@ struct WebRendererView: NSViewRepresentable {
                        ["md", "markdown"].contains(url.pathExtension.lowercased())
                     {
                         NotificationCenter.default.post(name: .openLocalDocument, object: url)
-                    } else {
+                    } else if let scheme = url.scheme?.lowercased(),
+                              ["http", "https", "mailto"].contains(scheme)
+                    {
                         NSWorkspace.shared.open(url)
                     }
+                    // SECURITY: ignore any other scheme (file:// to non-Markdown,
+                    // custom schemes, etc.). A malicious document must not be able
+                    // to make the app open/launch arbitrary handlers.
                 }
             default:
                 break
