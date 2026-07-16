@@ -13,8 +13,8 @@ _Last verified: 2026-07-16._
 | Library | Version | SHA-256 (local file) | Verified vs official |
 |---|---|---|---|
 | marked | 12.0.2 | `15fabce5b65898b32b03f5ed25e9f891a729ad4c0d6d877110a7744aa847a894` | ✅ identical to CDN |
-| KaTeX | 0.16.11 | `e6bfe5deebd4c7ccd272055bab63bd3ab2c73b907b6e6a22d352740a81381fd4` | ✅ identical to CDN |
-| mermaid | 10.9.5 | `616a109f19cd186842e11d45b35ac07456b3a75513310f6ea075351aa430b1e2` | ✅ identical to CDN |
+| KaTeX | 0.17.0 | `45fbe318fea878fdc0a111913dc1f87894b2c439360d0228c086ef313f213efc` | ✅ identical to CDN |
+| mermaid | 11.16.0 | `74d7c46dabca328c2294733910a8aa1ed0c37451776e8d5295da38a2b758fb9b` | ✅ identical to CDN |
 | Shiki | custom bundle (~1.x) | `f52bfbe8e7d17145858b82064d31befb5edd5bd467e9ca2d40decff3d0df27d8` | ⚠️ hand-rolled IIFE bundle — cannot single-file hash-verify (see Phase 2: rebuilt reproducibly via `tools/shiki-bundle/`) |
 | DOMPurify | 3.4.12 | `c45ba939765574f96cbf35ee9b6d89f73756a17921814425e74b82f7c54603ce` | ✅ identical to CDN (official Cure53 build) |
 
