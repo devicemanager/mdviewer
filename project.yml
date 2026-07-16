@@ -91,8 +91,10 @@ targets:
       # Properties MUST be listed here: XcodeGen regenerates this file on every
       # `xcodegen generate`, overwriting it with an empty dict if left unset.
       properties:
-        com.apple.security.app-sandbox: false
+        com.apple.security.app-sandbox: true
         com.apple.security.files.user-selected.read-write: true
+        com.apple.security.network.client: true
+        com.apple.security.files.bookmarks.app-scope: true
     scheme:
       testTargets:
         - MDViewerTests
