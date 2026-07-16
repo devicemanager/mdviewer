@@ -15,7 +15,7 @@ MDViewer started as a viewer — but we wanted editing too, so it now includes a
 - **Instant rendering** — opens and renders Markdown files immediately
 - **Live reload** — watches for file changes and re-renders as you save
 - **Table of contents** — auto-generated sidebar from headings with smooth scroll
-- **Syntax highlighting** — 27 languages via [Shiki v1](https://github.com/shikijs/shiki)
+- **Syntax highlighting** — 40 languages via [Shiki v4](https://github.com/shikijs/shiki)
 - **Math equations** — inline and block LaTeX via [KaTeX](https://github.com/KaTeX/KaTeX)
 - **Mermaid diagrams** — flowcharts, sequence diagrams, Gantt charts, and more
 - **Smart link handling** — local `.md` links open in-app; external links open in the browser
@@ -60,22 +60,23 @@ Build and run with ⌘R. No Swift Package dependencies — all vendor libraries 
 |-------|-----------|
 | UI framework | SwiftUI + AppKit |
 | Rendering engine | WKWebView |
-| Markdown parser | [marked](https://github.com/markedjs/marked) v12 |
-| Syntax highlighting | [Shiki](https://github.com/shikijs/shiki) v1 |
-| Math | [KaTeX](https://github.com/KaTeX/KaTeX) v0.16 |
-| Diagrams | [Mermaid](https://github.com/mermaid-js/mermaid) v10 |
+| Markdown parser | [marked](https://github.com/markedjs/marked) v18 |
+| Syntax highlighting | [Shiki](https://github.com/shikijs/shiki) v4 |
+| Math | [KaTeX](https://github.com/KaTeX/KaTeX) v0.17 |
+| Diagrams | [Mermaid](https://github.com/mermaid-js/mermaid) v11 |
 | File watching | `DispatchSource` (kqueue) |
 
 ## Open source libraries
 
-All bundled libraries are MIT licensed. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full license texts.
+All bundled libraries are permissively licensed (MIT, except DOMPurify which is Apache-2.0 / MPL-2.0). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full license texts.
 
 | Library | Version | License |
 |---------|---------|---------|
-| marked | 12.0.2 | MIT |
-| Shiki | 1.x | MIT |
-| KaTeX | 0.16.11 | MIT |
-| Mermaid | 10.x | MIT |
+| marked | 18.0.6 | MIT |
+| Shiki | 4.3.1 | MIT |
+| KaTeX | 0.17.0 | MIT |
+| Mermaid | 11.16.0 | MIT |
+| DOMPurify | 3.4.12 | Apache-2.0 / MPL-2.0 |
 
 ## Credits
 
