@@ -65,12 +65,28 @@ final class LocalSchemeHandler: NSObject, WKURLSchemeHandler {
         do {
             let data = try Data(contentsOf: fileURL)
             let mimeType = mimeType(for: fileURL.pathExtension)
-            let response = URLResponse(
+            var headers = [
+                "Content-Type": mimeType,
+                "Content-Length": String(data.count),
+            ]
+            // Enforce a strict Content-Security-Policy on the rendered document via
+            // a response header. WKWebView does not reliably enforce a <meta> CSP,
+            // but it honors the header from a scheme-handled response. Local-only:
+            // no remote scripts/images/styles/connections. 'wasm-unsafe-eval' is
+            // required by Shiki's oniguruma WASM engine.
+            if mimeType == "text/html" {
+                headers["Content-Security-Policy"] =
+                    "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; "
+                    + "style-src 'self' 'unsafe-inline'; img-src 'self' mdviewer-local: data:; "
+                    + "font-src 'self' mdviewer-local: data:; connect-src 'self' mdviewer-local:; "
+                    + "base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'"
+            }
+            let response = HTTPURLResponse(
                 url: url,
-                mimeType: mimeType,
-                expectedContentLength: data.count,
-                textEncodingName: nil
-            )
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: headers
+            )!
             urlSchemeTask.didReceive(response)
             urlSchemeTask.didReceive(data)
             urlSchemeTask.didFinish()
@@ -97,6 +113,7 @@ final class LocalSchemeHandler: NSObject, WKURLSchemeHandler {
         case "woff": "font/woff"
         case "woff2": "font/woff2"
         case "ttf": "font/ttf"
+        case "wasm": "application/wasm"
         default: "application/octet-stream"
         }
     }

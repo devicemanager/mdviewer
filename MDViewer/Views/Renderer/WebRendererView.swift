@@ -25,11 +25,10 @@ struct WebRendererView: NSViewRepresentable {
         contentController.add(context.coordinator, name: "linkClicked")
         config.userContentController = contentController
 
-        // Register custom scheme for local images
+        // Register the custom scheme for the renderer, its vendored assets, and
+        // the document's local images. Serving everything through this scheme
+        // gives the WebView a non-file origin where renderer.html's CSP is enforced.
         config.setURLSchemeHandler(context.coordinator.schemeHandler, forURLScheme: "mdviewer-local")
-
-        // Allow local file access
-        config.preferences.setValue(true, forKey: "allowFileAccessFromFileURLs")
 
         let webView = WKWebView(frame: .zero, configuration: config)
         webView.allowsLinkPreview = false
@@ -40,6 +39,9 @@ struct WebRendererView: NSViewRepresentable {
         renderVM.webView = webView
         renderVM.schemeHandler = context.coordinator.schemeHandler
 
+        // Point the scheme handler at the bundle's Web resources so it can serve
+        // renderer.html + vendored JS/CSS through mdviewer-local://bundle/.
+        context.coordinator.schemeHandler.bundleResourceDirectory = HTMLBuilder.webResourcesDirectory()
         loadRenderer(webView: webView)
 
         return webView
@@ -50,11 +52,10 @@ struct WebRendererView: NSViewRepresentable {
     }
 
     private func loadRenderer(webView: WKWebView) {
-        guard let rendererURL = HTMLBuilder.rendererURL(),
-              let resourcesDir = HTMLBuilder.webResourcesDirectory()
-        else { return }
-
-        webView.loadFileURL(rendererURL, allowingReadAccessTo: resourcesDir)
+        // Load through the custom scheme (NOT loadFileURL) so the origin is
+        // mdviewer-local://bundle and the renderer's CSP is enforced.
+        guard let rendererURL = URL(string: "mdviewer-local://bundle/renderer.html") else { return }
+        webView.load(URLRequest(url: rendererURL))
     }
 
     // MARK: - Coordinator

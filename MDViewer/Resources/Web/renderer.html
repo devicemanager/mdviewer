@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- SECURITY: local-only by default. No remote scripts/styles/images/connections.
+         'wasm-unsafe-eval' is required by Shiki's oniguruma WASM engine. Remote
+         images are intentionally excluded from img-src (Phase 3 adds an opt-in). -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' mdviewer-local: data:; font-src 'self' mdviewer-local: data:; connect-src 'self' mdviewer-local:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'">
     <title>MDViewer</title>
 
     <!-- Vendor: KaTeX -->
