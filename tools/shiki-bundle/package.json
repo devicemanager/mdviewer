@@ -1,0 +1,9 @@
+{
+  "name": "mdviewer-shiki-bundle",
+  "private": true,
+  "type": "module",
+  "description": "Dev-only: bundles Shiki 4 + selected languages/themes into ../../MDViewer/Resources/Web/vendor/shiki.bundle.js. Not shipped in the app; see SUPPLY_CHAIN.md.",
+  "dependencies": {
+    "shiki": "^4.3.1"
+  }
+}
