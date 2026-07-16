@@ -30,6 +30,10 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
 
     override func loadView() {
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 800, height: 600))
+        // Layer-back the container: Quick Look hosts this view out-of-process, and
+        // without a backing layer WebKit never composites the rendered content to
+        // the host — the preview stays blank even though the DOM renders fine.
+        container.wantsLayer = true
 
         let config = WKWebViewConfiguration()
 
@@ -135,6 +139,69 @@ final class PreviewViewController: NSViewController, QLPreviewingController {
         completion = nil
     }
 
+    // MARK: - Snapshot rendering
+
+    private var didSnapshot = false
+
+    /// Wait until web fonts (KaTeX) have loaded, then snapshot the full document.
+    private func snapshotDocumentAndFinish(attempt: Int = 0) {
+        guard !didComplete, !didSnapshot else { return }
+        webView.evaluateJavaScript("(document.fonts && document.fonts.status) || 'loaded'") { [weak self] status, _ in
+            guard let self = self, !self.didComplete, !self.didSnapshot else { return }
+            if (status as? String) != "loaded", attempt < 20 {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { self.snapshotDocumentAndFinish(attempt: attempt + 1) }
+                return
+            }
+            self.performSnapshot()
+        }
+    }
+
+    private func performSnapshot() {
+        guard !didComplete, !didSnapshot else { return }
+        didSnapshot = true
+        let width = max(view.bounds.width, 1)
+        // Measure the full laid-out document height so the snapshot includes all of it.
+        webView.evaluateJavaScript("Math.ceil(Math.max(document.body.scrollHeight, document.documentElement.scrollHeight))") { [weak self] result, _ in
+            guard let self = self else { return }
+            var height = self.view.bounds.height
+            if let n = result as? NSNumber { height = CGFloat(truncating: n) }
+            height = min(max(height, self.view.bounds.height), 20000) // clamp pathological heights
+            // Grow the web view to the full content height so the whole document renders.
+            self.webView.frame = NSRect(x: 0, y: 0, width: width, height: height)
+            let cfg = WKSnapshotConfiguration()
+            cfg.rect = CGRect(x: 0, y: 0, width: width, height: height)
+            self.webView.takeSnapshot(with: cfg) { [weak self] image, _ in
+                guard let self = self else { return }
+                if let image = image {
+                    self.displaySnapshot(image, width: width, height: height)
+                }
+                self.finish(with: nil)
+            }
+        }
+    }
+
+    /// Show the rendered bitmap in a scroll view and hide the live web view.
+    private func displaySnapshot(_ image: NSImage, width: CGFloat, height: CGFloat) {
+        let scroll = NSScrollView(frame: view.bounds)
+        scroll.autoresizingMask = [.width, .height]
+        scroll.hasVerticalScroller = true
+        scroll.hasHorizontalScroller = false
+        scroll.drawsBackground = false
+        scroll.scrollerStyle = .overlay
+
+        let docView = FlippedView(frame: NSRect(x: 0, y: 0, width: width, height: height))
+        let imageView = NSImageView(frame: NSRect(x: 0, y: 0, width: width, height: height))
+        imageView.imageScaling = .scaleAxesIndependently
+        imageView.imageAlignment = .alignTop
+        imageView.image = image
+        imageView.autoresizingMask = [.width]
+        docView.addSubview(imageView)
+
+        scroll.documentView = docView
+        webView.isHidden = true
+        view.addSubview(scroll)
+    }
+
     private func escapeForJS(_ text: String) -> String {
         text
             .replacingOccurrences(of: "\\", with: "\\\\")
@@ -168,7 +235,11 @@ extension PreviewViewController: WKNavigationDelegate {
 extension PreviewViewController: WKScriptMessageHandler {
     func userContentController(_: WKUserContentController, didReceive message: WKScriptMessage) {
         if message.name == "renderComplete" {
-            finish(with: nil)
+            // Render the document to a static image rather than relying on the live
+            // web view: Quick Look hosts this view out-of-process, where WKWebView
+            // compositing is unreliable (intermittently blank). A snapshot is
+            // deterministic.
+            snapshotDocumentAndFinish()
         }
     }
 }
@@ -185,4 +256,10 @@ private final class WeakMessageProxy: NSObject, WKScriptMessageHandler {
     func userContentController(_ controller: WKUserContentController, didReceive message: WKScriptMessage) {
         target?.userContentController(controller, didReceive: message)
     }
+}
+
+/// Top-anchored document view so the snapshot scroll view starts at the top of
+/// the document (AppKit's default coordinate origin is bottom-left).
+private final class FlippedView: NSView {
+    override var isFlipped: Bool { true }
 }
