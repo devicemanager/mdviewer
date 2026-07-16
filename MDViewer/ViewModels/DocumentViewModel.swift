@@ -10,6 +10,7 @@ final class DocumentViewModel: ObservableObject {
     @Published var isDirty: Bool = false
 
     @AppStorage("lastOpenedBookmark") private var lastOpenedBookmarkData: Data = .init()
+    @AppStorage("lastOpenedScoped") private var lastOpenedScoped: Bool = false
 
     private let fileWatcher = FileWatcher()
 
@@ -81,19 +82,32 @@ final class DocumentViewModel: ObservableObject {
     func restoreLastOpened() {
         guard !lastOpenedBookmarkData.isEmpty else { return }
         var isStale = false
-        if let url = try? URL(
+        let options: URL.BookmarkResolutionOptions = lastOpenedScoped ? .withSecurityScope : []
+        guard let url = try? URL(
             resolvingBookmarkData: lastOpenedBookmarkData,
-            options: [],
+            options: options,
             relativeTo: nil,
             bookmarkDataIsStale: &isStale
-        ) {
-            load(url: url)
+        ) else { return }
+        // Under the sandbox a security-scoped bookmark must be activated before the
+        // file (and its watcher) can be accessed after a cold relaunch. Held for
+        // the session; the process exit releases it.
+        if lastOpenedScoped {
+            _ = url.startAccessingSecurityScopedResource()
         }
+        load(url: url)
     }
 
     private func saveLastOpened(url: URL) {
-        if let data = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+        // Prefer an app-scoped, security-scoped bookmark so the last file reopens
+        // with access after a cold relaunch under the sandbox; fall back to a plain
+        // bookmark if the security-scoped variant can't be created.
+        if let data = try? url.bookmarkData(options: .withSecurityScope, includingResourceValuesForKeys: nil, relativeTo: nil) {
             lastOpenedBookmarkData = data
+            lastOpenedScoped = true
+        } else if let data = try? url.bookmarkData(options: [], includingResourceValuesForKeys: nil, relativeTo: nil) {
+            lastOpenedBookmarkData = data
+            lastOpenedScoped = false
         }
     }
 }
