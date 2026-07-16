@@ -16,6 +16,9 @@ final class ExportViewModel: ObservableObject {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.pdf]
         panel.nameFieldStringValue = "\(baseName(for: sourceURL)).pdf"
+        // Default to the document's own folder (nicer than the sandbox container
+        // default, which is where exports otherwise "disappear" to).
+        if let dir = sourceURL?.deletingLastPathComponent() { panel.directoryURL = dir }
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
@@ -62,6 +65,8 @@ final class ExportViewModel: ObservableObject {
         let panel = NSSavePanel()
         panel.allowedContentTypes = [.html]
         panel.nameFieldStringValue = "\(baseName(for: sourceURL)).html"
+        // Default to the document's own folder (see exportToPDF).
+        if let dir = sourceURL?.deletingLastPathComponent() { panel.directoryURL = dir }
 
         guard panel.runModal() == .OK, let url = panel.url else { return }
 
