@@ -6,6 +6,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [1.2.1] — 2026-07-17
+
+### Added
+- Third-party open-source license and copyright notices (marked, Shiki, KaTeX, Mermaid, DOMPurify) are now shown in the About panel's Credits area (**App menu → About MDViewer**), along with a copyright line — so the notices ship inside the app, not only in the repository.
+
+---
+
+## [1.2.0] — 2026-07-16
+
+### Added
+- **Privacy — remote content policy**: remote (`http`/`https`) images are gated by a policy you control in **Preferences → Privacy** — **Ask** (prompt per document), **Always**, or **Never**.
+- **On-demand folder access**: documents that reference local images prompt to grant access to their folder (remembered per folder), so relative images render under the sandbox without exposing your whole disk.
+
+### Security
+- The app now runs inside the **macOS App Sandbox** (with the `network.client` entitlement for opt-in remote images and security-scoped bookmarks for file access — the last-opened document reliably reopens across launches).
+- Rendered Markdown is sanitized with **DOMPurify** before insertion; a strict **Content-Security-Policy** is enforced via a response header; the renderer is served through a custom local scheme (no `file://` origin); and clicked links are restricted to `http`/`https`/`mailto` and local Markdown.
+- Quick Look always blocks remote content.
+
+### Changed
+- **Dependency updates**: marked 12 → 18.0.6, KaTeX 0.16.11 → 0.17.0, Mermaid 10.9.5 → 11.16.0; syntax highlighting rebuilt from official Shiki 4.3.1 (27 → 40 languages).
+- **Quick Look** previews re-architected to render reliably as a static snapshot.
+
+---
+
 ## [1.1.3] — 2026-07-15
 
 ### Added
