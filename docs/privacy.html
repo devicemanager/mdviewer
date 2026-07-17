@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MDViewer — Privacy Policy</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { max-width: 720px; margin: 3rem auto; padding: 0 1.25rem;
+         font: 16px/1.7 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         color: #222; }
+  @media (prefers-color-scheme: dark) { body { color: #ddd; background: #0d1117; } a { color: #6ea8ff; } }
+  h1 { font-size: 1.8rem; } h2 { font-size: 1.2rem; margin-top: 2rem; }
+  code { font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: .9em; }
+  .muted { color: #888; font-size: .9rem; }
+</style>
+</head>
+<body>
+  <h1>MDViewer — Privacy Policy</h1>
+  <p class="muted">Last updated: 2026-07-17</p>
+
+  <p><strong>MDViewer does not collect, store, transmit, or sell any personal data.</strong>
+     There are no accounts, no analytics, no tracking, no advertising, and no telemetry of any kind.</p>
+
+  <h2>What MDViewer does</h2>
+  <p>MDViewer renders Markdown files entirely <strong>on your Mac</strong>. Parsing, syntax
+     highlighting, math, and diagrams all run locally inside the app. The app has no servers
+     and never sends your documents, filenames, or usage anywhere.</p>
+
+  <h2>Files</h2>
+  <p>MDViewer runs in the macOS App Sandbox and only accesses files you explicitly open, plus —
+     with your permission — the folder of a document that references local images. It does not
+     scan or read anything else on your disk.</p>
+
+  <h2>Network access</h2>
+  <p>By default MDViewer makes <strong>no</strong> network connections. It contacts the network
+     only when a document you open references a remote (<code>http</code>/<code>https</code>)
+     image <em>and</em> you allow it via <strong>Preferences → Privacy</strong> (the default is to
+     ask). When you allow it, your Mac fetches those images directly from the servers that host
+     them — the same as any web page loading an image — which discloses your IP address to those
+     third-party servers. MDViewer itself receives nothing and stores nothing about this.</p>
+
+  <h2>Third-party services</h2>
+  <p>None. MDViewer bundles open-source rendering libraries (marked, Shiki, KaTeX, Mermaid,
+     DOMPurify) that run locally; none of them phone home.</p>
+
+  <h2>Children</h2>
+  <p>MDViewer is rated 4+ and collects no data from anyone, including children.</p>
+
+  <h2>Changes</h2>
+  <p>If this policy ever changes, the updated version will be posted at this URL.</p>
+
+  <h2>Contact</h2>
+  <p>Questions: open an issue at
+     <a href="https://github.com/devicemanager/mdviewer">github.com/devicemanager/mdviewer</a>.</p>
+</body>
+</html>
