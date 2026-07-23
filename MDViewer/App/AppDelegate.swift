@@ -13,7 +13,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_: NSApplication) -> Bool {
-        false
+        // Single main-window viewer: when the user closes the last window there is
+        // no separate UI to reopen it, so quit rather than leaving the app running
+        // headless with no way back (App Store Guideline 4.0 / macOS HIG).
+        true
     }
 
     func application(_: NSApplication, open urls: [URL]) {

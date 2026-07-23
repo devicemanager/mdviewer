@@ -70,12 +70,55 @@ final class DocumentViewModel: ObservableObject {
     }
 
     func save() {
-        guard let url = fileURL else { return }
+        guard let url = fileURL else {
+            // No backing file yet (e.g. content typed in the editor): offer a
+            // standard Save dialog so the user picks a real, accessible location
+            // rather than the write silently going nowhere.
+            saveAs()
+            return
+        }
+        writeDocument(to: url, adoptAsCurrent: false)
+    }
+
+    /// Saves the current text to a user-chosen location via the standard macOS
+    /// Save panel (Powerbox), then adopts that file as the working document.
+    func saveAs() {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.markdown, .plainText]
+        panel.nameFieldStringValue = fileURL?.lastPathComponent ?? "Untitled.md"
+        panel.canCreateDirectories = true
+        panel.isExtensionHidden = false
+        // Start in the current document's folder when we have one; otherwise leave
+        // the directory unset so Powerbox defaults to the user's real Documents
+        // folder (never the hidden sandbox container).
+        if let dir = fileURL?.deletingLastPathComponent() {
+            panel.directoryURL = dir
+        }
+
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        writeDocument(to: url, adoptAsCurrent: true)
+    }
+
+    /// Writes the current `text` to a user-accessible `url`. When
+    /// `adoptAsCurrent` is true the file becomes the working document (used by
+    /// Save As and by saving freshly-typed content). Returns whether the write
+    /// succeeded. Extracted from `save()`/`saveAs()` so the persistence logic can
+    /// be unit-tested without presenting an `NSSavePanel`.
+    @discardableResult
+    func writeDocument(to url: URL, adoptAsCurrent: Bool) -> Bool {
         do {
             try text.write(to: url, atomically: true, encoding: .utf8)
+            if adoptAsCurrent {
+                fileURL = url
+                fileWatcher.start(url: url)
+                BookmarkManager.shared.save(url: url)
+                saveLastOpened(url: url)
+            }
             isDirty = false
+            return true
         } catch {
             errorMessage = error.localizedDescription
+            return false
         }
     }
 

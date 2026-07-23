@@ -58,6 +58,9 @@ struct ContentView: View {
         .onReceive(NotificationCenter.default.publisher(for: .saveFile)) { _ in
             documentVM.save()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .saveFileAs)) { _ in
+            documentVM.saveAs()
+        }
         .onReceive(NotificationCenter.default.publisher(for: .toggleEditorMode)) { _ in
             isEditorMode.toggle()
         }
@@ -183,6 +186,7 @@ extension Notification.Name {
     static let openFile = Notification.Name("MDViewer.openFile")
     static let reloadFile = Notification.Name("MDViewer.reloadFile")
     static let saveFile = Notification.Name("MDViewer.saveFile")
+    static let saveFileAs = Notification.Name("MDViewer.saveFileAs")
     static let toggleSidebar = Notification.Name("MDViewer.toggleSidebar")
     static let toggleEditorMode = Notification.Name("MDViewer.toggleEditorMode")
 }

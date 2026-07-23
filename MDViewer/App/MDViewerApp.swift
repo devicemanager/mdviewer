@@ -37,6 +37,11 @@ struct MDViewerApp: App {
                     NotificationCenter.default.post(name: .saveFile, object: nil)
                 }
                 .keyboardShortcut("s", modifiers: .command)
+
+                Button("Save As…") {
+                    NotificationCenter.default.post(name: .saveFileAs, object: nil)
+                }
+                .keyboardShortcut("s", modifiers: [.command, .shift])
             }
 
             CommandMenu("View") {
@@ -50,7 +55,7 @@ struct MDViewerApp: App {
                 Button("Toggle Sidebar") {
                     NotificationCenter.default.post(name: .toggleSidebar, object: nil)
                 }
-                .keyboardShortcut("s", modifiers: [.command, .shift])
+                .keyboardShortcut("s", modifiers: [.command, .control])
 
                 Button("Find…") {
                     NotificationCenter.default.post(name: .showSearchBar, object: nil)

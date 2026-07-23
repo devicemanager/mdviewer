@@ -1,4 +1,5 @@
 import XCTest
+import AppKit
 @testable import MDViewer
 
 @MainActor
@@ -91,5 +92,42 @@ final class ExportViewModelTests: XCTestCase {
 
         // Assert
         XCTAssertEqual(result, "my file")
+    }
+
+    // MARK: - mutablePrintInfo()
+    //
+    // These verify the crash-safe seam that replaced the `as!` force-cast on the
+    // print/export paths. They deliberately do NOT build an NSPrintOperation from
+    // a bare WKWebView: doing so on a content-less, window-less web view produces
+    // a degenerate operation that traps when inspected (the earlier test-host
+    // crash). Exercising the print-info factory alone is sufficient and safe.
+
+    func test_mutablePrintInfo_returnsAnInstance() {
+        // Act
+        let info = ExportViewModel.mutablePrintInfo()
+
+        // Assert — a usable NSPrintInfo is returned (never traps, never nil).
+        XCTAssertNotNil(info.dictionary())
+    }
+
+    func test_mutablePrintInfo_isIndependentOfShared() {
+        // Act — the copy must not be the shared singleton, so callers can mutate
+        // it (margins, paper size, job disposition) without side effects.
+        let info = ExportViewModel.mutablePrintInfo()
+
+        // Assert
+        XCTAssertFalse(info === NSPrintInfo.shared)
+    }
+
+    func test_mutablePrintInfo_mutationDoesNotAffectShared() {
+        // Arrange
+        let originalLeftMargin = NSPrintInfo.shared.leftMargin
+
+        // Act — mutate the private copy the way exportToPDF does.
+        let info = ExportViewModel.mutablePrintInfo()
+        info.leftMargin = originalLeftMargin + 42
+
+        // Assert — the shared instance is untouched.
+        XCTAssertEqual(NSPrintInfo.shared.leftMargin, originalLeftMargin)
     }
 }
