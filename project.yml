@@ -1,6 +1,9 @@
 name: MDViewer
 options:
-  bundleIdPrefix: com.mdviewer
+  # App Store Connect registers the app under org.devicemanager.mdviewer (team
+  # 64G8P2LG44). All three targets set PRODUCT_BUNDLE_IDENTIFIER explicitly
+  # below; this prefix is kept in sync so any regenerated defaults also match.
+  bundleIdPrefix: org.devicemanager
   deploymentTarget:
     macOS: "14.0"
   xcodeVersion: "16.0"
@@ -29,7 +32,7 @@ targets:
         buildPhase: resources
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.mdviewer.app.qlextension
+        PRODUCT_BUNDLE_IDENTIFIER: org.devicemanager.mdviewer.qlextension
         SWIFT_VERSION: 5.9
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         CODE_SIGN_IDENTITY: "-"
@@ -76,7 +79,7 @@ targets:
           - $(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/ja.lproj
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.mdviewer.app
+        PRODUCT_BUNDLE_IDENTIFIER: org.devicemanager.mdviewer
         SWIFT_VERSION: 5.9
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         CODE_SIGN_IDENTITY: "-"
@@ -112,7 +115,7 @@ targets:
       - target: MDViewer
     settings:
       base:
-        PRODUCT_BUNDLE_IDENTIFIER: com.mdviewer.app.tests
+        PRODUCT_BUNDLE_IDENTIFIER: org.devicemanager.mdviewer.tests
         SWIFT_VERSION: 5.9
         MACOSX_DEPLOYMENT_TARGET: "14.0"
         GENERATE_INFOPLIST_FILE: "YES"
