@@ -33,6 +33,11 @@ rm -rf "${BUILD_DIR}"
 mkdir -p "${BUILD_DIR}"
 
 echo "==> Archiving ${SCHEME} (${CONFIG}) for App Store distribution…"
+# project.yml pins CODE_SIGN_IDENTITY="-" (ad-hoc) for the Developer ID / local
+# pipeline, where signing happens as a separate step. For the App Store archive
+# we override to automatic team signing so the archive records DEVELOPMENT_TEAM.
+# Without this the archive is ad-hoc and Xcode Organizer rejects it with
+# "No Team found in Archive" (and the resulting product fails App Store upload).
 xcodebuild \
   -project "${PROJECT}" \
   -scheme "${SCHEME}" \
@@ -40,6 +45,10 @@ xcodebuild \
   -destination 'generic/platform=macOS' \
   -archivePath "${ARCHIVE}" \
   DEVELOPMENT_TEAM="${TEAM_ID}" \
+  CODE_SIGN_STYLE=Automatic \
+  CODE_SIGN_IDENTITY="Apple Development" \
+  CODE_SIGNING_REQUIRED=YES \
+  CODE_SIGNING_ALLOWED=YES \
   archive -allowProvisioningUpdates
 
 echo "==> Exporting App Store package…"
