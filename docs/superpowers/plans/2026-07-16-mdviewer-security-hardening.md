@@ -1,6 +1,6 @@
 # MDViewer Security Hardening Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking. Execute **one phase at a time**, building + manually verifying the render pipeline before moving on.
+> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [x]`) syntax for tracking. Execute **one phase at a time**, building + manually verifying the render pipeline before moving on.
 
 **Goal:** Harden MDViewer against the audit findings (unsanitized-HTML XSS, remote-content exfiltration, no sandbox), update all vendored JS libraries to their latest verified versions, and add a user-controlled remote-content policy — all with **zero runtime phone-home**.
 
@@ -35,22 +35,22 @@
 
 **Files:** Create `MDViewer/Resources/Web/vendor/dompurify.min.js`, `SUPPLY_CHAIN.md`
 
-- [ ] **Step 1:** Download the official release and record its hash.
+- [x] **Step 1:** Download the official release and record its hash.
 ```bash
 V=3.2.4   # verify latest at https://registry.npmjs.org/dompurify/latest first
 cd MDViewer/Resources/Web/vendor
 /usr/bin/curl -sL "https://cdn.jsdelivr.net/npm/dompurify@$V/dist/purify.min.js" -o dompurify.min.js
 shasum -a 256 dompurify.min.js
 ```
-- [ ] **Step 2:** Add the version + SHA-256 to `SUPPLY_CHAIN.md`.
-- [ ] **Step 3:** Add `<script src="vendor/dompurify.min.js"></script>` to `renderer.html` **before** `mdviewer.js` (after mermaid).
-- [ ] **Step 4:** Commit.
+- [x] **Step 2:** Add the version + SHA-256 to `SUPPLY_CHAIN.md`.
+- [x] **Step 3:** Add `<script src="vendor/dompurify.min.js"></script>` to `renderer.html` **before** `mdviewer.js` (after mermaid).
+- [x] **Step 4:** Commit.
 
 ### Task 1.2: Sanitize marked output before innerHTML
 
 **Files:** Modify `MDViewer/Resources/Web/mdviewer.js` (`setContent`, ~line 135-156)
 
-- [ ] **Step 1:** After `let html = marked.parse(...)` and the KaTeX restore, sanitize before assignment. KaTeX emits MathML/SVG and mermaid source lives in `<div class="mermaid">` (raw text, rendered later), so allow SVG/MathML and the `class`/`id`/`style` needed:
+- [x] **Step 1:** After `let html = marked.parse(...)` and the KaTeX restore, sanitize before assignment. KaTeX emits MathML/SVG and mermaid source lives in `<div class="mermaid">` (raw text, rendered later), so allow SVG/MathML and the `class`/`id`/`style` needed:
 ```js
 const clean = DOMPurify.sanitize(html, {
     USE_PROFILES: { html: true, svg: true, svgFilters: true, mathMl: true },
@@ -61,17 +61,17 @@ const clean = DOMPurify.sanitize(html, {
 });
 contentEl.innerHTML = clean;
 ```
-- [ ] **Step 2:** Verify the `<div class="mermaid">…</div>` survives sanitization (mermaid runs after). If DOMPurify strips the raw diagram text, switch mermaid to render from a `data-` attribute set post-sanitize, or add `mermaid` to `ADD_TAGS`/keep as text node.
-- [ ] **Step 3 (verify):** Build + open a fixture `~/mdv-xss.md` containing:
+- [x] **Step 2:** Verify the `<div class="mermaid">…</div>` survives sanitization (mermaid runs after). If DOMPurify strips the raw diagram text, switch mermaid to render from a `data-` attribute set post-sanitize, or add `mermaid` to `ADD_TAGS`/keep as text node.
+- [x] **Step 3 (verify):** Build + open a fixture `~/mdv-xss.md` containing:
   `![x](x "t")` plus a raw `<img src=x onerror="window.webkit.messageHandlers.linkClicked.postMessage('file:///Applications/Calculator.app')">` and `<a href="javascript:alert(1)">j</a>`.
   Expected: no Calculator launch, `onerror`/`javascript:` stripped, normal Markdown + math + mermaid + code still render.
-- [ ] **Step 4:** Commit.
+- [x] **Step 4:** Commit.
 
 ### Task 1.3: Tighten the linkClicked native bridge
 
 **Files:** Modify `MDViewer/Views/Renderer/WebRendererView.swift` (`userContentController`, ~line 85-96)
 
-- [ ] **Step 1:** Restrict the programmatic-open path to safe schemes only (match the nav-delegate policy). Replace the `else { NSWorkspace.shared.open(url) }` with:
+- [x] **Step 1:** Restrict the programmatic-open path to safe schemes only (match the nav-delegate policy). Replace the `else { NSWorkspace.shared.open(url) }` with:
 ```swift
 case "linkClicked":
     guard let urlString = message.body as? String,
@@ -86,14 +86,14 @@ case "linkClicked":
         // else: ignore (do NOT open file:// non-md, custom schemes, etc.)
     }
 ```
-- [ ] **Step 2 (verify):** In the fixture, a `[x](file:///Applications/Calculator.app)` link click does nothing; `[g](https://example.com)` opens the browser; `[d](./other.md)` opens in-app.
-- [ ] **Step 3:** Commit.
+- [x] **Step 2 (verify):** In the fixture, a `[x](file:///Applications/Calculator.app)` link click does nothing; `[g](https://example.com)` opens the browser; `[d](./other.md)` opens in-app.
+- [x] **Step 3:** Commit.
 
 ### Task 1.4: Content-Security-Policy in renderer.html
 
 **Files:** Modify `MDViewer/Resources/Web/renderer.html` (`<head>`)
 
-- [ ] **Step 1:** Add a CSP meta. Shiki uses a WASM regex engine, so `'wasm-unsafe-eval'` is required; mermaid may need `'unsafe-eval'` (confirm in step 2). Start strict and loosen only as needed:
+- [x] **Step 1:** Add a CSP meta. Shiki uses a WASM regex engine, so `'wasm-unsafe-eval'` is required; mermaid may need `'unsafe-eval'` (confirm in step 2). Start strict and loosen only as needed:
 ```html
 <meta http-equiv="Content-Security-Policy" content="
   default-src 'none';
@@ -104,9 +104,9 @@ case "linkClicked":
   connect-src 'self' mdviewer-local:;
   base-uri 'none'; form-action 'none'; object-src 'none'">
 ```
-- [ ] **Step 2 (verify):** Build + open `test-all-elements.md`. Watch the Web Inspector console for CSP violations. If mermaid/shiki break, add the minimal directive they report (likely `'unsafe-eval'` for mermaid, or `wasm-unsafe-eval` already covers Shiki). Re-test until math + mermaid + highlighted code all render with **no** remote loads permitted.
-- [ ] **Step 3:** Confirm the remote-image line is intentionally omitted from `img-src` (remote images are already denied here — Phase 3 adds the opt-in). Note `img-src` currently blocks `https:` — this is the desired default-deny.
-- [ ] **Step 4:** Commit. **CHECKPOINT: review with user before Phase 2.**
+- [x] **Step 2 (verify):** Build + open `test-all-elements.md`. Watch the Web Inspector console for CSP violations. If mermaid/shiki break, add the minimal directive they report (likely `'unsafe-eval'` for mermaid, or `wasm-unsafe-eval` already covers Shiki). Re-test until math + mermaid + highlighted code all render with **no** remote loads permitted.
+- [x] **Step 3:** Confirm the remote-image line is intentionally omitted from `img-src` (remote images are already denied here — Phase 3 adds the opt-in). Note `img-src` currently blocks `https:` — this is the desired default-deny.
+- [x] **Step 4:** Commit. **CHECKPOINT: review with user before Phase 2.**
 
 ---
 
@@ -116,8 +116,8 @@ case "linkClicked":
 
 **Files:** Create `tools/shiki-bundle/{package.json,entry.mjs,build.sh}`; overwrite `vendor/shiki.bundle.js`
 
-- [ ] **Step 1:** Extract the exact language + theme set the current bundle ships (from the audit: themes github-light/github-dark; 27 langs). List them explicitly in `entry.mjs`.
-- [ ] **Step 2:** Create `entry.mjs` that reproduces the `window.__shikiReady` contract the renderer depends on (`.then(h => …)`, `h.getLoadedLanguages()`, `h.codeToHtml(code, {lang, themes:{light,dark}})`):
+- [x] **Step 1:** Extract the exact language + theme set the current bundle ships (from the audit: themes github-light/github-dark; 27 langs). List them explicitly in `entry.mjs`.
+- [x] **Step 2:** Create `entry.mjs` that reproduces the `window.__shikiReady` contract the renderer depends on (`.then(h => …)`, `h.getLoadedLanguages()`, `h.codeToHtml(code, {lang, themes:{light,dark}})`):
 ```js
 import { createHighlighter } from 'shiki';
 window.__shikiReady = createHighlighter({
@@ -125,16 +125,16 @@ window.__shikiReady = createHighlighter({
   langs: ['javascript','typescript','python', /* …the full 27… */]
 });
 ```
-- [ ] **Step 3:** `build.sh`: `npm i` then `npx esbuild entry.mjs --bundle --format=iife --minify --outfile=../../MDViewer/Resources/Web/vendor/shiki.bundle.js`. Run it; record the version (`shiki` from package-lock) + SHA-256 in `SUPPLY_CHAIN.md`.
-- [ ] **Step 4 (verify):** Build the app; confirm code blocks highlight in light/dark. If Shiki 4 changed `codeToHtml` options, update `mdviewer.js:highlightCode` accordingly (verify against Shiki 4 docs during this step).
-- [ ] **Step 5:** Commit `tools/shiki-bundle/` + the new bundle.
+- [x] **Step 3:** `build.sh`: `npm i` then `npx esbuild entry.mjs --bundle --format=iife --minify --outfile=../../MDViewer/Resources/Web/vendor/shiki.bundle.js`. Run it; record the version (`shiki` from package-lock) + SHA-256 in `SUPPLY_CHAIN.md`.
+- [x] **Step 4 (verify):** Build the app; confirm code blocks highlight in light/dark. If Shiki 4 changed `codeToHtml` options, update `mdviewer.js:highlightCode` accordingly (verify against Shiki 4 docs during this step).
+- [x] **Step 5:** Commit `tools/shiki-bundle/` + the new bundle.
 
 ### Task 2.2: Update marked to 18 + adapt the renderer API
 
 **Files:** Overwrite `vendor/marked.min.js`; modify `mdviewer.js` (`setContent` renderer)
 
-- [ ] **Step 1:** Download marked@latest (`marked.min.js`), record hash. Confirm exact latest via npm registry.
-- [ ] **Step 2:** marked ≥5 passes a **token object** to renderer methods. Rewrite the `heading`/`code` overrides (verify the exact token shape against the downloaded `marked.min.js`/its d.ts):
+- [x] **Step 1:** Download marked@latest (`marked.min.js`), record hash. Confirm exact latest via npm registry.
+- [x] **Step 2:** marked ≥5 passes a **token object** to renderer methods. Rewrite the `heading`/`code` overrides (verify the exact token shape against the downloaded `marked.min.js`/its d.ts):
 ```js
 renderer.heading = function (token) {                 // {tokens, depth, text, raw}
     const inner = this.parser.parseInline(token.tokens);
@@ -147,17 +147,17 @@ renderer.code = function (token) {                    // {text, lang, escaped}
     return highlightCode(token.text, token.lang);
 };
 ```
-- [ ] **Step 3 (verify):** Build; confirm headings/anchors/TOC, fenced code, and mermaid still render. Fix any other marked API drift (e.g., `marked.parse` option shape).
-- [ ] **Step 4:** Commit.
+- [x] **Step 3 (verify):** Build; confirm headings/anchors/TOC, fenced code, and mermaid still render. Fix any other marked API drift (e.g., `marked.parse` option shape).
+- [x] **Step 4:** Commit.
 
 ### Task 2.3: Update KaTeX 0.17 + mermaid 11
 
 **Files:** Overwrite `vendor/katex.min.js`, `vendor/katex.min.css`, `vendor/fonts/*` (if changed), `vendor/mermaid.min.js`
 
-- [ ] **Step 1:** Download KaTeX 0.17 dist (js+css+fonts) and mermaid 11 `mermaid.min.js`; record hashes. Re-verify each downloaded file's hash equals the CDN's.
-- [ ] **Step 2 (verify):** Build; confirm inline+block math and each mermaid diagram type render. mermaid 11 keeps `initialize`/`run`/`securityLevel`; if any config key moved, update `mdviewer.js`.
-- [ ] **Step 3:** Update the version numbers in `docs/index.html` (libraries table) + `docs/ja/index.html`.
-- [ ] **Step 4:** Commit. **CHECKPOINT: full render regression pass with user before Phase 3.**
+- [x] **Step 1:** Download KaTeX 0.17 dist (js+css+fonts) and mermaid 11 `mermaid.min.js`; record hashes. Re-verify each downloaded file's hash equals the CDN's.
+- [x] **Step 2 (verify):** Build; confirm inline+block math and each mermaid diagram type render. mermaid 11 keeps `initialize`/`run`/`securityLevel`; if any config key moved, update `mdviewer.js`.
+- [x] **Step 3:** Update the version numbers in `docs/index.html` (libraries table) + `docs/ja/index.html`.
+- [x] **Step 4:** Commit. **CHECKPOINT: full render regression pass with user before Phase 3.**
 
 ---
 
@@ -167,7 +167,7 @@ renderer.code = function (token) {                    // {text, lang, escaped}
 
 **Files:** Create `MDViewer/Models/RemoteContentPolicy.swift`, `MDViewer/Views/Preferences/PrivacyPrefsView.swift`; modify `PreferencesView.swift`
 
-- [ ] **Step 1:** Enum + shared key:
+- [x] **Step 1:** Enum + shared key:
 ```swift
 enum RemoteContentPolicy: String, CaseIterable, Identifiable {
     case ask, always, never
@@ -176,34 +176,34 @@ enum RemoteContentPolicy: String, CaseIterable, Identifiable {
     static let defaultsKey = "remoteContentPolicy"
 }
 ```
-- [ ] **Step 2:** `PrivacyPrefsView` with a `Picker` bound to `@AppStorage(RemoteContentPolicy.defaultsKey)` defaulting to `ask`; add the tab to `PreferencesView`.
-- [ ] **Step 3:** Commit.
+- [x] **Step 2:** `PrivacyPrefsView` with a `Picker` bound to `@AppStorage(RemoteContentPolicy.defaultsKey)` defaulting to `ask`; add the tab to `PreferencesView`.
+- [x] **Step 3:** Commit.
 
 ### Task 3.2: Gate remote subresources in the renderer (src-swap, no extra networking)
 
 **Files:** Modify `mdviewer.js`
 
-- [ ] **Step 1:** In `rewriteLocalResources`, for **absolute http(s)** `img[src]` (and `[srcset]`), stash the URL in `data-mdv-remote` and remove `src` unless the active policy is `always`. Track whether any were blocked.
-- [ ] **Step 2:** Add API: `MDViewer.setRemoteContentPolicy(p)` (stored in a module var, applied on render) and `MDViewer.loadRemoteResources()` (restore every `data-mdv-remote` → `src`). After render, if blocked-count > 0 and policy==='ask', `postMessage` `remoteContentBlocked` with the count.
-- [ ] **Step 3 (verify):** Fixture with `![r](https://httpbingo.org/image/png)` — with policy `never`/`ask` the image does not load (no network); `loadRemoteResources()` makes it load.
-- [ ] **Step 4:** Commit.
+- [x] **Step 1:** In `rewriteLocalResources`, for **absolute http(s)** `img[src]` (and `[srcset]`), stash the URL in `data-mdv-remote` and remove `src` unless the active policy is `always`. Track whether any were blocked.
+- [x] **Step 2:** Add API: `MDViewer.setRemoteContentPolicy(p)` (stored in a module var, applied on render) and `MDViewer.loadRemoteResources()` (restore every `data-mdv-remote` → `src`). After render, if blocked-count > 0 and policy==='ask', `postMessage` `remoteContentBlocked` with the count.
+- [x] **Step 3 (verify):** Fixture with `![r](https://httpbingo.org/image/png)` — with policy `never`/`ask` the image does not load (no network); `loadRemoteResources()` makes it load.
+- [x] **Step 4:** Commit.
 
 ### Task 3.3: App modal + policy wiring
 
 **Files:** Modify `WebRendererView.swift`, `RenderViewModel.swift`
 
-- [ ] **Step 1:** Register a `remoteContentBlocked` message handler. Inject `MDViewer.setRemoteContentPolicy('<policy>')` before `setContent` on each render.
-- [ ] **Step 2:** On `remoteContentBlocked` with policy `ask`: present an `NSAlert` ("This document contains remote content (images from the internet). Load it?", buttons Load / Don't Load / Always Load). Load → `evaluateJavaScript("MDViewer.loadRemoteResources()")`; Always → also set the policy to `always`.
-- [ ] **Step 3 (verify):** Open the remote fixture → modal appears once; Load shows the image; Don't Load keeps it blocked; Never (in prefs) suppresses the modal entirely.
-- [ ] **Step 4:** Commit.
+- [x] **Step 1:** Register a `remoteContentBlocked` message handler. Inject `MDViewer.setRemoteContentPolicy('<policy>')` before `setContent` on each render.
+- [x] **Step 2:** On `remoteContentBlocked` with policy `ask`: present an `NSAlert` ("This document contains remote content (images from the internet). Load it?", buttons Load / Don't Load / Always Load). Load → `evaluateJavaScript("MDViewer.loadRemoteResources()")`; Always → also set the policy to `always`.
+- [x] **Step 3 (verify):** Open the remote fixture → modal appears once; Load shows the image; Don't Load keeps it blocked; Never (in prefs) suppresses the modal entirely.
+- [x] **Step 4:** Commit.
 
 ### Task 3.4: Quick Look always-block
 
 **Files:** Modify `PreviewViewController.swift`
 
-- [ ] **Step 1:** Before `setContent`, inject `setRemoteContentPolicy('always')` **only if** the stored policy is `always`, else `'never'`. Never register a modal (QL has no prompt UI).
-- [ ] **Step 2 (verify):** Quick Look the remote fixture → image blocked unless the user's setting is `always`.
-- [ ] **Step 3:** Commit. **CHECKPOINT before Phase 4.**
+- [x] **Step 1:** Before `setContent`, inject `setRemoteContentPolicy('always')` **only if** the stored policy is `always`, else `'never'`. Never register a modal (QL has no prompt UI).
+- [x] **Step 2 (verify):** Quick Look the remote fixture → image blocked unless the user's setting is `always`.
+- [x] **Step 3:** Commit. **CHECKPOINT before Phase 4.**
 
 ---
 
@@ -213,17 +213,17 @@ enum RemoteContentPolicy: String, CaseIterable, Identifiable {
 
 **Files:** Modify `MDViewer/MDViewer.entitlements`
 
-- [ ] **Step 1:** Set `com.apple.security.app-sandbox` = `true`; keep `files.user-selected.read-write`; add `com.apple.security.network.client` (needed so WebKit can fetch remote content when the user allows it). 
-- [ ] **Step 2:** Commit.
+- [x] **Step 1:** Set `com.apple.security.app-sandbox` = `true`; keep `files.user-selected.read-write`; add `com.apple.security.network.client` (needed so WebKit can fetch remote content when the user allows it). 
+- [x] **Step 2:** Commit.
 
 ### Task 4.2: Fix + verify sandbox-affected flows
 
 **Files:** Likely `BookmarkManager.swift`, `FileWatcher.swift`, `DocumentViewModel.swift`, `ExportViewModel.swift`
 
-- [ ] **Step 1 (verify each):** Build + install, then test under sandbox: open via File→Open (security scope granted), drag-drop open, auto-reload on external edit (FileWatcher), Save (⌘S), Export PDF + HTML, recent/restore-last-file (security-scoped bookmark resolve). 
-- [ ] **Step 2:** For each broken flow, wrap file access in `url.startAccessingSecurityScopedResource()` / `stopAccessing…` and persist/resolve bookmarks via `BookmarkManager`. (FileWatcher must hold the scoped access for the file's lifetime.)
-- [ ] **Step 3 (verify):** Re-run the full flow list; confirm no sandbox denials in Console.app (`sandboxd`). Confirm remote-content loading still works when allowed.
-- [ ] **Step 4:** Commit. **CHECKPOINT: final review; then re-run `build-notarize.sh` + `package-dmg.sh` for a hardened release.**
+- [x] **Step 1 (verify each):** Build + install, then test under sandbox: open via File→Open (security scope granted), drag-drop open, auto-reload on external edit (FileWatcher), Save (⌘S), Export PDF + HTML, recent/restore-last-file (security-scoped bookmark resolve). 
+- [x] **Step 2:** For each broken flow, wrap file access in `url.startAccessingSecurityScopedResource()` / `stopAccessing…` and persist/resolve bookmarks via `BookmarkManager`. (FileWatcher must hold the scoped access for the file's lifetime.)
+- [x] **Step 3 (verify):** Re-run the full flow list; confirm no sandbox denials in Console.app (`sandboxd`). Confirm remote-content loading still works when allowed.
+- [x] **Step 4:** Commit. **CHECKPOINT: final review; then re-run `build-notarize.sh` + `package-dmg.sh` for a hardened release.**
 
 ---
 
