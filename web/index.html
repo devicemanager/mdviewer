@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#24292e">
+    <link rel="manifest" href="manifest.webmanifest">
+    <link rel="stylesheet" href="renderer/vendor/katex.min.css">
+    <link rel="stylesheet" href="renderer/mdviewer-base.css">
+    <link rel="stylesheet" href="src/styles.css">
+    <link rel="stylesheet" href="renderer/themes/github-light.css" id="theme-css">
+    <title>MDViewer</title>
+</head>
+<body>
+    <div id="toolbar">
+        <button id="btn-open" title="Open Markdown file">Open</button>
+        <button id="btn-open-folder" title="Open a folder and pick a file">Folder</button>
+        <button id="btn-theme" title="Toggle light/dark theme">Theme</button>
+        <label>Font <input id="font-size" type="range" min="12" max="28" step="1"></label>
+        <input id="search-box" type="search" placeholder="Find in document…">
+    </div>
+    <div id="layout">
+        <aside id="toc" aria-label="Table of contents"></aside>
+        <main id="content"></main>
+    </div>
+    <div id="statusbar"></div>
+
+    <!-- Bridge FIRST, then engine, then chrome -->
+    <script src="src/bridge.js"></script>
+    <script src="renderer/vendor/marked.min.js"></script>
+    <script src="renderer/vendor/shiki.bundle.js"></script>
+    <script src="renderer/vendor/katex.min.js"></script>
+    <script src="renderer/vendor/mermaid.min.js"></script>
+    <script src="renderer/vendor/dompurify.min.js"></script>
+    <script src="renderer/mdviewer.js"></script>
+    <script type="module" src="src/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,9 @@
+:root { --toolbar-height: 48px; }
+body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+#toolbar { display: flex; align-items: center; gap: 12px; height: var(--toolbar-height); padding: 0 16px; border-bottom: 1px solid #d0d7de; position: sticky; top: 0; background: #f6f8fa; z-index: 10; }
+#toolbar button, #toolbar label { font: inherit; }
+#font-size { width: 120px; }
+#search-box { margin-left: auto; width: 220px; }
+#layout { display: flex; gap: 16px; max-width: 1200px; margin: 0 auto; }
+#toc { width: 240px; flex: 0 0 240px; }
+#content { flex: 1; min-width: 0; }
