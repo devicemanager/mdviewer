@@ -1,4 +1,5 @@
 import { saveState } from './state.js';
+import { routeLink, openExternal } from './linkRouter.js';
 
 function renderToc(items) {
   const toc = document.getElementById('toc');
@@ -140,6 +141,14 @@ export function buildChrome(state) {
   buildSearch(document.getElementById('search-box'));
 
   window.addEventListener('mdv:headingsExtracted', (e) => renderToc(e.detail || []));
+
+  window.addEventListener('mdv:linkClicked', (e) => {
+    const href = String(e.detail || '');
+    routeLink(href).then((route) => {
+      if (route.type === 'external') openExternal(route.url);
+      // 'local' handled in app.js (Task 5 Step 5).
+    });
+  });
 
   document.getElementById('toc').addEventListener('click', (e) => {
     const a = e.target.closest('a[href^="#"]');

@@ -1,6 +1,8 @@
 import { loadState, saveState, currentDocument } from './state.js';
 import { buildChrome } from './chrome.js';
 import { openViaPicker, markdownFilesFromDataTransfer, fileToDocument, isMarkdownFile } from './markdownLoader.js';
+import { routeLink } from './linkRouter.js';
+import { resolvePathInDirectory } from './pathResolver.js';
 
 async function renderDocument(doc) {
   if (!doc) return;
@@ -8,6 +10,20 @@ async function renderDocument(doc) {
   currentDocument.text = doc.text;
   currentDocument.dirHandle = doc.dirHandle ?? null;
   await window.MDViewer.setContent(doc.text);
+}
+
+// Local .md navigation: resolve the relative target against the current
+// document's directory handle and render it in-app. Only active when a file
+// was opened through a folder handle (Task 6); single-file opens have no
+// directory handle, so local links are ignored.
+async function handleLinkClicked(href) {
+  if (!currentDocument.dirHandle) return;
+  const route = await routeLink(href);
+  if (route.type !== 'local') return;
+  const handle = await resolvePathInDirectory(currentDocument.dirHandle, route.name);
+  if (!handle) return;
+  const file = await handle.getFile();
+  await renderDocument({ name: handle.name, text: await file.text(), dirHandle: currentDocument.dirHandle });
 }
 
 // Empty-state (native app opens with no document). Content area shows a hint.
@@ -50,6 +66,8 @@ async function init() {
       }
     }
   });
+
+  window.addEventListener('mdv:linkClicked', (e) => handleLinkClicked(String(e.detail || '')));
 }
 
 init();
