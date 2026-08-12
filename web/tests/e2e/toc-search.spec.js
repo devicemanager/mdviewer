@@ -25,10 +25,29 @@ test('TOC lists headings and scrolling highlights the active one', async ({ page
 
 test('search box finds text in the rendered document', async ({ page }) => {
   await openFixture(page, 'test-all-elements.md');
-  const term = 'Headings';
-  await page.locator('#search-box').fill(term);
-  // window.find selects the next match; assert no error and that the document
-  // reports a match by checking the search box is still focused and the page
-  // is usable. (Exact match-count assertion is browser-dependent.)
-  await expect(page.locator('#search-box')).toBeFocused();
+  await page.locator('#search-box').fill('Headings');
+  await page.locator('#search-box').press('Enter');
+  // Heading "Headings" appears in the h2 title and the TOC; count the
+  // highlighted matches inside #content only.
+  const hits = page.locator('#content mark.mdv-hit');
+  await expect(hits.first()).toBeVisible();
+  await expect(page.locator('#statusbar')).toContainText('match');
+});
+
+test('search reports not-found for text absent from the document', async ({ page }) => {
+  await openFixture(page, 'test-all-elements.md');
+  await page.locator('#search-box').fill('zzzz-no-such-text');
+  await page.locator('#search-box').press('Enter');
+  await expect(page.locator('#statusbar')).toHaveText(/Not found/);
+  await expect(page.locator('#content mark.mdv-hit')).toHaveCount(0);
+});
+
+test('search highlights every occurrence across the document', async ({ page }) => {
+  await openFixture(page, 'test-all-elements.md');
+  await page.locator('#search-box').fill('the');
+  await page.locator('#search-box').press('Enter');
+  const allHits = await page.locator('#content mark.mdv-hit').count();
+  expect(allHits).toBeGreaterThan(1);
+  // Status reports the same count.
+  await expect(page.locator('#statusbar')).toContainText(`${allHits} matches`);
 });

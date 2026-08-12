@@ -5,5 +5,20 @@ body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sa
 #font-size { width: 120px; }
 #search-box { margin-left: auto; width: 220px; }
 #layout { display: flex; gap: 16px; max-width: 1200px; margin: 0 auto; }
-#toc { width: 240px; flex: 0 0 240px; }
+#toc { width: 240px; flex: 0 0 240px; position: sticky; top: 0; align-self: flex-start; max-height: 100vh; overflow-y: auto; }
 #content { flex: 1; min-width: 0; }
+@media (max-width: 720px) {
+  #layout { flex-direction: column; }
+  #toc { width: 100%; flex: none; position: static; max-height: 200px; order: 2; }
+}
+#statusbar { position: fixed; bottom: 0; left: 0; right: 0; padding: 4px 12px; font-size: 12px; opacity: 0.85; }
+#toc a { display: block; padding: 2px 8px; text-decoration: none; color: inherit; border-left: 2px solid transparent; }
+#toc a[data-level="1"] { font-weight: 600; }
+#toc a[data-level="2"] { padding-left: 20px; }
+#toc a[data-level="3"] { padding-left: 32px; }
+#toc a[data-level="4"] { padding-left: 44px; }
+#toc a[data-level="5"] { padding-left: 56px; }
+#toc a[data-level="6"] { padding-left: 68px; }
+#toc a.active { border-left-color: #0969da; color: #0969da; }
+mark.mdv-hit { background: #fff3b0; border-radius: 2px; padding: 0 1px; }
+mark.mdv-hit.current { background: #ffd33d; }

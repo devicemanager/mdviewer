@@ -29,6 +29,102 @@ function ensureTocObserver() {
   return tocObserver;
 }
 
+// Cross-browser searched text highlight. The native app relies on window.find
+// because the search field lives outside the WebView; in the web chrome the
+// search box is part of the same DOM, so window.find matches the query inside
+// the input itself (returns "found" for any typed text). A text-node scan is
+// deterministic here and gives visible match highlighting for free.
+const MARK_CLASS = 'mdv-hit';
+let hitEls = [];
+let currentHitIndex = 0;
+
+function clearHits() {
+  for (const el of hitEls) {
+    const parent = el.parentNode;
+    if (!parent) continue;
+    const text = document.createTextNode(el.textContent);
+    parent.replaceChild(text, el);
+    parent.normalize();
+  }
+  hitEls = [];
+  currentHitIndex = 0;
+}
+
+// Wrap one occurrence at [start, start+len) of `node` in a <mark>. Mutates the
+// DOM via splitText and returns the remainder text node for continued scanning.
+function insertHit(node, start, len) {
+  const tail = start > 0 ? node.splitText(start) : node;
+  const rest = len < tail.length ? tail.splitText(len) : null;
+  const mark = document.createElement('mark');
+  mark.className = MARK_CLASS;
+  tail.parentNode.replaceChild(mark, tail);
+  mark.appendChild(tail);
+  hitEls.push(mark);
+  return rest;
+}
+
+function performSearch(query) {
+  const status = document.getElementById('statusbar');
+  clearHits();
+  const q = query.trim().toLowerCase();
+  if (!q) { status.textContent = ''; return; }
+
+  const content = document.getElementById('content');
+  const walker = document.createTreeWalker(content, NodeFilter.SHOW_TEXT, {
+    acceptNode(node) {
+      if (node.parentElement && node.parentElement.closest('script, style, mark')) {
+        return NodeFilter.FILTER_REJECT;
+      }
+      return NodeFilter.FILTER_ACCEPT;
+    }
+  });
+
+  const nodes = [];
+  while (walker.nextNode()) nodes.push(walker.currentNode);
+
+  let count = 0;
+  for (const textNode of nodes) {
+    let node = textNode;
+    let lower = node.nodeValue.toLowerCase();
+    let idx = lower.indexOf(q);
+    while (idx !== -1) {
+      const tail = node.splitText(idx);           // node = before-q, tail = q + rest
+      const restOfTail = tail.splitText(q.length); // tail = exactly q, restOfTail = rest
+      const mark = document.createElement('mark');
+      mark.className = MARK_CLASS;
+      tail.parentNode.replaceChild(mark, tail); // mark contains exactly the match text
+      mark.appendChild(tail);
+      hitEls.push(mark);
+      count++;
+      node = restOfTail;
+      lower = node.nodeValue.toLowerCase();
+      idx = lower.indexOf(q);
+    }
+  }
+
+  if (count === 0) {
+    status.textContent = 'Not found';
+    return;
+  }
+  status.textContent = count === 1 ? `1 match for "${query.trim()}"` : `${count} matches for "${query.trim()}"`;
+  hitEls[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
+  hitEls[0].classList.add('current');
+}
+
+function buildSearch(input) {
+  let timer = null;
+  input.addEventListener('input', () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => performSearch(input.value), 250);
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      clearTimeout(timer);
+      performSearch(input.value);
+    }
+  });
+}
+
 export function buildChrome(state) {
   document.getElementById('btn-theme').addEventListener('click', () => {
     state.theme = state.theme.includes('dark') ? 'github-light' : 'github-dark';
@@ -40,6 +136,8 @@ export function buildChrome(state) {
     window.MDViewer.setFontSize(state.fontSize);
     saveState(state);
   });
+
+  buildSearch(document.getElementById('search-box'));
 
   window.addEventListener('mdv:headingsExtracted', (e) => renderToc(e.detail || []));
 
