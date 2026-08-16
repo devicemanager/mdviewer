@@ -1,8 +1,6 @@
 name: Build and Notarize macOS
 
 on:
-  push:
-    branches: [ main ]
   release:
     types: [ published ]
   workflow_dispatch:
@@ -22,7 +20,6 @@ jobs:
     runs-on: macos-latest
     env:
       TEAM_ID: ${{ secrets.TEAM_ID }}
-      APPLE_ID: ${{ secrets.APPLE_ID }}
       APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
       APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
       APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
@@ -42,21 +39,6 @@ jobs:
           security set-keychain-settings -t 3600 -l temp-build.keychain
           echo "$P12_BASE64" | base64 --decode > /tmp/developer_id.p12
           security import /tmp/developer_id.p12 -k ~/Library/Keychains/temp-build.keychain -P "$P12_PASSWORD" -T /usr/bin/codesign
-
-      - name: Store notarytool credentials in keychain
-        env:
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          TEAM_ID: ${{ secrets.TEAM_ID }}
-          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
-          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
-          APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
-        run: |
-          echo "$APPLE_API_KEY_P8" | base64 --decode > /tmp/AuthKey.p8
-          chmod 600 /tmp/AuthKey.p8
-          xcrun notarytool store-credentials "notarytool" \
-            --key /tmp/AuthKey.p8 \
-            --key-id "$APPLE_KEY_ID" \
-            --issuer "$APPLE_ISSUER_ID"
 
       - name: Clean
         run: |
@@ -91,8 +73,18 @@ jobs:
           ditto -c -k --sequesterRsrc --keepParent "${{ env.APP_PATH }}" "${{ env.ZIP_PATH }}"
 
       - name: Submit to notarytool and wait
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+          APPLE_KEY_ID: ${{ secrets.APPLE_KEY_ID }}
+          APPLE_ISSUER_ID: ${{ secrets.APPLE_ISSUER_ID }}
         run: |
-          xcrun notarytool submit "${{ env.ZIP_PATH }}" --keychain-profile "notarytool" --wait
+          echo "$APPLE_API_KEY_P8" | base64 --decode > /tmp/AuthKey.p8
+          chmod 600 /tmp/AuthKey.p8
+          xcrun notarytool submit "${{ env.ZIP_PATH }}" \
+            --key /tmp/AuthKey.p8 \
+            --key-id "$APPLE_KEY_ID" \
+            --issuer "$APPLE_ISSUER_ID" \
+            --wait --timeout 30m
 
       - name: Staple notarization ticket
         run: |
@@ -107,6 +99,11 @@ jobs:
         run: |
           xcrun stapler validate "${{ env.APP_PATH }}"
           spctl -a -vvv -t install "${{ env.APP_PATH }}" || true
+
+      - name: Clean up keychain
+        if: always()
+        run: |
+          security delete-keychain temp-build.keychain 2>/dev/null || true
 
       - name: Upload notarized artifact
         uses: actions/upload-artifact@v4
