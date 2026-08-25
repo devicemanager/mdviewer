@@ -140,7 +140,7 @@
                 } else {                                    // legacy (text, level)
                     level = b;
                     inner = a != null ? String(a) : '';
-                    plain = inner.replace(/<[^>]*>/g, '');
+                    plain = inner.replace(/[<>]/g, '');
                 }
                 const anchor = slugify(plain);
                 headingsRef.push({ level: level, title: plain, anchor: anchor });
