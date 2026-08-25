@@ -305,7 +305,17 @@
         // Load the remote resources that were blocked (restores their src).
         loadRemoteResources: function () {
             document.querySelectorAll('img[data-mdv-remote]').forEach(function (img) {
-                img.setAttribute('src', img.getAttribute('data-mdv-remote'));
+                const remoteSrc = img.getAttribute('data-mdv-remote');
+                if (remoteSrc) {
+                    try {
+                        const parsed = new URL(remoteSrc, document.baseURI);
+                        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+                            img.setAttribute('src', parsed.href);
+                        }
+                    } catch (e) {
+                        // Ignore invalid URLs.
+                    }
+                }
                 img.removeAttribute('data-mdv-remote');
             });
         }
