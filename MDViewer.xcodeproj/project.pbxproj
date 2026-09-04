@@ -208,6 +208,7 @@
 				E0A011FEB0BCDEC41E1C97E8 /* Web */,
 				BDB9A2515B53FE2F777EFA50 /* MDViewer */,
 				38C7FD30C909439930C45A63 /* MDViewerTests */,
+				E039BC8AE389E7E063700505 /* Renderer */,
 				A3A09998366E67EF5F85BFE3 /* Resources */,
 				09BD76EE28C792BB9AEEBF8B /* Products */,
 			);
@@ -275,7 +276,8 @@
 				835864959590EA058B2EBF10 /* MarkdownRenderView.swift */,
 				3F03734F45BD47E88B304D97 /* WebRendererView.swift */,
 			);
-			path = Renderer;
+			name = Renderer;
+			path = MDViewer/Views/Renderer;
 			sourceTree = "<group>";
 		};
 		FE8468F958FDA27BAA9582CF /* Preferences */ = {
@@ -308,7 +310,6 @@
 			buildConfigurationList = 449C7D9C6F506ACEB743E545 /* Build configuration list for PBXNativeTarget "MDViewer" */;
 			buildPhases = (
 				315F4B5453DD4E94AF9A3AE7 /* Sources */,
-				59F54D4BC8E52E23CD0BAF30 /* Copy Web Resources */,
 				F78AB5BC13761543249D21CD /* Resources */,
 				68857ED4AD826C25C801ABDB /* Frameworks */,
 				B54334E29F7EE302910DF3C1 /* Embed Foundation Extensions */,
@@ -370,6 +371,8 @@
 			attributes = {
 				BuildIndependentTargetsInParallel = YES;
 				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+				};
 			};
 			buildConfigurationList = 143BBF338B8553C13608D81A /* Build configuration list for PBXProject "MDViewer" */;
 			developmentRegion = en;
@@ -389,8 +392,8 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				9A5FCE18BDAE8C363B2A821C /* MDViewer */,
 				AF509F87022EBB7AA77B366C /* MDViewerQL */,
+				9A5FCE18BDAE8C363B2A821C /* MDViewer */,
 				9E50EFD011C50268C447D600 /* MDViewerTests */,
 			);
 		};
@@ -415,33 +418,6 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXResourcesBuildPhase section */
-
-/* Begin PBXShellScriptBuildPhase section */
-		59F54D4BC8E52E23CD0BAF30 /* Copy Web Resources */ = {
-			isa = PBXShellScriptBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-			);
-			inputFileListPaths = (
-			);
-			inputPaths = (
-				"$(SRCROOT)/MDViewer/Resources/Web",
-				"$(SRCROOT)/MDViewer/en.lproj",
-				"$(SRCROOT)/MDViewer/ja.lproj",
-			);
-			name = "Copy Web Resources";
-			outputFileListPaths = (
-			);
-			outputPaths = (
-				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/Web",
-				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/en.lproj",
-				"$(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/ja.lproj",
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-			shellPath = /bin/sh;
-			shellScript = "set -e\nDEST=\"${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Resources\"\nmkdir -p \"${DEST}\"\ncp -R \"${SRCROOT}/MDViewer/Resources/Web\" \"${DEST}/\"\ncp -R \"${SRCROOT}/MDViewer/en.lproj\" \"${DEST}/\"\ncp -R \"${SRCROOT}/MDViewer/ja.lproj\" \"${DEST}/\"\n";
-		};
-/* End PBXShellScriptBuildPhase section */
 
 /* Begin PBXSourcesBuildPhase section */
 		315F4B5453DD4E94AF9A3AE7 /* Sources */ = {
@@ -533,10 +509,8 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_ENTITLEMENTS = MDViewer/MDViewerQL/MDViewerQL.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_HARDENED_RUNTIME = NO;
 				INFOPLIST_FILE = MDViewer/MDViewerQL/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -545,8 +519,7 @@
 					"@executable_path/../../../../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				PRODUCT_BUNDLE_IDENTIFIER = org.devicemanager.mdviewer.MDViewerQL;
-				PROVISIONING_PROFILE_SPECIFIER = "";
+				PRODUCT_BUNDLE_IDENTIFIER = org.devicemanager.mdviewer.qlextension;
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 			};
@@ -585,11 +558,8 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = MDViewer/MDViewer.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_NS_ASSERTIONS = NO;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -603,7 +573,6 @@
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = YES;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SDKROOT = macosx;
 				SWIFT_COMPILATION_MODE = wholemodule;
@@ -618,7 +587,7 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
-				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
@@ -642,10 +611,8 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_ENTITLEMENTS = MDViewer/MDViewer.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_HARDENED_RUNTIME = NO;
 				INFOPLIST_FILE = MDViewer/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -653,9 +620,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = org.devicemanager.mdviewer;
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 			};
@@ -694,11 +659,8 @@
 				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
 				CLANG_WARN_UNREACHABLE_CODE = YES;
 				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				CODE_SIGN_ENTITLEMENTS = MDViewer/MDViewer.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
 				COPY_PHASE_STRIP = NO;
 				DEBUG_INFORMATION_FORMAT = dwarf;
-				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_STRICT_OBJC_MSGSEND = YES;
 				ENABLE_TESTABILITY = YES;
 				GCC_C_LANGUAGE_STANDARD = gnu11;
@@ -733,7 +695,7 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_ENTITLEMENTS = MDViewer/MDViewerQL/MDViewerQL.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
+				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
 				ENABLE_HARDENED_RUNTIME = NO;
 				INFOPLIST_FILE = MDViewer/MDViewerQL/Info.plist;
@@ -755,11 +717,8 @@
 				BUNDLE_LOADER = "$(TEST_HOST)";
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_HARDENED_RUNTIME = NO;
 				GENERATE_INFOPLIST_FILE = YES;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -769,7 +728,6 @@
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
 				PRODUCT_BUNDLE_IDENTIFIER = org.devicemanager.mdviewer.tests;
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MDViewer.app/Contents/MacOS/MDViewer";
@@ -783,10 +741,8 @@
 				CODE_SIGNING_ALLOWED = YES;
 				CODE_SIGNING_REQUIRED = NO;
 				CODE_SIGN_ENTITLEMENTS = MDViewer/MDViewer.entitlements;
-				CODE_SIGN_IDENTITY = "Apple Development";
-				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_IDENTITY = "-";
 				COMBINE_HIDPI_IMAGES = YES;
-				DEVELOPMENT_TEAM = 64G8P2LG44;
 				ENABLE_HARDENED_RUNTIME = NO;
 				INFOPLIST_FILE = MDViewer/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -794,9 +750,7 @@
 					"@executable_path/../Frameworks",
 				);
 				MACOSX_DEPLOYMENT_TARGET = 14.0;
-				MARKETING_VERSION = 1.2.2;
 				PRODUCT_BUNDLE_IDENTIFIER = org.devicemanager.mdviewer;
-				PROVISIONING_PROFILE_SPECIFIER = "";
 				SDKROOT = macosx;
 				SWIFT_VERSION = 5.9;
 			};
