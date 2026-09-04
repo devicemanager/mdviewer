@@ -44,18 +44,18 @@ struct MDViewerApp: App {
                 .keyboardShortcut("s", modifiers: [.command, .shift])
             }
 
-            CommandMenu("View") {
+            CommandGroup(after: .sidebar) {
+                Button("Toggle Sidebar (TOC)") {
+                    NotificationCenter.default.post(name: .toggleSidebar, object: nil)
+                }
+                .keyboardShortcut("b", modifiers: .command)
+
                 Button("Toggle Editor Mode") {
                     NotificationCenter.default.post(name: .toggleEditorMode, object: nil)
                 }
                 .keyboardShortcut("e", modifiers: .command)
 
                 Divider()
-
-                Button("Toggle Sidebar") {
-                    NotificationCenter.default.post(name: .toggleSidebar, object: nil)
-                }
-                .keyboardShortcut("s", modifiers: [.command, .control])
 
                 Button("Find…") {
                     NotificationCenter.default.post(name: .showSearchBar, object: nil)

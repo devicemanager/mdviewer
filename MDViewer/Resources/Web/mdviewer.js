@@ -11,6 +11,55 @@
         window.__shikiReady.then(function (h) { shikiHighlighter = h; });
     }
 
+    // -- Emoji plugin — :shortcode: → Unicode emoji conversion (marked.js inline renderer).
+    var emojiMap = {
+        '+1':'👍','-1':'✖️','white_check_mark':'✔️','grinning':'😀',
+        'smiley':'😃','smile':'😄','grin':'😁','laughing':'😆',
+        'sweat_smile':'😅','joy':'😂','wink':'😉','blush':'😊','yum':'😋',
+        'sunglasses':'😎','heart':'❤','orange_heart':'🧡','yellow_heart':'💛',
+        'green_heart':'💚','blue_heart':'💙','purple_heart':'💜',
+        'broken_heart':'💔','thinking':'🤔','neutral_face':'😐',
+        'expressionless':'😑','no_mouth':'😶','smirk':'😏','unamused':'😒',
+        'sweat':'😓','pensive':'😔','confused':'😕','confounded':'😖',
+        'kissing':'😗','kissing_heart':'😘','kissing_smiling_eyes':'😙',
+        'kissing_closed_eyes':'😚','stuck_out_tongue':'😛',
+        'stuck_out_tongue_winking_eye':'😜',
+        'stuck_out_tongue_closed_eyes':'😝','angry':'😠','rage':'😡',
+        'cry':'😢','persevere':'😣','triumph':'😤','disappointed':'😥',
+        'worried':'😟','zealous':'🥺','imp':'👿','skull':'💀',
+        'ghost':'👻','alien':'👽','robot':'🤖','poop':'💩',
+        'shushing_face':'🤭','notes':'🎶','muscle':'💪','hand_wave':'👋',
+        'raised_hands':'🙌','clap':'👏','writing_hand':'✍','pray':'🙏',
+        'rocket':'🚀','check_mark_button':'✔️','fire':'🔥',
+        'sparkles':'✨','star':'⭐','sunrise_over_mountains':'🌅',
+        'snowflake':'❄️','zap':'⚡','evergreen_tree':'🌲',
+        'deciduous_tree':'🌳','flower':'🌸','coffee':'☕','pizza':'🍕',
+        'beer':'🍺','musical_note':'🎵','calendar':'📅','lightbulb':'💡',
+        'email':'✉️','link':'🔗','eye':'👁','thumbs_up':'👍',
+        'thumbs_down':'👎','warning':'⚠️','lock':'🔒','open_lock':'🔓',
+        'gear':'⚙️','bookmark':'🔖','wrench':'🔧','clipboard':'📋',
+        'chart_with_upwards_trend':'📈','pencil':'✏️','package':'📦',
+        'telescope':'🔭','bell':'🔔','key':'🔑','money_with_wings':'💸',
+        'gift':'🎁','confetti_ball':'🎉','trophy':'🏆','medal':'🏅',
+        'megaphone':'📢','inbox_tray':'📥','telephone_receiver':'☎️',
+        'mobile_phone':'📱','laptop':'💻','desktop_computer':'🖥️',
+        'printer':'🖨️','keyboard':'⌨️','game_die':'🎲',
+        'watch':'⌚','tv':'📺','camera':'📷','movie_camera':'🎬',
+        'globe_showing_americas':'🌎','map':'🗺️','compass':'🧭'
+    };
+
+    // Helper to resolve emoji shortcode strings to Unicode characters.
+    // Returns the actual emoji character for known codes, or the original match
+    // if unknown. Handles the special cases mapped above.
+    function resolveEmoji(str) {
+        return str.replace(/:(\w[\w+]*):/g, function (_match, code) {
+            var emoji = emojiMap[code];
+            // Normalize multi-code emoji sequences (e.g. +1 → 👍)
+            if (emoji === '👍') return '👍';  // thumbs up
+            return emoji || _match;
+        });
+    }
+
     // -- Mermaid init (must run before DOMContentLoaded diagrams)
     if (typeof mermaid !== 'undefined') {
         mermaid.initialize({
@@ -209,6 +258,9 @@
                     }
                 });
             }
+
+            // Resolve :emoji: shorthand to actual Unicode emoji characters.
+            html = resolveEmoji(html);
 
             // Gate remote resources in the HTML string BEFORE insertion so they
             // never start loading.
