@@ -28,7 +28,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Create keychain and import Developer ID certificate
-        if: secrets.DEVELOPER_ID_P12 != ''
+        if: ${{ secrets.DEVELOPER_ID_P12 != '' }}
         env:
           P12_BASE64: ${{ secrets.DEVELOPER_ID_P12 }}
           P12_PASSWORD: ${{ secrets.DEVELOPER_ID_P12_PASSWORD }}
