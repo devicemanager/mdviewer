@@ -51,6 +51,6 @@ struct MarkdownTheme: Identifiable, Hashable, Codable {
         MarkdownTheme(id: "nord", displayName: "Nord", cssFileName: "nord", isDark: true),
     ]
 
-    static let githubLight = all[0]
-    static let githubDark = all[1]
+    static let githubLight = MarkdownTheme(id: "github-light", displayName: "GitHub Light", cssFileName: "github-light", isDark: false)
+    static let githubDark = MarkdownTheme(id: "github-dark", displayName: "GitHub Dark", cssFileName: "github-dark", isDark: true)
 }

@@ -13,8 +13,15 @@ struct ContentView: View {
     @AppStorage("isSidebarVisible") private var isSidebarVisible: Bool = true
     @AppStorage("isEditorMode") private var isEditorMode: Bool = false
 
+    @State private var sidebarVisibility = NavigationSplitViewVisibility.all
+
+    private var hasSidebar: Bool {
+        sidebarVisibility == .all
+    }
+
     var body: some View {
         NavigationSplitView(
+            columnVisibility: $sidebarVisibility,
             sidebar: {
                 SidebarView(sidebarVM: sidebarVM, renderVM: renderVM)
                     .frame(minWidth: 180, idealWidth: sidebarWidth, maxWidth: 400)
@@ -65,7 +72,7 @@ struct ContentView: View {
             isEditorMode.toggle()
         }
         .onReceive(NotificationCenter.default.publisher(for: .toggleSidebar)) { _ in
-            // NavigationSplitView handles its own sidebar toggle
+            toggleSidebar()
         }
         // Keyboard shortcuts via Commands are declared in MDViewerApp
         .navigationTitle(documentVM.fileURL?.lastPathComponent ?? "MDViewer")
@@ -84,6 +91,12 @@ struct ContentView: View {
             } else {
                 documentVM.restoreLastOpened()
             }
+        }
+    }
+
+    private func toggleSidebar() {
+        withAnimation {
+            sidebarVisibility = hasSidebar ? .detailOnly : .all
         }
     }
 }

@@ -22,7 +22,7 @@ PROJECT="MDViewer.xcodeproj"
 SCHEME="MDViewer"
 CONFIG="Release"
 APP_NAME="MDViewer"
-NOTARY_PROFILE="notarytool"
+NOTARY_PROFILE="64G8P2LG44"
 BUILD_DIR="build"
 
 # ---- Required environment -------------------------------------------------

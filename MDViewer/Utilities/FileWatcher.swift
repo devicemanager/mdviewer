@@ -12,7 +12,7 @@ final class FileWatcher {
     func start(url: URL) {
         stop()
 
-        fileDescriptor = open(url.path, O_EVTONLY)
+        fileDescriptor = open(url.path, O_RDONLY)
         guard fileDescriptor != -1 else { return }
 
         source = DispatchSource.makeFileSystemObjectSource(
