@@ -54,6 +54,50 @@ open MDViewer.xcodeproj
 
 Build and run with ⌘R. No Swift Package dependencies — all vendor libraries are bundled in `MDViewer/Resources/Web/vendor/`.
 
+### Distribution builds
+
+For distribution, use the provided build scripts in the repository root:
+
+#### Developer ID (notarized direct distribution)
+```sh
+./build-notarize.sh
+```
+
+**Prerequisites:**
+- Set `TEAM_ID` environment variable to your Apple Developer Team ID
+- Create a Keychain profile named `notarytool`:
+  ```sh
+  xcrun notarytool store-credentials "notarytool" \
+    --apple-id "$APPLE_ID" --team-id "$TEAM_ID"
+  ```
+
+**Output:** `build/MDViewer.zip` — ready to upload to GitHub Releases
+
+#### Mac App Store
+```sh
+./build-appstore.sh
+```
+
+**Prerequisites:**
+- Bundle IDs must be registered in Apple Developer account:
+  - `org.devicemanager.mdviewer`
+  - `org.devicemanager.mdviewer.qlextension`
+- App record created in App Store Connect
+- Signing handled automatically via Xcode (requires being logged in)
+
+**Note:** This script requires recent Xcode project configuration updates. Test thoroughly before submission.
+
+**Output:** `build/appstore/export/MDViewer.pkg` — upload to App Store Connect via Transporter.app or Xcode Organizer
+
+#### DMG packaging (optional)
+After running `build-notarize.sh`, create a polished DMG:
+```sh
+brew install create-dmg
+./package-dmg.sh
+```
+
+**Output:** `build/MDViewer-x.x.x.dmg` — notarized disk image for distribution
+
 ## Tech stack
 
 | Layer | Technology |
