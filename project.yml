@@ -60,23 +60,10 @@ targets:
         product: Markdown
       - target: MDViewerQL
         embed: true
-    postCompileScripts:
-      - name: "Copy Web Resources"
-        script: |
-          set -e
-          DEST="${BUILT_PRODUCTS_DIR}/${CONTENTS_FOLDER_PATH}/Resources"
-          mkdir -p "${DEST}"
-          cp -R "${SRCROOT}/MDViewer/Resources/Web" "${DEST}/"
-          cp -R "${SRCROOT}/MDViewer/en.lproj" "${DEST}/"
-          cp -R "${SRCROOT}/MDViewer/ja.lproj" "${DEST}/"
-        inputFiles:
-          - $(SRCROOT)/MDViewer/Resources/Web
-          - $(SRCROOT)/MDViewer/en.lproj
-          - $(SRCROOT)/MDViewer/ja.lproj
-        outputFiles:
-          - $(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/Web
-          - $(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/en.lproj
-          - $(BUILT_PRODUCTS_DIR)/$(CONTENTS_FOLDER_PATH)/Resources/ja.lproj
+    resources:
+      - path: MDViewer/Resources/Web
+      - path: MDViewer/en.lproj
+      - path: MDViewer/ja.lproj
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: org.devicemanager.mdviewer

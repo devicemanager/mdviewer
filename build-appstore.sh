@@ -46,7 +46,6 @@ xcodebuild \
   -archivePath "${ARCHIVE}" \
   DEVELOPMENT_TEAM="${TEAM_ID}" \
   CODE_SIGN_STYLE=Automatic \
-  CODE_SIGN_IDENTITY="Apple Development" \
   CODE_SIGNING_REQUIRED=YES \
   CODE_SIGNING_ALLOWED=YES \
   archive -allowProvisioningUpdates
