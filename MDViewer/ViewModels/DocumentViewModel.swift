@@ -29,11 +29,13 @@ final class DocumentViewModel: ObservableObject {
         panel.canChooseDirectories = false
 
         if panel.runModal() == .OK, let url = panel.url {
+            NSDocumentController.shared.noteNewRecentDocumentURL(url)
             load(url: url)
         }
     }
 
     func load(url: URL) {
+        NSDocumentController.shared.noteNewRecentDocumentURL(url)
         isLoading = true
         errorMessage = nil
 

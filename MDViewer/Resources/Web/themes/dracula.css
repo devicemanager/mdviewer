@@ -1,0 +1,76 @@
+/* Dracula Theme v1.4.1
+   https://draculatheme.com */
+html {
+    --md-dracula-bg: #282a36;
+    --md-dracula-current: #44475a;
+    --md-dracula-fg: #f8f8f2;
+    --md-dracula-comment: #6272a4;
+    --md-dracula-selection: #44475a;
+    --md-dracula-yellow: #f1fa6c;
+    --md-dracula-orange: #ffb86c;
+    --md-dracula-red: #ff5555;
+    --md-dracula-magenta: #ff79c6;
+    --md-dracula-violet: #bd93f9;
+    --md-dracula-blue: #8be9fd;
+    --md-dracula-cyan: #8ec0fc;
+    --md-dracula-green: #50fa7b;
+}
+
+body {
+    color: var(--md-dracula-fg);
+    background-color: var(--md-dracula-bg);
+}
+
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4,
+.markdown-body h5,
+.markdown-body h6 {
+    color: var(--md-dracula-fg);
+    border-color: var(--md-dracula-current);
+}
+
+.markdown-body a {
+    color: var(--md-dracula-blue);
+}
+
+.markdown-body code {
+    background-color: var(--md-dracula-current);
+    color: var(--md-dracula-fg);
+}
+
+.markdown-body pre {
+    background-color: var(--md-dracula-current);
+    color: var(--md-dracula-fg);
+}
+
+.markdown-body pre code {
+    background-color: transparent;
+    color: inherit;
+}
+
+.markdown-body blockquote {
+    border-left-color: var(--md-dracula-comment);
+    color: var(--md-dracula-comment);
+}
+
+.markdown-body table {
+    border-color: var(--md-dracula-current);
+    background-color: var(--md-dracula-bg);
+    color: var(--md-dracula-fg);
+}
+
+.markdown-body table tr {
+    border-top: 1px solid var(--md-dracula-current);
+    background-color: var(--md-dracula-bg);
+}
+
+.markdown-body table tr:nth-child(2n) {
+    background-color: var(--md-dracula-current);
+}
+
+.markdown-body .code-block-label {
+    background-color: var(--md-dracula-current);
+    color: var(--md-dracula-fg);
+}
