@@ -93,10 +93,13 @@ Toggle the built-in editor with **⌘E** or click the pencil button in the toolb
 ## Appearance & Themes
 
 ### Multiple Themes
-Choose from 3 built-in themes:
+Choose from 6 built-in themes:
 - GitHub Light (default)
 - GitHub Dark
+- Solarized Light
+- Solarized Dark
 - Dracula
+- Nord
 
 ### Font Size Adjustment
 - Use **⌘+** and **⌘-** to increase/decrease font size
