@@ -111,10 +111,10 @@ brew install create-dmg
 |-------|-----------|
 | UI framework | SwiftUI + AppKit |
 | Rendering engine | WKWebView |
-| Markdown parser | [marked](https://github.com/markedjs/marked) v18 |
-| Syntax highlighting | [Shiki](https://github.com/shikijs/shiki) v4 |
-| Math | [KaTeX](https://github.com/KaTeX/KaTeX) v0.17 |
-| Diagrams | [Mermaid](https://github.com/mermaid-js/mermaid) v11 |
+| Markdown parser | [marked](https://github.com/markedjs/marked) 18.0.6 |
+| Syntax highlighting | [Shiki](https://github.com/shikijs/shiki) 4.3.1 (40 languages) |
+| Math | [KaTeX](https://github.com/KaTeX/KaTeX) 0.17.0 |
+| Diagrams | [Mermaid](https://github.com/mermaid-js/mermaid) 11.16.0 |
 | File watching | `DispatchSource` (kqueue) |
 
 ## Open source libraries

@@ -5,6 +5,13 @@
 **Language**: Swift 5.9 / SwiftUI
 **Architecture pattern**: MVVM
 
+> **Note**: This is the original design plan (created May 4, 2026). The actual implementation differs from this document in several areas:
+> - Actual deployment target: macOS 14.0 (Sonoma)
+> - Library versions have evolved (marked v18, not v12)
+> - Only 3 themes implemented (GitHub Light/Dark, Dracula), not 6
+> - Uses Shiki instead of highlight.js for syntax highlighting
+> This document provides valuable architectural context but should not be treated as current specification.
+
 ---
 
 ## 1. Design Overview

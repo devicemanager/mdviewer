@@ -55,14 +55,15 @@ MDViewer/
 
 ## Technology Stack
 
-| Component | Technology |
-|-----------|-----------|
-| UI Framework | SwiftUI + AppKit |
-| Rendering Engine | WKWebView |
-| Markdown Parser | [marked](https://github.com/markedjs/marked) v18 |
-| Syntax Highlighting | [Shiki](https://github.com/shikijs/shiki) v4 |
-| Math Rendering | [KaTeX](https://github.com/KaTeX/KaTeX) v0.17 |
-| Diagrams | [Mermaid.js](https://github.com/mermaid-js/mermaid) v11 |
+| Component | Technology | Version |
+|-----------|-----------|---------|
+| UI Framework | SwiftUI + AppKit | - |
+| Rendering Engine | WKWebView | macOS 14+ |
+| Markdown Parser | [marked](https://github.com/markedjs/marked) | 18.0.6 |
+| Syntax Highlighting | [Shiki](https://github.com/shikijs/shiki) | 4.3.1 (40 languages) |
+| Math Rendering | [KaTeX](https://github.com/KaTeX/KaTeX) | 0.17.0 |
+| Diagrams | [Mermaid.js](https://github.com/mermaid-js/mermaid) | 11.16.0 |
+| HTML Sanitization | [DOMPurify](https://github.com/cure53/DOMPurify) | 3.4.12 |
 
 ## Key Dependencies
 
