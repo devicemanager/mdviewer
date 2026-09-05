@@ -2,7 +2,7 @@
 
 A lightweight, native macOS Markdown viewer built for developers.
 
-![Screenshot](docs/screenshot.png)
+![Screenshot](docs/appstore/screenshot.png)
 
 ## Overview
 
@@ -33,8 +33,15 @@ Toggle the built-in editor with **⌘E** or the pencil button in the toolbar.
 
 ## Requirements
 
-- macOS 14 Sonoma or later
-- Apple Silicon (M1 or later)
+- **macOS 14** (Sonoma) or later
+- **Apple Silicon** (M1 or later)
+
+## Documentation
+
+For comprehensive documentation, visit the [docs](docs/) folder:
+- **[User Guide](docs/user-guide/)** — Getting started, features, keyboard shortcuts
+- **[Developer Guide](docs/development/)** — Setup, architecture, contributing
+- **[Project Info](docs/project/)** — Changelog, supply chain, licenses
 
 ## Installation
 
@@ -112,7 +119,7 @@ brew install create-dmg
 
 ## Open source libraries
 
-All bundled libraries are permissively licensed (MIT, except DOMPurify which is Apache-2.0 / MPL-2.0). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full license texts.
+All bundled libraries are permissively licensed (MIT, except DOMPurify which is Apache-2.0 / MPL-2.0). See [THIRD_PARTY_NOTICES.md](docs/project/third-party-notices.md) for full license texts.
 
 | Library | Version | License |
 |---------|---------|---------|
