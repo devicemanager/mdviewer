@@ -1,0 +1,21 @@
+# Cross-platform (iOS + Android) launch smoke test, run via Maestro
+# (https://maestro.mobile.dev). Same appId on both platforms — see
+# `src-tauri/tauri.conf.json`'s `identifier`.
+#
+# There's nothing to assert on beyond "it launches" yet: no invocation
+# path exists on mobile to open a document (no native menu — `tauri::menu`
+# is `#[cfg(desktop)]`-only — and no `invoke`-based command surface either
+# yet; see docs/project/plan.md's Milestone A mobile entry), so the app
+# shows a blank canvas by design at this stage of the port. Extend this
+# flow once Milestone D/F gives mobile a real way to open a document.
+#
+# Run against a booted simulator/emulator:
+#   maestro test tests/maestro/smoke.yaml
+# (needs JAVA_HOME=$(brew --prefix openjdk@17) and, for Android, adb/
+# ANDROID_HOME on PATH — see plan.md's Milestone A mobile entry for the
+# full environment wiring this machine needed.)
+appId: org.devicemanager.mdviewer
+---
+- launchApp
+- takeScreenshot: mdviewer_smoke
+- stopApp
