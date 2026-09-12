@@ -132,6 +132,16 @@ For code changes that affect developers:
 - Update `docs/development/architecture.md` if structure changes
 - Update `docs/development/setup.md` if setup process changes
 
+**Documentation comes before the change it describes, not after.** When a
+change has a paper trail — a version bump, a recorded hash, a provenance
+table — write the doc update first (or in the same commit), stating the
+target state, then make the code/asset change match it. Don't make the
+change and reconcile the docs afterward as cleanup; a doc that's still
+describing the old state even briefly is a doc that can't be trusted at a
+glance. This applies especially to `docs/project/supply-chain.md`: it's a
+security-relevant provenance record, and treating it as an afterthought
+defeats its purpose.
+
 ## Repository Structure
 
 ```
@@ -168,6 +178,24 @@ mdviewer/
 1. Identify if it's a Swift issue (view logic) or JS issue (HTML/CSS)
 2. For Swift: Edit `Views/Renderer/MarkdownRenderView.swift`
 3. For JS/CSS: Edit `MDViewer/Resources/Web/mdviewer.js` or theme CSS
+
+### Updating a Vendored Web Dependency
+
+Docs first, per the rule above — the provenance record states the target
+before the vendored file changes to match it, not after.
+
+1. Confirm the target version and, if this is a security fix, exactly
+   which advisories it resolves.
+2. Update `docs/project/supply-chain.md`'s table (version + SHA-256 of the
+   official artifact) and `docs/project/third-party-notices.md` (version,
+   and any version-pinned license URL) to the target state.
+3. Only then replace the file under `MDViewer/Resources/Web/vendor/`.
+   Verify it's byte-identical to the official CDN/npm artifact (the hash
+   from step 2 should match) before relying on it.
+4. Sync the About panel's Credits text in `MDViewer/App/MDViewerApp.swift`
+   (the version strings there are hand-maintained, not generated).
+5. Rebuild and manually verify the render pipeline still works before
+   committing.
 4. Test with various Markdown samples
 
 ## Code Review Checklist
