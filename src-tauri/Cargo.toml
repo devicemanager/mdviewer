@@ -1,0 +1,77 @@
+[package]
+name = "mdviewer"
+version = "0.1.0"
+description = "MDViewer"
+authors = ["devicemanager"]
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+# The `_lib` suffix may seem redundant but it is necessary
+# to make the lib name unique and wouldn't conflict with the bin name.
+# This seems to be only an issue on Windows, see https://github.com/rust-lang/cargo/issues/8519
+name = "mdviewer_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+percent-encoding = "2"
+notify-debouncer-mini = "0.7"
+tauri-plugin-opener = "2.5.5"
+url = "2.5.8"
+# Already resolved transitively (Tauri commands' serde requirement) —
+# promoted to direct deps for `scoped_bookmarks`' on-disk store, same
+# reasoning as tauri-plugin-opener/url above.
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.151"
+
+# `scoped_bookmarks` module: vendored, audited security-scoped-bookmark FFI
+# (see that module's own doc comment + docs/project/plan.md's Milestone B
+# entry for the full audit and why this is vendored rather than depending
+# on the external `apple-scoped-bookmarks`/`tauri-plugin-scoped-bookmarks`
+# crates it was adapted from). Pinned to the exact versions that crate was
+# itself built and tested against (its own Cargo.lock), not just "latest",
+# so this inherits an already-verified API surface.
+[target.'cfg(any(target_os = "macos", target_os = "ios"))'.dependencies]
+objc2 = "0.6.4"
+objc2-foundation = "0.3.2"
+
+# iOS-only: the native folder picker (`ios_folder_picker.rs`). Needed
+# because there is no folder-picker API on mobile in tauri-plugin-dialog at
+# all — confirmed by reading its own `ios/Sources/DialogPlugin.swift`, which
+# *does* call `UIDocumentPickerViewController(forOpeningContentTypes:asCopy:)`
+# with `asCopy: false` (real security-scoped access), but builds its
+# `[UTType]` list only from file extensions/MIME types, so a folder — which
+# has neither — is unreachable through its Rust-facing API.
+#
+# Pinned to the same 0.3.2 generation as objc2-foundation above, matching
+# how `scoped_bookmarks.rs`'s own Apple FFI is pinned; feature-gated down to
+# just the classes actually used, since objc2-ui-kit compiles the entire
+# UIKit surface otherwise.
+[target.'cfg(target_os = "ios")'.dependencies]
+objc2-ui-kit = { version = "0.3.2", features = [
+    "UIApplication",
+    "UIDocumentPickerViewController",
+    "UIResponder",
+    "UIViewController",
+    "UIWindow",
+] }
+
+[dev-dependencies]
+# "test" enables tauri::test's MockRuntime — headless app/window testing
+# with no real GUI, no visible screen, no file dialogs. Cargo unions this
+# with the plain tauri dependency above for `cargo test` builds.
+tauri = { version = "2", features = ["test"] }
+
+# Read the optimization guideline for more details: https://tauri.app/concept/size/#cargo-configuration
+[profile.release]
+codegen-units = 1
+lto = true
+opt-level = 3
+panic = "abort"
+strip = true

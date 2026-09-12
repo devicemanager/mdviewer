@@ -1,0 +1,48 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "MDViewer",
+  "version": "0.1.0",
+  "identifier": "org.devicemanager.mdviewer",
+  "build": {
+    "frontendDist": "../MDViewer/Resources/Web"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "windows": [
+      {
+        "title": "MDViewer",
+        "url": "app.html",
+        "width": 1000,
+        "height": 700
+      }
+    ],
+    "security": {
+      "csp": "default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' mdviewer-local: data:; font-src 'self' mdviewer-local: data:; connect-src 'self' ipc: mdviewer-local:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'"
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "fileAssociations": [
+      {
+        "ext": ["md", "markdown", "mdown", "mkd"],
+        "name": "Markdown Document",
+        "description": "Markdown Document",
+        "role": "Viewer",
+        "mimeType": "text/markdown",
+        "rank": "Owner",
+        "exportedType": {
+          "identifier": "net.daringfireball.markdown",
+          "conformsTo": ["public.plain-text"]
+        }
+      }
+    ]
+  }
+}
