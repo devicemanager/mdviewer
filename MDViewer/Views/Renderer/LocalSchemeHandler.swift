@@ -66,7 +66,7 @@ final class LocalSchemeHandler: NSObject, WKURLSchemeHandler {
             
             // For security reasons, make sure any resolved path is within a permitted scope
             if let bundleDir = bundleResourceDirectory,
-               !path.path.hasPrefix(bundleDir.path) {
+               !LocalSchemeHandler.isPath(path, within: bundleDir) {
                 let error = NSError(domain: "LocalSchemeHandler", code: 403, userInfo: [NSLocalizedDescriptionKey: "Access denied - path outside permitted scope"])
                 urlSchemeTask.didFailWithError(error)
                 return
@@ -126,50 +126,65 @@ final class LocalSchemeHandler: NSObject, WKURLSchemeHandler {
         // We don't need to do anything special when stopping
     }
     
-    // MARK: - Private helper methods
-    
-    private func resolveBundlePath(for path: String) -> URL? {
+    // MARK: - Path resolution
+    //
+    // Not private: unit-tested directly (see LocalSchemeHandlerTests) rather
+    // than through a mocked WKURLSchemeTask, same reasoning as
+    // DocumentViewModel.writeDocument.
+
+    func resolveBundlePath(for path: String) -> URL? {
         guard let bundleDir = bundleResourceDirectory else { return nil }
-        
-        // If the path is already absolute, use it directly
-        if path.hasPrefix("/") {
-            return URL(fileURLWithPath: path)
-        }
-        
-        // Normalize the path by removing leading slashes and ensure it's relative to bundle directory
+
+        // A hierarchical URL's `.path` always starts with "/" (e.g.
+        // "mdviewer-local://bundle/renderer.html" has path "/renderer.html") —
+        // that's not an absolute filesystem path, it's scheme-relative. Treating
+        // it as one (the previous behaviour here) resolved outside bundleDir
+        // entirely and tripped the security check below in webView(_:start:),
+        // which is why renderer.html failed to load at all.
         let normalizedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
-        
-        let fullURL = bundleDir.appendingPathComponent(normalizedPath, isDirectory: false)
-        return fullURL
+        return bundleDir.appendingPathComponent(normalizedPath, isDirectory: false)
     }
     
-    private func resolveRelativePath(for path: String) -> URL? {
+    func resolveRelativePath(for path: String) -> URL? {
         // If we're using base directory
         if let dir = baseDirectory {
             // Resolve path relative to base directory, with proper sanitization
             let normalizedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
-            
-            // Prevent directory traversal attacks by ensuring the path remains within base directory
             let fullPath = dir.appendingPathComponent(normalizedPath, isDirectory: false)
-            
-            // Additional security check to make sure the resolved path is still within baseDirectory
-            if !fullPath.path.hasPrefix(dir.path) {
-                return nil
-            }
-            
+
+            // Prevent directory traversal (e.g. "../../etc/passwd"): must check
+            // the *standardized* path, since appendingPathComponent never
+            // collapses ".." — an unresolved hasPrefix check here would always
+            // pass, because the base directory's path is still a literal
+            // string-prefix of the traversed one even though it resolves
+            // outside it.
+            guard LocalSchemeHandler.isPath(fullPath, within: dir) else { return nil }
             return fullPath
         }
-        
+
         // If no base directory specified, try bundle resource directory
         if let bundleDir = bundleResourceDirectory {
             let normalizedPath = path.hasPrefix("/") ? String(path.dropFirst()) : path
             let fullPath = bundleDir.appendingPathComponent(normalizedPath, isDirectory: false)
+            guard LocalSchemeHandler.isPath(fullPath, within: bundleDir) else { return nil }
             return fullPath
         }
-        
+
         return nil
     }
-    
+
+    /// Whether `path`, once `.`/`..` segments are resolved, is `directory`
+    /// itself or something inside it. Deliberately not a plain `hasPrefix` on
+    /// the raw paths: that both (a) misses traversal, since
+    /// appendingPathComponent never collapses ".." segments, and (b) would
+    /// wrongly accept a sibling directory whose name happens to start with
+    /// `directory`'s name (e.g. "/Web-evil" prefix-matches "/Web").
+    static func isPath(_ path: URL, within directory: URL) -> Bool {
+        let resolvedPath = path.standardizedFileURL.path
+        let resolvedDir = directory.standardizedFileURL.path
+        return resolvedPath == resolvedDir || resolvedPath.hasPrefix(resolvedDir + "/")
+    }
+
     private func mimeType(for filePath: String) -> String {
         // Determine content type based on file extension
         let pathExtension = (filePath as NSString).pathExtension.lowercased()

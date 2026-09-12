@@ -44,6 +44,18 @@ struct MDViewerApp: App {
                 .keyboardShortcut("s", modifiers: [.command, .shift])
             }
 
+            // The Markdown source editor is a plain-text TextEditor, so the
+            // system's default Format menu (Bold/Italic/Underline) is
+            // meaningless here — and its Bold item silently claims Cmd-B
+            // whenever the editor is live, which was shadowing "Toggle
+            // Sidebar (TOC)" below and made Cmd-B intermittently do nothing.
+            // The Markdown source editor is a plain-text TextEditor, so the
+            // system's default Format menu (Bold/Italic/Underline) is
+            // meaningless here. Removed as a defensive measure against a
+            // reported Cmd-B conflict with "Toggle Sidebar (TOC)" below —
+            // see KeyboardShortcutTests.swift for what is and isn't confirmed.
+            CommandGroup(replacing: .textFormatting) {}
+
             CommandGroup(after: .sidebar) {
                 Button("Toggle Sidebar (TOC)") {
                     NotificationCenter.default.post(name: .toggleSidebar, object: nil)
@@ -145,11 +157,11 @@ enum AboutPanel {
       Copyright (c) 2013-2020 Khan Academy and other contributors
       https://github.com/KaTeX/KaTeX
 
-    Mermaid 11.16.0 — MIT
+    Mermaid 11.17.2 — MIT
       Copyright (c) 2014-2024 Knut Sveidqvist and contributors
       https://github.com/mermaid-js/mermaid
 
-    DOMPurify 3.4.12 — Apache-2.0 OR MPL-2.0
+    DOMPurify 3.4.15 — Apache-2.0 OR MPL-2.0
       Copyright (c) Cure53 and other contributors
       https://github.com/cure53/DOMPurify
 

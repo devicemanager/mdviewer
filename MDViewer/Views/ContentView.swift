@@ -86,7 +86,15 @@ struct ContentView: View {
             Text(documentVM.errorMessage ?? "")
         }
         .onAppear {
-            if let url = initialURL {
+            // Test-only hook (see MDViewer.xcscheme's TestAction and
+            // KeyboardShortcutTests.swift): lets XCTest reach a
+            // document-loaded, editor-mounted state without a modal open
+            // panel or driving real UI. Inert unless this exact env var is
+            // set, which only the test scheme does.
+            if let testDocumentPath = ProcessInfo.processInfo.environment["MDVIEWER_TEST_DOCUMENT_PATH"] {
+                documentVM.load(url: URL(fileURLWithPath: testDocumentPath))
+                isEditorMode = true
+            } else if let url = initialURL {
                 documentVM.load(url: url)
             } else {
                 documentVM.restoreLastOpened()
