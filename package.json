@@ -1,0 +1,15 @@
+{
+  "name": "mdviewer",
+  "private": true,
+  "version": "0.1.0",
+  "description": "MDViewer Tauri app shell. The frontend it serves is MDViewer/Resources/Web (unchanged) plus, eventually, web/dist/mdviewer.js.",
+  "type": "module",
+  "scripts": {
+    "tauri": "tauri",
+    "dev": "tauri dev",
+    "build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

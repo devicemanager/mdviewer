@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- `viewport-fit=cover` was tried in the 2026-09-10 visual pass and
+         reverted the same day, found on a real Android emulator screenshot
+         before it ever shipped: with it set, the drawer's TOC text
+         rendered directly on top of the status bar clock/icons,
+         unreadable. First diagnosed as "cover mode breaks Android's
+         inset compensation" — wrong, corrected the same day on an
+         Android emulator build: `env(safe-area-inset-top)` resolves to 0
+         on this WebView regardless of `viewport-fit`, cover or not, so
+         it was never doing anything there either way. Measured directly
+         (CDP `getBoundingClientRect()` on `body`/`#toolbar`, both
+         `top: 0`): this WebView draws genuinely edge-to-edge for ALL
+         in-flow content, not just fixed-position elements — the toolbar
+         only ever looked fine by accident, because its own 40px icon
+         buttons plus padding happen to almost clear a ~24-30dp status
+         bar on their own, while the drawer's heading (no other content
+         above it) didn't. `viewport-fit=cover` genuinely is inert here
+         either way, so left at plain default; the actual fix is explicit
+         CSS padding-top on `#toolbar`/`#sidebar` at the mobile breakpoint
+         (app.css, "status-bar clearance" comments), a fixed value checked
+         against this emulator rather than anything env()-derived. iOS's
+         WKWebView doesn't need this (it insets in-flow content correctly
+         on its own), but the same padding-top applies there too rather
+         than forking the CSS per platform — confirmed harmless on an iOS
+         Simulator screenshot, just a little extra breathing room. -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- SECURITY: local-only by default. No remote scripts/styles/images/connections.
+         'wasm-unsafe-eval' is required by Shiki's oniguruma WASM engine. Remote
+         images are intentionally excluded from img-src (Phase 3 adds an opt-in).
+         Same policy as renderer.html, byte-for-byte — see this file's own header
+         comment in plan.md's Milestone E entry for why this is a new page rather
+         than an edit to renderer.html.
+
+         connect-src includes `ipc:` — a real gap found live on triton's
+         first-ever real-device install (2026-09-10), not part of the
+         original policy design. Tauri's own IPC transport (`window.__TAURI__
+         .core.invoke`, used by toolbar.ts's Open button, handle_link_click,
+         and the Preferences policy round trip) fetches `ipc://localhost/
+         {command}` under the hood — confirmed directly in the vendored
+         `tauri` crate source (`ipc/protocol.rs`), not assumed. Without
+         `ipc:` in connect-src, every invoke() call was silently blocked by
+         this page's own CSP: confirmed live via Safari's Web Inspector
+         attached to the real device (Develop menu → triton → this page),
+         which showed "IPC custom protocol failed, Tauri will now use the
+         postMessage interface instead — TypeError: Load failed" the moment
+         Open was tapped — the exact signature of a CSP-blocked fetch, not
+         a Rust-side bug (a `tauri::async_runtime::spawn_blocking` fix for a
+         suspected main-thread deadlock, tried first, correctly did NOT fix
+         this, since the real block was upstream of Rust entirely). -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' mdviewer-local: data:; font-src 'self' mdviewer-local: data:; connect-src 'self' ipc: mdviewer-local:; base-uri 'none'; form-action 'none'; object-src 'none'; frame-src 'none'">
+    <title>MDViewer</title>
+
+    <!-- Vendor: KaTeX -->
+    <link rel="stylesheet" href="vendor/katex.min.css">
+    <!-- Base styles (content-area typography/theme rules — unchanged, same file renderer.html uses) -->
+    <link rel="stylesheet" href="mdviewer-base.css">
+    <!-- Shell layout (sidebar/toolbar/welcome regions — new, not a Swift port, see app.css itself) -->
+    <link rel="stylesheet" href="app.css">
+    <!-- Theme (swapped at runtime) -->
+    <link rel="stylesheet" href="themes/github-light.css" id="theme-css">
+
+    <script src="vendor/marked.min.js"></script>
+    <script src="vendor/shiki.bundle.js"></script>
+    <script src="vendor/katex.min.js"></script>
+    <script src="vendor/mermaid.min.js"></script>
+    <script src="vendor/dompurify.min.js"></script>
+    <script src="mdviewer.js"></script>
+</head>
+<body>
+    <div id="app">
+        <!-- TOC list — ported from SidebarView.swift/TableOfContentsView.swift
+             (sidebar.ts). Always visible above app.css's 768px breakpoint,
+             matching Swift, where the sidebar is a permanent part of the
+             NavigationSplitView regardless of whether a document is open,
+             showing "No headings found" as its own empty state rather than
+             disappearing. Below that breakpoint it's a slide-in drawer
+             instead (app.css, real gap found live on triton, 2026-09-10) —
+             toggled via the toolbar's sidebar-toggle button, not
+             conditionally hidden by JS; the markup itself is unconditional
+             either way. main.ts populates it on load and after every
+             setContent. `class="drawer"` is the shared mobile slide-in/
+             backdrop-material treatment (app.css, drawer.ts) — generalized
+             2026-09-12 out of what used to be `#sidebar`-only rules, once
+             the in-app file browser (`#file-browser`, further down) needed
+             the identical mechanism. -->
+        <nav id="sidebar" class="drawer"></nav>
+
+        <div id="main">
+            <!-- Milestone E's toolbar (toolbar.ts) — Open, font size,
+                 theme picker, Find, Preferences. Save/Editor-toggle/Export
+                 not built yet, see toolbar.ts's header comment. Starts
+                 hidden; main.ts's wireToolbar() populates it and un-hides
+                 it, same pattern as #sidebar/#welcome/#content below. -->
+            <header id="toolbar" hidden></header>
+
+            <!-- Search (search.ts) — ported from SearchBarView.swift, a
+                 floating bar over the content area (not part of #toolbar's
+                 flex row — CSS positions it absolutely within #main, same
+                 as Swift's ZStack overlay). Starts hidden; the toolbar's
+                 Find button (or Cmd+F) reveals it via main.ts's
+                 wireSearch(). -->
+            <div id="search" hidden></div>
+
+            <!-- Shown when no document is open — matches Swift's WelcomeView
+                 condition (documentVM.text.isEmpty && documentVM.fileURL == nil).
+                 Toggled by app-shell logic once it exists (not yet — see
+                 plan.md); markup is static, main.ts only toggles [hidden].
+
+                 Redesigned in the 2026-09-10 mobile UX pass — the original
+                 was a single centered sentence with no icon and no
+                 button, relying entirely on a reader spotting the
+                 toolbar's small Open icon on their own. Not a Swift port
+                 (WelcomeView.swift has real icon/button chrome this
+                 first TypeScript pass never carried over) — this brings
+                 it back: an icon, a heading, the original sentence
+                 demoted to a subtitle, and a real button wired in
+                 main.ts's wireWelcomeContentToggle() to the same
+                 open_document_command toolbar.ts's Open button calls, so
+                 the empty state is directly actionable instead of just
+                 descriptive. -->
+            <div id="welcome">
+                <svg class="welcome-icon" viewBox="0 0 48 48" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 4h16l8 8v32a2 2 0 0 1-2 2H12a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2Z"/>
+                    <path d="M28 4v8h8"/>
+                    <path d="M16 26h16M16 32h16M16 20h6"/>
+                </svg>
+                <p class="welcome-title">No document open</p>
+                <p class="welcome-subtitle">Open a Markdown file to get started.</p>
+                <button type="button" class="welcome-open-btn" data-action="open">Open File…</button>
+            </div>
+
+            <!-- Same id="content" renderer.html and every already-ported
+                 render-pipeline module (mdviewerApi.ts, localResources.ts,
+                 remote.ts) already target — unchanged contract, new home. -->
+            <div id="content" hidden></div>
+        </div>
+    </div>
+
+    <!-- Preferences (preferences.ts) — an in-page modal, not a second
+         native window like Swift's Settings scene; see preferences.ts's
+         header for why. Outside #app (an overlay, not part of the
+         sidebar/toolbar/content layout). Starts hidden; the toolbar's
+         Preferences button (toolbar.ts) reveals it via main.ts's
+         wirePreferences(). -->
+    <div id="preferences" hidden></div>
+
+    <!-- Tap-outside-to-close scrim for the mobile sidebar drawer (app.css,
+         drawer.ts). Outside #app for the same reason #preferences is — a
+         full-screen overlay, not a flex layout participant; being a flex
+         sibling of #sidebar/#main would size it as a visible empty flex
+         item above the drawer breakpoint, where app.css gives it no
+         display rule of its own (only its `.open` state is styled, inside
+         the 768px media query). Only relevant/visible below that
+         breakpoint, same as #sidebar's own drawer behavior. Starts
+         `hidden` like every other overlay here — `.drawer-backdrop.open`
+         in app.css (two classes, specificity 0,2,0) beats the browser's
+         own `[hidden]{display:none}` (0,1,0) when JS adds `.open`, same
+         override pattern this file's #welcome/#toolbar/#search already
+         use, so `openDrawer`/`closeDrawer` (drawer.ts) never need to
+         touch the `hidden` attribute itself, only the class. Was
+         `#sidebar-backdrop.open` (ID+class) before 2026-09-12's
+         generalization to a shared `.drawer-backdrop` class, reused now by
+         the in-app file browser's own backdrop too. -->
+    <div id="sidebar-backdrop" class="drawer-backdrop" hidden></div>
+</body>
+</html>
