@@ -111,7 +111,7 @@ Version 1.1. This license is available at http://scripts.sil.org/OFL.
 
 ## Mermaid
 
-**Version:** 11.16.0  
+**Version:** 11.17.2  
 **License:** MIT  
 **Source:** https://github.com/mermaid-js/mermaid
 
@@ -141,7 +141,7 @@ SOFTWARE.
 
 ## DOMPurify
 
-**Version:** 3.4.12  
+**Version:** 3.4.15  
 **License:** Apache-2.0 OR MPL-2.0 (dual-licensed)  
 **Source:** https://github.com/cure53/DOMPurify
 
@@ -158,6 +158,6 @@ DOMPurify is dual-licensed. You may use it under the terms of EITHER:
   - the Mozilla Public License, Version 2.0
     https://www.mozilla.org/MPL/2.0/
 
-The complete license texts for version 3.4.12 are published at:
-https://github.com/cure53/DOMPurify/blob/3.4.12/LICENSE
+The complete license texts for version 3.4.15 are published at:
+https://github.com/cure53/DOMPurify/blob/3.4.15/LICENSE
 ```
