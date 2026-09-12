@@ -211,6 +211,28 @@ their own phase.
   tick as the triggering click.
 
 **Build environment**
+
+`src-tauri/gen/` is gitignored, and three things in there are *not*
+reproducible from tracked config — run `./configure-ios-project.sh` after any
+`tauri ios init` (or any time the generated project is recreated) to reapply
+them. It is idempotent, and verified to take a freshly-scaffolded project all
+the way to a correctly-signed ad-hoc IPA:
+
+1. `LSSupportsOpeningDocumentsInPlace` in `Info.plist` — without it the app
+   builds and installs fine but silently never appears in the Files app's
+   long-press menu.
+2. Manual code-signing in `project.pbxproj` — Tauri scaffolds automatic
+   signing with an "iPhone Developer" identity; ad-hoc needs manual signing
+   against the Apple Distribution cert the profile actually embeds.
+3. `ExportOptions-AdHoc.plist` — Tauri generates no ad-hoc export options.
+
+Note the file-association entries (`CFBundleDocumentTypes`,
+`UTExportedTypeDeclarations`) are deliberately *not* in that script: those
+**are** generated, from `tauri.conf.json`'s `bundle.fileAssociations`, and
+hand-writing them produces duplicates. Also note XML comments do not survive
+in generated plists — Tauri's own build-time injection strips them — which is
+why the rationale lives in the script rather than in the plist.
+
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"          # NOT Homebrew's cargo — iOS/Android builds fail
 export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
