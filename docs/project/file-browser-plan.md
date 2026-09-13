@@ -65,6 +65,30 @@ explicit folder grant. If it does, the browser is useful immediately after any
 file-association open. If it doesn't, a folder grant becomes mandatory before
 browsing is possible at all — which changes the first-run UX materially.
 
+### 2c. OTA tunnel returning 503 (diagnosed 2026-09-13, not ours)
+`https://<ota-tunnel-host>/*` returns **503 in ~0.6s** — an immediate
+"no healthy backend" rejection, not a timeout. Everything on this machine is
+healthy; verified rather than assumed:
+
+| Check | Result |
+|---|---|
+| Caddy process | Alive (PID 11741, up since Sep 9 — never killed) |
+| Bind | `*:4000`, dual-stack wildcard, matching `bind 0.0.0.0` |
+| Serving on LAN IP | `<lan-ip>:4000/install.html` -> 200 |
+| Health-check path | `<lan-ip>:4000/` -> 200 |
+| macOS firewall | Disabled entirely |
+| LAN IP | Still `<lan-ip>` (unchanged, so not a stale target) |
+| **Inbound connections to :4000** | **Zero over a 45s watch** |
+
+That last row is decisive: Pangolin is not contacting this host at all — not
+connecting and failing, simply never connecting. The fault is upstream, on
+the Pangolin side. Most likely: the resource was disabled (this exact
+symptom occurred before and was resolved that way), or its target/health
+check points somewhere stale.
+
+**Blocks all OTA delivery**, so any iOS device testing — including the two
+outstanding items above — is stuck until it is resolved.
+
 ### 2b. Native picker has never been presented
 `ios_folder_picker.rs` compiles for `aarch64-apple-ios` but has not run once.
 UIKit delegate plumbing is exactly the class of code that compiles clean and
