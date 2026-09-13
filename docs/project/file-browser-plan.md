@@ -1,13 +1,25 @@
 # Mobile file browser + permissions — remaining work
 
-**Written 2026-09-12** to consolidate open threads so this work can be picked
-up cold, without the originating conversation. `docs/project/plan.md` remains
-the full historical record (what was built and why); this file is only
-*what's left*, plus the context needed to not re-learn it the hard way.
+**Written 2026-09-12, last updated 2026-09-13** to consolidate open threads
+so this work can be picked up cold, without the originating conversation, and
+**regardless of which model or tool is used to continue it** — nothing here
+assumes Claude-specific state beyond one pointer noted below.
+`docs/project/plan.md` remains the full historical record (what was built and
+why); this file is only *what's left*, plus the context needed to not
+re-learn it the hard way.
+
+**You are here:** `HEAD` is `257967b` (2026-09-13). Working tree is clean —
+everything described as "done" below is committed, not just present in a
+working tree. Before trusting any "done" claim in this file, it's still worth
+a quick `git log --oneline -10` and re-running the test suites (commands in
+section 5) rather than taking the file's word for it — this file can go
+stale the same way code comments do.
 
 Superseded planning artifact: `~/.claude/plans/staged-fluttering-octopus.md`
-(Claude Code plan-mode file, outside the repo — its Phases 0–3 shipped, its
-Phase 4+ is restated below with the mid-flight revision folded in).
+(a Claude Code plan-mode file, outside the repo and outside git — its
+Phases 0–3 shipped, its Phase 4+ is restated below with the mid-flight
+revision folded in). That file is the one Claude-specific/tool-specific
+pointer in this document; nothing else here depends on it.
 
 ---
 
@@ -49,26 +61,11 @@ drawer, and drawer mutual exclusivity holds in both directions.
 
 ## 2. Blocked on the user
 
-### 2a. Phase 0 spike results (outstanding)
-A diagnostic build is live at `https://<ota-tunnel-host>/install.html`
-(built `2026-09-12T14:41:57Z`). It answers whether `std::fs::read_dir` works
-on a document's folder when that document arrived via the file-association
-path. Steps:
-1. Open a `.md` file through Files (not the Open button).
-2. Safari → Develop → iPhone → MDViewer page → console.
-3. Look for the `[spike-a]` line that logs automatically on open (OK or ERR).
-4. Run `await window.__TAURI__.core.invoke('spike_read_dir_variants')`.
-
-**Why it still matters even though the native picker was chosen:** it decides
-whether "open a file from Files, then browse its siblings" works *without* an
-explicit folder grant. If it does, the browser is useful immediately after any
-file-association open. If it doesn't, a folder grant becomes mandatory before
-browsing is possible at all — which changes the first-run UX materially.
-
-### 2c. OTA tunnel returning 503 (diagnosed 2026-09-13, not ours)
+### 2a. OTA tunnel returning 503 — blocks everything else in this section
 `https://<ota-tunnel-host>/*` returns **503 in ~0.6s** — an immediate
-"no healthy backend" rejection, not a timeout. Everything on this machine is
-healthy; verified rather than assumed:
+"no healthy backend" rejection, not a timeout. Diagnosed 2026-09-13, and it
+is not this machine: everything here is healthy, verified rather than
+assumed:
 
 | Check | Result |
 |---|---|
@@ -84,16 +81,37 @@ That last row is decisive: Pangolin is not contacting this host at all — not
 connecting and failing, simply never connecting. The fault is upstream, on
 the Pangolin side. Most likely: the resource was disabled (this exact
 symptom occurred before and was resolved that way), or its target/health
-check points somewhere stale.
+check points somewhere stale. **Re-check this first** — as of the last check
+(2026-09-13) it was still down; nothing on this machine can fix it, only the
+Pangolin dashboard/config can.
 
-**Blocks all OTA delivery**, so any iOS device testing — including the two
-outstanding items above — is stuck until it is resolved.
+**Blocks all OTA delivery**, so both items below (2b, 2c) are stuck until it
+resolves.
 
-### 2b. Native picker has never been presented
+### 2b. Phase 0 spike results (outstanding, needs 2a resolved first)
+A diagnostic build is live at `https://<ota-tunnel-host>/install.html`
+(built `2026-09-12T14:41:57Z`, before the tunnel broke — the build itself is
+still good, only delivery is blocked). It answers whether `std::fs::read_dir`
+works on a document's folder when that document arrived via the
+file-association path. Steps once the tunnel is back:
+1. Open a `.md` file through Files (not the Open button).
+2. Safari → Develop → iPhone → MDViewer page → console.
+3. Look for the `[spike-a]` line that logs automatically on open (OK or ERR).
+4. Run `await window.__TAURI__.core.invoke('spike_read_dir_variants')`.
+
+**Why it still matters even though the native picker was chosen:** it decides
+whether "open a file from Files, then browse its siblings" works *without* an
+explicit folder grant. If it does, the browser is useful immediately after any
+file-association open. If it doesn't, a folder grant becomes mandatory before
+browsing is possible at all — which changes the first-run UX materially.
+
+### 2c. Native picker has never been presented (needs 2a resolved first)
 `ios_folder_picker.rs` compiles for `aarch64-apple-ios` but has not run once.
 UIKit delegate plumbing is exactly the class of code that compiles clean and
-misbehaves on device. **Treat as unverified.** Needs an OTA build and a real
-tap-through before anything is built on top of it.
+misbehaves on device. **Treat as unverified.** Needs a fresh OTA build (once
+2a is resolved) and a real tap-through — `await
+window.__TAURI__.core.invoke('request_folder_access')` from Safari's console
+— before anything is built on top of it.
 
 ---
 
@@ -173,7 +191,6 @@ their own phase.
   re-read of an in-place-opened document will therefore likely fail. Fixing it
   needs somewhere to hold a `ScopedAccess` per current document — the shape
   `GrantedFolderAccess`'s `HashMap<String, ScopedAccess>` already uses.
-- **Commit the work.** Nothing from this session is committed.
 - **Desktop unverified.** macOS/Windows/Linux untouched by testing throughout
   this mobile arc. `bundle.fileAssociations` desktop packaging in particular
   was added but never built/verified.
@@ -238,6 +255,14 @@ their own phase.
   checks; assert `querySelector('script') === null` and the parsed values.
 - Read transitioned CSS properties *after* the transition, not in the same
   tick as the triggering click.
+
+**Re-running the test suites** (this is what "section 5" in the "You are
+here" note at the top refers to):
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"
+cd src-tauri && cargo test --offline   # expect 83 passed
+cd ../web && npx tsc --noEmit && npx vitest run   # expect 217 passed
+```
 
 **Build environment**
 
