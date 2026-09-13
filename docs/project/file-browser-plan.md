@@ -8,12 +8,19 @@ assumes Claude-specific state beyond one pointer noted below.
 why); this file is only *what's left*, plus the context needed to not
 re-learn it the hard way.
 
-**You are here:** `HEAD` is `257967b` (2026-09-13). Working tree is clean —
+**You are here:** `HEAD` is `b33e8d9` (2026-09-13). Working tree is clean —
 everything described as "done" below is committed, not just present in a
 working tree. Before trusting any "done" claim in this file, it's still worth
 a quick `git log --oneline -10` and re-running the test suites (commands in
 section 5) rather than taking the file's word for it — this file can go
 stale the same way code comments do.
+
+**The OTA tunnel is healthy again** (confirmed 2026-09-13, end of session:
+`https://<ota-tunnel-host>/` → 200). Section 2a below is now history,
+not a live blocker — kept for the war story (a missing scratch file caused
+hours of "is the tunnel down" debugging) and because `ota/README.md` is now
+the actual source of truth for how the OTA server runs. The two items that
+were blocked on it (2b, 2c) are open again.
 
 Superseded planning artifact: `~/.claude/plans/staged-fluttering-octopus.md`
 (a Claude Code plan-mode file, outside the repo and outside git — its
@@ -36,6 +43,7 @@ pointer in this document; nothing else here depends on it.
 | `permissions.ts` (consolidated first-launch prompt) | Done, 16 tests |
 | `ios_folder_picker.rs` (native `UIDocumentPickerViewController`) | **Compiles on all 3 targets, never run** |
 | Phase 4 wiring (markup, CSS, `main.ts` glue) | Done, verified on Android emulator |
+| OTA server: supervised LaunchAgent + Pangolin health-check fix | Done, tunnel confirmed 200 |
 
 Test counts: **83** Rust, **217** web. All green.
 
@@ -61,7 +69,7 @@ drawer, and drawer mutual exclusivity holds in both directions.
 
 ## 2. Blocked on the user
 
-### 2a. OTA tunnel returning 503 — root cause found 2026-09-13, needs a Pangolin-side fix
+### 2a. OTA tunnel 503 — RESOLVED 2026-09-13 (kept as a war story)
 `https://<ota-tunnel-host>/*` returned **503 in ~0.6s** for most of
 this session — an immediate "no healthy backend" rejection, not a timeout.
 Extensive local verification (Caddy alive, bound to `0.0.0.0:4000`, LAN IP
@@ -69,19 +77,16 @@ unchanged, firewall disabled, serving 200 on every path checked) ruled out
 everything on this machine, which pointed at Pangolin's health check itself
 rather than the tunnel being disabled.
 
-**Actual cause, confirmed:** the health check is pointed at `/_probe.txt` —
-a scratch file that only ever existed for manual `curl` testing while first
-getting Caddy working (2026-09-09), deliberately deleted as cruft before
-`ota/`'s first commit, and never tracked in git. `/_probe.txt` → 404;
-Pangolin reads that as unhealthy and 503s every request at the edge,
-regardless of how healthy the actual server is. Full writeup and the fix
-(point the health check at `/` instead, which is always present) is in
-`ota/README.md` — that's now the source of truth for the OTA server itself,
-not this file.
+**Actual cause:** the health check was pointed at `/_probe.txt` — a scratch
+file that only ever existed for manual `curl` testing while first getting
+Caddy working (2026-09-09), deliberately deleted as cruft before `ota/`'s
+first commit, and never tracked in git. `/_probe.txt` → 404; Pangolin read
+that as unhealthy and 503'd every request at the edge, regardless of how
+healthy the actual server was. Full writeup is in `ota/README.md` — that's
+now the source of truth for the OTA server itself, not this file.
 
-**Still needs action**: whoever has Pangolin access must repoint the health
-check to `/`. Until that happens, the tunnel keeps 503ing even though the
-local server is correctly configured and running.
+**Fixed** by repointing the Pangolin health check at `/` (always present —
+confirmed `https://<ota-tunnel-host>/` → 200 at session end).
 
 **Also fixed 2026-09-13**: Caddy itself was a bare `nohup ... &` from a
 Claude Code Bash tool call, with no supervision — a crash or reboot would
@@ -89,15 +94,13 @@ have silently taken OTA down. Replaced with a proper LaunchAgent
 (`ota/install-caddy-service.sh` / `ota/launchd/*.plist`), `KeepAlive`
 restart behavior verified live with a `kill -9`.
 
-**Blocks all OTA delivery** until the health-check path is fixed, so both
-items below (2b, 2c) are stuck until it resolves.
+Both items below (2b, 2c) are open again now that delivery works.
 
-### 2b. Phase 0 spike results (outstanding, needs 2a resolved first)
+### 2b. Phase 0 spike results (outstanding — OTA delivery works again, ready to test)
 A diagnostic build is live at `https://<ota-tunnel-host>/install.html`
-(built `2026-09-12T14:41:57Z`, before the tunnel broke — the build itself is
-still good, only delivery is blocked). It answers whether `std::fs::read_dir`
-works on a document's folder when that document arrived via the
-file-association path. Steps once the tunnel is back:
+(built `2026-09-12T14:41:57Z`; delivery now works again). It answers whether
+`std::fs::read_dir` works on a document's folder when that document arrived via
+the file-association path. Steps:
 1. Open a `.md` file through Files (not the Open button).
 2. Safari → Develop → iPhone → MDViewer page → console.
 3. Look for the `[spike-a]` line that logs automatically on open (OK or ERR).
@@ -109,13 +112,12 @@ explicit folder grant. If it does, the browser is useful immediately after any
 file-association open. If it doesn't, a folder grant becomes mandatory before
 browsing is possible at all — which changes the first-run UX materially.
 
-### 2c. Native picker has never been presented (needs 2a resolved first)
+### 2c. Native picker has never been presented (ready to test — OTA delivery works again)
 `ios_folder_picker.rs` compiles for `aarch64-apple-ios` but has not run once.
 UIKit delegate plumbing is exactly the class of code that compiles clean and
-misbehaves on device. **Treat as unverified.** Needs a fresh OTA build (once
-2a is resolved) and a real tap-through — `await
-window.__TAURI__.core.invoke('request_folder_access')` from Safari's console
-— before anything is built on top of it.
+misbehaves on device. **Treat as unverified.** Needs a real tap-through —
+`await window.__TAURI__.core.invoke('request_folder_access')` from Safari's
+console — before anything is built on top of it.
 
 ---
 
