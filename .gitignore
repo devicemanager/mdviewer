@@ -31,6 +31,11 @@ fastlane/test_output
 # Claude Code
 .claude/
 
+# Local-only symlink to ~/Source/mdviewer-ota (a separate, untracked-here
+# repo with this machine's LAN IP/tunnel hostname) -- never let this into
+# a commit, even via `git add -A`.
+/ota
+
 # Tauri app shell
 node_modules/
 /src-tauri/target/
