@@ -64,12 +64,14 @@ export interface ToolbarCallbacks {
     onPreferences: () => void;
     onFind: () => void;
     onToggleSidebar: () => void;
+    onToggleFileBrowser: () => void;
 }
 
 /** 20x20 viewBox, `currentColor` stroke, no fill — a shared, minimal
  * outline-icon style across every button below so they read as one
  * cohesive set rather than mismatched glyphs from different sources. */
 const ICON_SIDEBAR = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="3" y1="5.5" x2="17" y2="5.5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="14.5" x2="17" y2="14.5"/></svg>`;
+const ICON_BROWSE = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5a1 1 0 0 1 1-1h4l1.5 2h6.5a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1v-8Z"/><path d="M2.5 9.5h15"/></svg>`;
 const ICON_OPEN = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5a1 1 0 0 1 1-1H8l1.5 2H16.5a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-9.5Z"/></svg>`;
 const ICON_FIND = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="16.5" y1="16.5" x2="12.6" y2="12.6"/></svg>`;
 const ICON_PREFERENCES = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1 4.7 4.7"/></svg>`;
@@ -90,6 +92,7 @@ function themeOptionsHTML(selectedThemeId: string): string {
 export function renderToolbar(toolbar: HTMLElement, initialFontSize: number, initialThemeId: string): void {
     toolbar.innerHTML = `
         <button type="button" data-action="sidebar-toggle" class="sidebar-toggle-btn icon-btn" aria-label="Table of contents">${ICON_SIDEBAR}</button>
+        <button type="button" data-action="file-browser-toggle" class="icon-btn" aria-label="Browse files">${ICON_BROWSE}</button>
         <button type="button" data-action="open" class="icon-btn" aria-label="Open…">${ICON_OPEN}</button>
         <span class="toolbar-group">
             <button type="button" data-action="font-decrease" aria-label="Decrease font size">A−</button>
@@ -125,6 +128,9 @@ export function attachToolbarHandlers(toolbar: HTMLElement, callbacks: ToolbarCa
         switch (button.dataset.action) {
             case "sidebar-toggle":
                 callbacks.onToggleSidebar();
+                break;
+            case "file-browser-toggle":
+                callbacks.onToggleFileBrowser();
                 break;
             case "open":
                 callbacks.onOpen();

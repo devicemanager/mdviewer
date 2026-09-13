@@ -66,6 +66,22 @@ import {
     hideSearchBar,
     attachSearchBarHandlers,
 } from "./search.js";
+import {
+    renderFileBrowser,
+    attachFileBrowserHandlers,
+    loadCachedFolder,
+    storeCachedFolder,
+    type FileBrowserEntry,
+} from "./fileBrowser.js";
+import {
+    renderPermissions,
+    attachPermissionsHandlers,
+    showPermissions,
+    hidePermissions,
+    hasSeenPermissionsPrompt,
+    markPermissionsPromptSeen,
+    type GrantedFolder,
+} from "./permissions.js";
 import { RenderViewModel } from "./renderViewModel.js";
 import type { DOMPurifyLike } from "./sanitize.js";
 import type { KatexLike } from "./math.js";
@@ -152,7 +168,7 @@ function wireWelcomeContentToggle(): void {
  * sidebar but no backdrop element still gets a working drawer, just
  * without tap-outside-to-close.
  */
-function wireSidebar(): { toggle: () => void } | undefined {
+function wireSidebar(): { toggle: () => void; close: () => void } | undefined {
     const sidebarEl = document.getElementById("sidebar");
     if (!sidebarEl) return undefined;
     const backdropEl = document.getElementById("sidebar-backdrop");
@@ -177,6 +193,11 @@ function wireSidebar(): { toggle: () => void } | undefined {
     return {
         toggle: () => {
             toggleDrawer(sidebarEl, backdropEl);
+        },
+        // For drawer mutual exclusivity (wireUIShell) — both drawers slide
+        // in from the left, so opening one must close the other.
+        close: () => {
+            closeDrawer(sidebarEl, backdropEl);
         },
     };
 }
@@ -327,6 +348,7 @@ function wireToolbar(
     preferences: { open: () => void } | undefined,
     search: { open: () => void } | undefined,
     sidebar: { toggle: () => void } | undefined,
+    fileBrowser: { toggle: () => void } | undefined,
 ): void {
     const toolbarEl = document.getElementById("toolbar");
     if (!toolbarEl) return;
@@ -434,7 +456,249 @@ function wireToolbar(
         onToggleSidebar: () => {
             sidebar?.toggle();
         },
+        onToggleFileBrowser: () => {
+            fileBrowser?.toggle();
+        },
     });
+}
+
+/** What `list_directory` (src-tauri/src/lib.rs) returns. `path` is the
+ * *canonical* form of whatever was listed, which is what the folder cache
+ * keys off — never the path the frontend asked with, so a symlink or a
+ * trailing slash can't produce a second cache entry for one real folder. */
+interface DirListing {
+    path: string;
+    entries: { name: string; is_dir: boolean }[];
+}
+
+/** Rust returns `is_dir` (snake_case, serde's default); the frontend's own
+ * type is `isDir`. Converting here, at the boundary, keeps the wire format
+ * out of every module downstream. */
+function toEntries(listing: DirListing): FileBrowserEntry[] {
+    return listing.entries.map((e) => ({ name: e.name, isDir: e.is_dir }));
+}
+
+/** Joins a directory path with a child's name. Lives here rather than in
+ * fileBrowser.ts deliberately — that module never does path arithmetic (see
+ * its own header); this is the one place that knows a real path at all.
+ * Separator is inferred from the path itself rather than assumed: Windows
+ * paths come back with backslashes, and hardcoding "/" would silently
+ * produce broken paths there. */
+function joinPath(dir: string, name: string): string {
+    const sep = dir.includes("\\") && !dir.includes("/") ? "\\" : "/";
+    return dir.endsWith(sep) ? `${dir}${name}` : `${dir}${sep}${name}`;
+}
+
+/** The parent of `path`, or `null` at a root (no separator left to cut, or
+ * only the leading one). `null` is what tells fileBrowser.ts to omit its
+ * up-navigation row. */
+function parentPath(path: string): string | null {
+    const sep = path.includes("\\") && !path.includes("/") ? "\\" : "/";
+    const idx = path.lastIndexOf(sep);
+    if (idx <= 0) return null;
+    return path.slice(0, idx);
+}
+
+/**
+ * The in-app file browser (fileBrowser.ts), 2026-09-12. This is where the
+ * `invoke` calls live — the module itself stays invoke-free so it can be
+ * unit-tested without mocking Tauri, the same tested/untested boundary
+ * every other `wire*` function here draws.
+ *
+ * Cache-then-refresh on every open: a cached listing renders immediately
+ * (so revisiting a folder is instant, the user's own ask), and the live
+ * `list_directory` call replaces it when it lands. That also covers
+ * refresh-on-reopen for free — every open re-fetches, so a folder whose
+ * contents changed on disk updates the next time it's looked at.
+ *
+ * Returns a `toggle()` handle for the toolbar button, matching wireSidebar.
+ */
+function wireFileBrowser(closeOtherDrawers: () => void): { toggle: () => void; close: () => void } | undefined {
+    const browserEl = document.getElementById("file-browser");
+    if (!browserEl) return undefined;
+    const backdropEl = document.getElementById("file-browser-backdrop");
+
+    // The element ships `hidden` so it can't flash before this wiring runs,
+    // but from here its visibility is the `.open` class's job alone (the
+    // drawer slides in via transform; `hidden` would override that with
+    // `display: none` and make it permanently invisible). Caught on the
+    // emulator: the drawer reported `open: true, hidden: true` — open by
+    // class, undisplayable in fact.
+    browserEl.hidden = false;
+
+    // The folder currently being shown. `undefined` before the first
+    // successful listing — which is also the "no document open yet, and no
+    // folder granted" "case, since there is nothing to browse from.
+    let currentPath: string | undefined;
+
+    async function show(path: string | null): Promise<void> {
+        // A cached hit renders first so the drawer is never blank while the
+        // real call is in flight; on a miss we show the loading state
+        // instead. Either way the live listing below replaces it.
+        //
+        // `path === null` (the default "current document's folder", whose
+        // real path only Rust knows) has no cache key to look up, but it
+        // still needs *something* on screen — an earlier version skipped
+        // rendering entirely in that case, which left the drawer visibly
+        // blank on its very first open, the one open guaranteed to take
+        // this branch. Caught on the emulator: correct data, nothing drawn.
+        const cached = path === null ? undefined : loadCachedFolder(path);
+        renderFileBrowser(browserEl!, {
+            kind: cached ? "loaded" : "loading",
+            path: path ?? "",
+            parentPath: path === null ? null : parentPath(path),
+            ...(cached ? { entries: cached } : {}),
+        } as Parameters<typeof renderFileBrowser>[1]);
+
+        try {
+            const listing = (await window.__TAURI__.core.invoke("list_directory", { path })) as DirListing;
+            const entries = toEntries(listing);
+            currentPath = listing.path;
+            storeCachedFolder(listing.path, entries);
+            renderFileBrowser(browserEl!, {
+                kind: "loaded",
+                path: listing.path,
+                parentPath: parentPath(listing.path),
+                entries,
+            });
+        } catch (e) {
+            // Rust's errors carry a stable `kind:` prefix
+            // (not_found:/access_denied:/permission_denied:) — surfaced as-is
+            // rather than flattened to "something went wrong", since which
+            // one it is genuinely changes what the user should do next.
+            const message = String(e);
+            if (path === null) {
+                // Only `not_found:` actually means "there is nothing to
+                // browse yet" — that is what Rust returns when
+                // DocumentBaseDir is unset. A permission or access error on
+                // the default path is a real failure and must say so;
+                // reporting it as "open a document first" sends the user to
+                // do something that will not help. Caught on the emulator,
+                // where /data/local/tmp is readable by the shell but not by
+                // the app, and the resulting permission_denied was being
+                // shown as the first-run message.
+                if (message.includes("not_found:")) {
+                    renderFileBrowser(browserEl!, { kind: "no-document" });
+                } else {
+                    renderFileBrowser(browserEl!, {
+                        kind: "error",
+                        path: "",
+                        parentPath: null,
+                        message,
+                    });
+                }
+            } else {
+                renderFileBrowser(browserEl!, {
+                    kind: "error",
+                    path,
+                    parentPath: parentPath(path),
+                    message,
+                });
+            }
+        }
+    }
+
+    attachFileBrowserHandlers(browserEl, {
+        onOpenFile: (name) => {
+            if (!currentPath) return;
+            void window.__TAURI__.core.invoke("handle_link_click", {
+                href: `file://${joinPath(currentPath, name)}`,
+            });
+            // "Moves away when selected", matching the TOC drawer's own
+            // behaviour — a document is now open, so the browser has served
+            // its purpose for this interaction.
+            closeDrawer(browserEl, backdropEl);
+        },
+        onNavigate: (name) => {
+            if (!currentPath) return;
+            void show(joinPath(currentPath, name));
+        },
+        onUp: () => {
+            if (!currentPath) return;
+            const parent = parentPath(currentPath);
+            if (parent) void show(parent);
+        },
+    });
+
+    backdropEl?.addEventListener("click", () => {
+        closeDrawer(browserEl, backdropEl);
+    });
+
+    return {
+        close: () => {
+            closeDrawer(browserEl, backdropEl);
+        },
+        toggle: () => {
+            const opening = !browserEl.classList.contains("open");
+            if (opening) {
+                closeOtherDrawers();
+                // Re-fetch on every open, not just the first — this is what
+                // picks up files added or removed on disk since last time.
+                void show(currentPath ?? null);
+            }
+            toggleDrawer(browserEl, backdropEl);
+        },
+    };
+}
+
+/**
+ * The consolidated first-launch permissions prompt (permissions.ts),
+ * 2026-09-12 — the user's own "a question that covers all the security
+ * questions at once", shown once at first launch rather than interrupting
+ * later, per their choice.
+ *
+ * Worth being precise about what this does: tapping "Choose a folder…"
+ * calls `request_folder_access`, which presents the *OS* picker. This
+ * dialog never grants anything itself — only the OS can — so a granted
+ * folder appearing in the list is the result of the real grant having
+ * succeeded, not of the user having agreed to something here.
+ */
+function wirePermissions(): void {
+    const permsEl = document.getElementById("permissions");
+    if (!permsEl) return;
+
+    let folders: GrantedFolder[] = [];
+    let policy: RemoteContentPolicy = "ask";
+
+    const rerender = () => renderPermissions(permsEl, { policy, folders });
+    rerender();
+
+    attachPermissionsHandlers(permsEl, {
+        onGrantFolder: () => {
+            void window.__TAURI__.core.invoke("request_folder_access").then((granted) => {
+                if (!granted) return; // Cancelled, or the picker failed.
+                // The command returns only success/failure, not the path, so
+                // re-read the authoritative list rather than guessing at what
+                // was added.
+                void window.__TAURI__.core.invoke("list_granted_folders").then((paths) => {
+                    folders = (paths as string[]).map((path) => ({ path }));
+                    rerender();
+                });
+            });
+        },
+        onPolicyChange: (next) => {
+            policy = next;
+            void window.__TAURI__.core.invoke("set_remote_content_policy", { policy: next });
+        },
+        onDone: () => {
+            markPermissionsPromptSeen();
+            hidePermissions(permsEl);
+        },
+    });
+
+    if (!hasSeenPermissionsPrompt()) {
+        // Seed from the real current state before showing, so a reinstall
+        // that kept its grants doesn't claim to have none.
+        void window.__TAURI__.core.invoke("get_remote_content_policy").then((current) => {
+            policy = current as RemoteContentPolicy;
+            rerender();
+        });
+        void window.__TAURI__.core.invoke("list_granted_folders").then((paths) => {
+            folders = (paths as string[]).map((path) => ({ path }));
+            rerender();
+        });
+        showPermissions(permsEl);
+    }
 }
 
 function wireUIShell(): void {
@@ -443,7 +707,23 @@ function wireUIShell(): void {
     const preferences = wirePreferences();
     const search = wireSearch();
     wireGlobalShortcuts(search);
-    wireToolbar(preferences, search, sidebar);
+    // Drawer mutual exclusivity is policy, so it lives here rather than in
+    // either drawer's own module: both slide in from the left edge and
+    // would overlap if both opened. Each drawer's toggle closes the other
+    // first — wired in both directions, not just one.
+    const fileBrowser = wireFileBrowser(() => sidebar?.close());
+    wirePermissions();
+    wireToolbar(
+        preferences,
+        search,
+        sidebar && {
+            toggle: () => {
+                fileBrowser?.close();
+                sidebar.toggle();
+            },
+        },
+        fileBrowser,
+    );
 }
 
 if (document.readyState === "loading") {

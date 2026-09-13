@@ -19,6 +19,7 @@ describe("renderToolbar", () => {
         expect(toolbar.querySelector('button[data-action="preferences"]')).not.toBeNull();
         expect(toolbar.querySelector('button[data-action="find"]')).not.toBeNull();
         expect(toolbar.querySelector('button[data-action="sidebar-toggle"]')).not.toBeNull();
+        expect(toolbar.querySelector('button[data-action="file-browser-toggle"]')).not.toBeNull();
     });
 
     it("shows the initial font size on the reset button", () => {
@@ -64,6 +65,7 @@ describe("attachToolbarHandlers", () => {
             onPreferences: vi.fn(),
             onFind: vi.fn(),
             onToggleSidebar: vi.fn(),
+            onToggleFileBrowser: vi.fn(),
         });
 
         toolbar.querySelector('button[data-action="open"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -82,6 +84,7 @@ describe("attachToolbarHandlers", () => {
             onPreferences: vi.fn(),
             onFind: vi.fn(),
             onToggleSidebar: vi.fn(),
+            onToggleFileBrowser: vi.fn(),
         };
         attachToolbarHandlers(toolbar, callbacks);
 
@@ -106,6 +109,7 @@ describe("attachToolbarHandlers", () => {
             onPreferences: vi.fn(),
             onFind: vi.fn(),
             onToggleSidebar: vi.fn(),
+            onToggleFileBrowser: vi.fn(),
         });
 
         const select = toolbar.querySelector<HTMLSelectElement>("select")!;
@@ -127,6 +131,7 @@ describe("attachToolbarHandlers", () => {
             onPreferences,
             onFind: vi.fn(),
             onToggleSidebar: vi.fn(),
+            onToggleFileBrowser: vi.fn(),
         });
 
         toolbar.querySelector('button[data-action="preferences"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -146,11 +151,34 @@ describe("attachToolbarHandlers", () => {
             onPreferences: vi.fn(),
             onFind,
             onToggleSidebar: vi.fn(),
+            onToggleFileBrowser: vi.fn(),
         });
 
         toolbar.querySelector('button[data-action="find"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
         expect(onFind).toHaveBeenCalledOnce();
+    });
+
+    it("calls onToggleFileBrowser when the file-browser-toggle button is clicked", () => {
+        renderToolbar(toolbar, 16, "github-light");
+        const onToggleFileBrowser = vi.fn();
+        attachToolbarHandlers(toolbar, {
+            onOpen: vi.fn(),
+            onFontDecrease: vi.fn(),
+            onFontReset: vi.fn(),
+            onFontIncrease: vi.fn(),
+            onThemeChange: vi.fn(),
+            onPreferences: vi.fn(),
+            onFind: vi.fn(),
+            onToggleSidebar: vi.fn(),
+            onToggleFileBrowser,
+        });
+
+        toolbar
+            .querySelector('button[data-action="file-browser-toggle"]')!
+            .dispatchEvent(new MouseEvent("click", { bubbles: true }));
+
+        expect(onToggleFileBrowser).toHaveBeenCalledOnce();
     });
 
     it("calls onToggleSidebar when the sidebar-toggle button is clicked", () => {
@@ -165,6 +193,7 @@ describe("attachToolbarHandlers", () => {
             onPreferences: vi.fn(),
             onFind: vi.fn(),
             onToggleSidebar,
+            onToggleFileBrowser: vi.fn(),
         });
 
         toolbar.querySelector('button[data-action="sidebar-toggle"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
@@ -184,6 +213,7 @@ describe("attachToolbarHandlers", () => {
             onPreferences: vi.fn(),
             onFind: vi.fn(),
             onToggleSidebar: vi.fn(),
+            onToggleFileBrowser: vi.fn(),
         });
 
         toolbar.querySelector(".toolbar-spacer")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));

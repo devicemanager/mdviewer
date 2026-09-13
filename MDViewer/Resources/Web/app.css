@@ -734,3 +734,221 @@ body {
     font-size: 0.85em;
     color: var(--muted-color, #6a737d);
 }
+
+/* File browser (fileBrowser.ts) — 2026-09-12. Shares #sidebar's drawer
+   shell via the `.drawer` class; these rules are only what goes *inside*
+   it. Deliberately mirrors the TOC's own list styling (same padding,
+   radius, hover treatment) rather than inventing a second visual
+   language for what is, structurally, the same thing: a tappable list in
+   a drawer.
+
+   The element ships `hidden` in app.html so it cannot flash before
+   main.ts wires it, and wireFileBrowser clears that attribute once — from
+   then on visibility is the `.open` class's job alone. No `[hidden]`
+   override belongs here: it would fight the drawer's own transform and
+   keep the drawer permanently undisplayable (caught exactly that way on
+   the emulator). */
+#file-browser {
+    padding: 12px;
+    overflow-y: auto;
+}
+
+/* Status-bar clearance, matching #sidebar's own mobile rule — see that
+   rule's comment for why a fixed value rather than env(safe-area-inset-*). */
+@media (max-width: 768px) {
+    #file-browser {
+        padding-top: 36px;
+    }
+}
+
+.file-browser-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.file-browser-item {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    text-align: left;
+    background: none;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    padding: 8px 12px;
+    color: inherit;
+    font: inherit;
+    /* Long file names truncate rather than wrapping to three lines —
+       a directory listing reads better as scannable single lines. */
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.file-browser-item:hover,
+.file-browser-item:active {
+    background: rgba(0, 0, 0, 0.05);
+    background: color-mix(in srgb, var(--text-color, #000) 6%, transparent);
+}
+
+/* Folders and the up-row lead with a glyph so the two kinds of row are
+   distinguishable at a glance without relying on colour alone. */
+.file-browser-folder::before {
+    content: "📁 ";
+}
+
+.file-browser-up {
+    color: var(--muted-color, #6a737d);
+}
+
+.file-browser-empty,
+.file-browser-loading,
+.file-browser-error {
+    color: var(--muted-color, #6a737d);
+    text-align: center;
+    padding: 16px;
+}
+
+.file-browser-error {
+    /* Not red-on-white: the themes vary too much for a hardcoded colour to
+       stay legible. Distinguished by weight instead. */
+    font-weight: 600;
+}
+
+/* Permissions prompt (permissions.ts) — 2026-09-12. Same overlay/panel
+   material as the preferences modal, since it is the same kind of thing
+   (a focused, full-screen-scrim dialog), but sized to its content rather
+   than the preferences panel's fixed height: this is a one-time screen
+   whose length depends on how many folders are already granted. */
+#permissions[hidden] {
+    display: none;
+}
+
+.permissions-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    /* Padding rather than margin on the panel, so a tall panel on a small
+       screen still has breathing room at both ends when it scrolls. */
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+.permissions-panel {
+    width: 440px;
+    max-width: 100%;
+    max-height: 100%;
+    overflow-y: auto;
+    background: var(--bg-color, #fff);
+    color: var(--text-color, #24292e);
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.permissions-title {
+    margin: 0 0 4px;
+    font-size: 1.3em;
+}
+
+.permissions-intro {
+    margin: 0 0 20px;
+    color: var(--muted-color, #6a737d);
+    font-size: 0.9em;
+}
+
+.permissions-section {
+    margin-bottom: 24px;
+}
+
+.permissions-section h3 {
+    margin: 0 0 6px;
+    font-size: 1em;
+}
+
+.permissions-explanation {
+    margin: 0 0 12px;
+    font-size: 0.85em;
+    color: var(--muted-color, #6a737d);
+}
+
+.permissions-no-folders {
+    margin: 0 0 12px;
+    font-size: 0.85em;
+    font-style: italic;
+    color: var(--muted-color, #6a737d);
+}
+
+.permissions-folder-list {
+    list-style: none;
+    margin: 0 0 12px;
+    padding: 0;
+}
+
+.permissions-folder {
+    font-family: var(--code-font, monospace);
+    font-size: 0.8em;
+    padding: 6px 8px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.05);
+    background: color-mix(in srgb, var(--text-color, #000) 5%, transparent);
+    margin-bottom: 4px;
+    /* Paths are long and matter most at the end (the folder's own name),
+       so truncate from the left. */
+    direction: rtl;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.permissions-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-weight: 600;
+    font-size: 0.9em;
+}
+
+.permissions-field select {
+    font: inherit;
+    font-weight: normal;
+    padding: 8px;
+    border: 1px solid var(--border-color, #e1e4e8);
+    border-radius: 6px;
+    background: none;
+    color: inherit;
+}
+
+.permissions-grant-btn,
+.permissions-done-btn {
+    font: inherit;
+    font-weight: 600;
+    cursor: pointer;
+    border-radius: 10px;
+    padding: 12px 20px;
+    border: none;
+}
+
+.permissions-grant-btn {
+    background: rgba(0, 0, 0, 0.06);
+    background: color-mix(in srgb, var(--text-color, #000) 8%, transparent);
+    color: inherit;
+}
+
+.permissions-done-btn {
+    width: 100%;
+    background: var(--link-color, #0366d6);
+    color: #fff;
+}
+
+.permissions-grant-btn:hover,
+.permissions-done-btn:hover {
+    filter: brightness(0.94);
+}

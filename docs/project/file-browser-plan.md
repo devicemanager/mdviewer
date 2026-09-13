@@ -23,22 +23,27 @@ Phase 4+ is restated below with the mid-flight revision folded in).
 | `fileBrowser.ts` (render + localStorage cache) | Done, 21 tests |
 | `permissions.ts` (consolidated first-launch prompt) | Done, 16 tests |
 | `ios_folder_picker.rs` (native `UIDocumentPickerViewController`) | **Compiles on all 3 targets, never run** |
+| Phase 4 wiring (markup, CSS, `main.ts` glue) | Done, verified on Android emulator |
 
-Test counts: **83** Rust, **216** web. All green.
+Test counts: **83** Rust, **217** web. All green.
 
-**Explicitly NOT done — verified just now, don't assume otherwise:**
+**Phase 4 landed 2026-09-13.** Markup, CSS and `main.ts` wiring are in;
+bundle grew 36.2kb → 48.6kb, confirming the modules are actually reachable
+now rather than dead code. Verified on the Android emulator end to end:
+first-launch prompt appears with both questions, Done persists the seen
+flag, the browser lists a real folder (subfolder first, non-markdown
+filtered), navigate in/up works, tapping a file opens it and closes the
+drawer, and drawer mutual exclusivity holds in both directions.
 
-- `fileBrowser.ts` and `permissions.ts` are **not imported by `main.ts`**.
-  Nothing renders either one. They are dead code from the bundler's view
-  (bundle size unchanged at 36.2kb confirms this).
-- **No markup**: `#file-browser`, `#file-browser-backdrop`, `#permissions`
-  do not exist in `app.html`. The only hits are comments — including one at
-  `app.html:87` that forward-references `#file-browser` "further down",
-  which is currently untrue and should be fixed when the element lands.
-- **No CSS**: no `.file-browser-*` or `.permissions-*` rules in `app.css`.
-  Only comment references.
-- **Nothing committed this session.** `HEAD` is still `b8b7193`. Every
-  change described here and in plan.md is uncommitted working-tree state.
+**Still NOT done:**
+
+- Phase 5 (poll-on-reopen refresh as a distinct diffed step), Phase 6
+  (toolbar reorganisation), Phase 7 (background live refresh).
+- The permissions prompt's "Choose a folder…" path is **untested on iOS** —
+  it calls `request_folder_access`, which on iOS reaches the never-yet-run
+  native picker. On Android that command returns `false` unconditionally
+  (no Storage Access Framework support yet), so the button currently does
+  nothing there by design.
 
 ---
 
@@ -70,7 +75,7 @@ tap-through before anything is built on top of it.
 
 ## 3. Remaining phases
 
-### Phase 4 — Wire it in (frontend + markup + CSS)
+### Phase 4 — Wire it in (frontend + markup + CSS) — **DONE 2026-09-13**
 - Add `#permissions` and `#file-browser`/`#file-browser-backdrop` to
   `app.html` (both `hidden`; drawer carries `class="drawer"`, backdrop
   `class="drawer-backdrop"` — see `#sidebar`'s existing pair as the model).

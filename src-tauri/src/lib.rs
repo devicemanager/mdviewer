@@ -309,7 +309,8 @@ pub fn run() {
             get_remote_content_policy,
             set_remote_content_policy,
             spike_read_dir_variants,
-            list_directory
+            list_directory,
+            list_granted_folders
         ]);
 
     // `tauri::menu` — and so a native File menu — is `#[cfg(desktop)]` only;
@@ -669,6 +670,27 @@ fn request_folder_access_blocking<R: Runtime>(app: AppHandle<R>, seed: Option<Pa
 /// also succeeds, so keeping them separate keeps `grant_folder_access`
 /// itself trivially testable without needing macOS/a filesystem bookmark
 /// to actually resolve.
+/// The folders currently granted (tier two of the access model — see
+/// `GrantedFolders`). Added 2026-09-12 for the consolidated permissions
+/// prompt (permissions.ts), which shows what access has actually been
+/// given rather than only what the user was asked for.
+///
+/// Reads the authoritative in-memory list rather than the on-disk bookmark
+/// store, deliberately: `restore_granted_folders` already repopulates this
+/// at startup from those bookmarks, and a bookmark that failed to resolve
+/// this run is *not* usable access, so reporting it would overstate what
+/// the app can really read.
+#[tauri::command]
+fn list_granted_folders<R: Runtime>(app: AppHandle<R>) -> Vec<String> {
+    app.state::<GrantedFolders>()
+        .0
+        .lock()
+        .unwrap()
+        .iter()
+        .map(|p| p.to_string_lossy().to_string())
+        .collect()
+}
+
 fn grant_folder_access<R: Runtime>(app: &AppHandle<R>, path: &Path) -> bool {
     let Ok(canonical) = path.canonicalize() else { return false };
     app.state::<GrantedFolders>().0.lock().unwrap().push(canonical.clone());

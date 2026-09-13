@@ -503,6 +503,7 @@
 
   // src/toolbar.ts
   var ICON_SIDEBAR = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="3" y1="5.5" x2="17" y2="5.5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="14.5" x2="17" y2="14.5"/></svg>`;
+  var ICON_BROWSE = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5a1 1 0 0 1 1-1h4l1.5 2h6.5a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1v-8Z"/><path d="M2.5 9.5h15"/></svg>`;
   var ICON_OPEN = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5a1 1 0 0 1 1-1H8l1.5 2H16.5a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-9.5Z"/></svg>`;
   var ICON_FIND = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="16.5" y1="16.5" x2="12.6" y2="12.6"/></svg>`;
   var ICON_PREFERENCES = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1 4.7 4.7"/></svg>`;
@@ -515,6 +516,7 @@
   function renderToolbar(toolbar, initialFontSize, initialThemeId) {
     toolbar.innerHTML = `
         <button type="button" data-action="sidebar-toggle" class="sidebar-toggle-btn icon-btn" aria-label="Table of contents">${ICON_SIDEBAR}</button>
+        <button type="button" data-action="file-browser-toggle" class="icon-btn" aria-label="Browse files">${ICON_BROWSE}</button>
         <button type="button" data-action="open" class="icon-btn" aria-label="Open\u2026">${ICON_OPEN}</button>
         <span class="toolbar-group">
             <button type="button" data-action="font-decrease" aria-label="Decrease font size">A\u2212</button>
@@ -544,6 +546,9 @@
       switch (button.dataset.action) {
         case "sidebar-toggle":
           callbacks.onToggleSidebar();
+          break;
+        case "file-browser-toggle":
+          callbacks.onToggleFileBrowser();
           break;
         case "open":
           callbacks.onOpen();
@@ -767,6 +772,184 @@
     });
   }
 
+  // src/fileBrowser.ts
+  function upRowHTML(parentPath2) {
+    if (parentPath2 === null) return "";
+    return '<li><button type="button" class="file-browser-item file-browser-up" data-action="up">.. (up one level)</button></li>';
+  }
+  function renderFileBrowser(container, state) {
+    if (state.kind === "no-document") {
+      container.innerHTML = '<div class="file-browser-empty"><p>Open a document to browse its folder.</p></div>';
+      return;
+    }
+    const up = upRowHTML(state.parentPath);
+    if (state.kind === "loading") {
+      container.innerHTML = `<ul class="file-browser-list">${up}</ul><div class="file-browser-loading">Loading\u2026</div>`;
+      return;
+    }
+    if (state.kind === "error") {
+      container.innerHTML = `<ul class="file-browser-list">${up}</ul><div class="file-browser-error">${escapeHtml(state.message)}</div>`;
+      return;
+    }
+    if (state.entries.length === 0) {
+      container.innerHTML = `<ul class="file-browser-list">${up}</ul><div class="file-browser-empty"><p>No documents in this folder.</p></div>`;
+      return;
+    }
+    const items = state.entries.map((entry) => {
+      const cls = entry.isDir ? "file-browser-folder" : "file-browser-file";
+      const action = entry.isDir ? "navigate" : "open";
+      return `<li><button type="button" class="file-browser-item ${cls}" data-action="${action}" data-name="${escapeHtml(entry.name)}">${escapeHtml(entry.name)}</button></li>`;
+    }).join("");
+    container.innerHTML = `<ul class="file-browser-list">${up}${items}</ul>`;
+  }
+  function attachFileBrowserHandlers(container, callbacks) {
+    container.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest("button[data-action]");
+      if (!button) return;
+      switch (button.dataset.action) {
+        case "up":
+          callbacks.onUp();
+          break;
+        case "navigate":
+          if (button.dataset.name) callbacks.onNavigate(button.dataset.name);
+          break;
+        case "open":
+          if (button.dataset.name) callbacks.onOpenFile(button.dataset.name);
+          break;
+      }
+    });
+  }
+  var FOLDER_CACHE_KEY = "mdviewer.folderCache";
+  var FOLDER_CACHE_VERSION = 1;
+  var FOLDER_CACHE_MAX_FOLDERS = 20;
+  function emptyFolderCache() {
+    return { v: FOLDER_CACHE_VERSION, folders: {} };
+  }
+  function loadFolderCacheData() {
+    try {
+      const raw = localStorage.getItem(FOLDER_CACHE_KEY);
+      if (raw === null) return emptyFolderCache();
+      const parsed = JSON.parse(raw);
+      if (typeof parsed !== "object" || parsed === null || parsed.v !== FOLDER_CACHE_VERSION || typeof parsed.folders !== "object" || parsed.folders === null) {
+        return emptyFolderCache();
+      }
+      return parsed;
+    } catch {
+      return emptyFolderCache();
+    }
+  }
+  function storeFolderCacheData(data) {
+    try {
+      localStorage.setItem(FOLDER_CACHE_KEY, JSON.stringify(data));
+    } catch {
+    }
+  }
+  function loadCachedFolder(canonicalPath) {
+    return loadFolderCacheData().folders[canonicalPath]?.entries;
+  }
+  function storeCachedFolder(canonicalPath, entries) {
+    const data = loadFolderCacheData();
+    data.folders[canonicalPath] = { entries, cachedAt: Date.now() };
+    const keys = Object.keys(data.folders);
+    if (keys.length > FOLDER_CACHE_MAX_FOLDERS) {
+      const oldestFirst = keys.sort((a, b) => data.folders[a].cachedAt - data.folders[b].cachedAt);
+      for (const key of oldestFirst.slice(0, keys.length - FOLDER_CACHE_MAX_FOLDERS)) {
+        delete data.folders[key];
+      }
+    }
+    storeFolderCacheData(data);
+  }
+
+  // src/permissions.ts
+  var POLICY_OPTIONS2 = [
+    { id: "ask", label: "Ask each time" },
+    { id: "always", label: "Always load" },
+    { id: "never", label: "Never (block)" }
+  ];
+  var FOLDER_EXPLANATION = "To browse and open documents, MDViewer needs access to a folder. Granting one lets it read that folder and everything inside it \u2014 including images your documents reference. Nothing outside a folder you grant is ever read.";
+  var REMOTE_EXPLANATION = "Markdown files can reference images hosted online. Loading one reveals your IP address (and that you opened the document) to that server.";
+  function policyOptionsHTML2(selected) {
+    return POLICY_OPTIONS2.map(
+      (option) => `<option value="${option.id}"${option.id === selected ? " selected" : ""}>${escapeHtml(option.label)}</option>`
+    ).join("");
+  }
+  function foldersHTML(folders) {
+    if (folders.length === 0) {
+      return '<p class="permissions-no-folders">No folder granted yet.</p>';
+    }
+    const items = folders.map((folder) => `<li class="permissions-folder">${escapeHtml(folder.path)}</li>`).join("");
+    return `<ul class="permissions-folder-list">${items}</ul>`;
+  }
+  function renderPermissions(root, state) {
+    root.innerHTML = `
+        <div class="permissions-overlay">
+            <div class="permissions-panel" role="dialog" aria-label="Permissions">
+                <h2 class="permissions-title">Before you start</h2>
+                <p class="permissions-intro">MDViewer asks for everything it needs up front, once. You can change any of this later in Settings.</p>
+
+                <section class="permissions-section">
+                    <h3>Folder access</h3>
+                    <p class="permissions-explanation">${escapeHtml(FOLDER_EXPLANATION)}</p>
+                    ${foldersHTML(state.folders)}
+                    <button type="button" class="permissions-grant-btn" data-action="grant-folder">Choose a folder\u2026</button>
+                </section>
+
+                <section class="permissions-section">
+                    <h3>Internet images &amp; resources</h3>
+                    <p class="permissions-explanation">${escapeHtml(REMOTE_EXPLANATION)}</p>
+                    <label class="permissions-field">
+                        <span>When a document references one</span>
+                        <select data-action="policy">${policyOptionsHTML2(state.policy)}</select>
+                    </label>
+                </section>
+
+                <button type="button" class="permissions-done-btn" data-action="done">Done</button>
+            </div>
+        </div>
+    `;
+  }
+  function attachPermissionsHandlers(root, callbacks) {
+    root.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest("button[data-action]");
+      if (!button) return;
+      if (button.dataset.action === "grant-folder") {
+        callbacks.onGrantFolder();
+      } else if (button.dataset.action === "done") {
+        callbacks.onDone();
+      }
+    });
+    root.addEventListener("change", (e) => {
+      const target = e.target;
+      if (!(target instanceof HTMLSelectElement) || target.dataset.action !== "policy") return;
+      const policy = POLICY_OPTIONS2.find((option) => option.id === target.value);
+      if (policy) callbacks.onPolicyChange(policy.id);
+    });
+  }
+  function showPermissions(root) {
+    root.hidden = false;
+  }
+  function hidePermissions(root) {
+    root.hidden = true;
+  }
+  var PERMISSIONS_SEEN_KEY = "mdviewer.permissionsPromptSeen";
+  function hasSeenPermissionsPrompt() {
+    try {
+      return localStorage.getItem(PERMISSIONS_SEEN_KEY) === "true";
+    } catch {
+      return false;
+    }
+  }
+  function markPermissionsPromptSeen() {
+    try {
+      localStorage.setItem(PERMISSIONS_SEEN_KEY, "true");
+    } catch {
+    }
+  }
+
   // src/renderViewModel.ts
   var MIN_FONT_SIZE = 10;
   var MAX_FONT_SIZE = 32;
@@ -889,6 +1072,11 @@
     return {
       toggle: () => {
         toggleDrawer(sidebarEl, backdropEl);
+      },
+      // For drawer mutual exclusivity (wireUIShell) — both drawers slide
+      // in from the left, so opening one must close the other.
+      close: () => {
+        closeDrawer(sidebarEl, backdropEl);
       }
     };
   }
@@ -969,7 +1157,7 @@
       }
     });
   }
-  function wireToolbar(preferences, search, sidebar) {
+  function wireToolbar(preferences, search, sidebar, fileBrowser) {
     const toolbarEl = document.getElementById("toolbar");
     if (!toolbarEl) return;
     const renderVM = new RenderViewModel({
@@ -1029,8 +1217,145 @@
       },
       onToggleSidebar: () => {
         sidebar?.toggle();
+      },
+      onToggleFileBrowser: () => {
+        fileBrowser?.toggle();
       }
     });
+  }
+  function toEntries(listing) {
+    return listing.entries.map((e) => ({ name: e.name, isDir: e.is_dir }));
+  }
+  function joinPath(dir, name) {
+    const sep = dir.includes("\\") && !dir.includes("/") ? "\\" : "/";
+    return dir.endsWith(sep) ? `${dir}${name}` : `${dir}${sep}${name}`;
+  }
+  function parentPath(path) {
+    const sep = path.includes("\\") && !path.includes("/") ? "\\" : "/";
+    const idx = path.lastIndexOf(sep);
+    if (idx <= 0) return null;
+    return path.slice(0, idx);
+  }
+  function wireFileBrowser(closeOtherDrawers) {
+    const browserEl = document.getElementById("file-browser");
+    if (!browserEl) return void 0;
+    const backdropEl = document.getElementById("file-browser-backdrop");
+    browserEl.hidden = false;
+    let currentPath;
+    async function show(path) {
+      const cached = path === null ? void 0 : loadCachedFolder(path);
+      renderFileBrowser(browserEl, {
+        kind: cached ? "loaded" : "loading",
+        path: path ?? "",
+        parentPath: path === null ? null : parentPath(path),
+        ...cached ? { entries: cached } : {}
+      });
+      try {
+        const listing = await window.__TAURI__.core.invoke("list_directory", { path });
+        const entries = toEntries(listing);
+        currentPath = listing.path;
+        storeCachedFolder(listing.path, entries);
+        renderFileBrowser(browserEl, {
+          kind: "loaded",
+          path: listing.path,
+          parentPath: parentPath(listing.path),
+          entries
+        });
+      } catch (e) {
+        const message = String(e);
+        if (path === null) {
+          if (message.includes("not_found:")) {
+            renderFileBrowser(browserEl, { kind: "no-document" });
+          } else {
+            renderFileBrowser(browserEl, {
+              kind: "error",
+              path: "",
+              parentPath: null,
+              message
+            });
+          }
+        } else {
+          renderFileBrowser(browserEl, {
+            kind: "error",
+            path,
+            parentPath: parentPath(path),
+            message
+          });
+        }
+      }
+    }
+    attachFileBrowserHandlers(browserEl, {
+      onOpenFile: (name) => {
+        if (!currentPath) return;
+        void window.__TAURI__.core.invoke("handle_link_click", {
+          href: `file://${joinPath(currentPath, name)}`
+        });
+        closeDrawer(browserEl, backdropEl);
+      },
+      onNavigate: (name) => {
+        if (!currentPath) return;
+        void show(joinPath(currentPath, name));
+      },
+      onUp: () => {
+        if (!currentPath) return;
+        const parent = parentPath(currentPath);
+        if (parent) void show(parent);
+      }
+    });
+    backdropEl?.addEventListener("click", () => {
+      closeDrawer(browserEl, backdropEl);
+    });
+    return {
+      close: () => {
+        closeDrawer(browserEl, backdropEl);
+      },
+      toggle: () => {
+        const opening = !browserEl.classList.contains("open");
+        if (opening) {
+          closeOtherDrawers();
+          void show(currentPath ?? null);
+        }
+        toggleDrawer(browserEl, backdropEl);
+      }
+    };
+  }
+  function wirePermissions() {
+    const permsEl = document.getElementById("permissions");
+    if (!permsEl) return;
+    let folders = [];
+    let policy = "ask";
+    const rerender = () => renderPermissions(permsEl, { policy, folders });
+    rerender();
+    attachPermissionsHandlers(permsEl, {
+      onGrantFolder: () => {
+        void window.__TAURI__.core.invoke("request_folder_access").then((granted) => {
+          if (!granted) return;
+          void window.__TAURI__.core.invoke("list_granted_folders").then((paths) => {
+            folders = paths.map((path) => ({ path }));
+            rerender();
+          });
+        });
+      },
+      onPolicyChange: (next) => {
+        policy = next;
+        void window.__TAURI__.core.invoke("set_remote_content_policy", { policy: next });
+      },
+      onDone: () => {
+        markPermissionsPromptSeen();
+        hidePermissions(permsEl);
+      }
+    });
+    if (!hasSeenPermissionsPrompt()) {
+      void window.__TAURI__.core.invoke("get_remote_content_policy").then((current) => {
+        policy = current;
+        rerender();
+      });
+      void window.__TAURI__.core.invoke("list_granted_folders").then((paths) => {
+        folders = paths.map((path) => ({ path }));
+        rerender();
+      });
+      showPermissions(permsEl);
+    }
   }
   function wireUIShell() {
     wireWelcomeContentToggle();
@@ -1038,7 +1363,19 @@
     const preferences = wirePreferences();
     const search = wireSearch();
     wireGlobalShortcuts(search);
-    wireToolbar(preferences, search, sidebar);
+    const fileBrowser = wireFileBrowser(() => sidebar?.close());
+    wirePermissions();
+    wireToolbar(
+      preferences,
+      search,
+      sidebar && {
+        toggle: () => {
+          fileBrowser?.close();
+          sidebar.toggle();
+        }
+      },
+      fileBrowser
+    );
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", wireUIShell);

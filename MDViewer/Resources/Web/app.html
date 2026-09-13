@@ -84,9 +84,19 @@
              setContent. `class="drawer"` is the shared mobile slide-in/
              backdrop-material treatment (app.css, drawer.ts) — generalized
              2026-09-12 out of what used to be `#sidebar`-only rules, once
-             the in-app file browser (`#file-browser`, further down) needed
-             the identical mechanism. -->
+             the in-app file browser (`#file-browser`, immediately below)
+             needed the identical mechanism. -->
         <nav id="sidebar" class="drawer"></nav>
+
+        <!-- In-app file browser (fileBrowser.ts), 2026-09-12. A second
+             drawer sharing #sidebar's exact slide-in treatment via the
+             `drawer` class. Unlike #sidebar it is drawer-only at every
+             width — it has no in-flow desktop form, since desktop already
+             has a native folder picker and this exists mainly because
+             mobile does not (see request_folder_access's own doc comment
+             in src-tauri/src/lib.rs). Starts `hidden`; main.ts's
+             wireFileBrowser() populates and reveals it. -->
+        <nav id="file-browser" class="drawer" hidden></nav>
 
         <div id="main">
             <!-- Milestone E's toolbar (toolbar.ts) — Open, font size,
@@ -165,5 +175,28 @@
          generalization to a shared `.drawer-backdrop` class, reused now by
          the in-app file browser's own backdrop too. -->
     <div id="sidebar-backdrop" class="drawer-backdrop" hidden></div>
+
+    <!-- The file browser's own backdrop. A separate element rather than
+         one shared scrim, because each drawer's open/close is independent
+         (drawer.ts takes the pair as arguments); sharing one would couple
+         them through the DOM instead. Mutual exclusivity — opening one
+         drawer closes the other, since both slide in from the left and
+         would otherwise overlap — is policy, enforced in main.ts's
+         wireUIShell, not something these elements imply on their own. -->
+    <div id="file-browser-backdrop" class="drawer-backdrop" hidden></div>
+
+    <!-- Consolidated first-launch permissions prompt (permissions.ts),
+         2026-09-12. Asks about folder access and remote content together —
+         the user's own "a question that covers all the security questions
+         at once" — rather than interrupting separately per capability.
+         Outside #app for the same reason #preferences is: a full-screen
+         overlay, not a flex layout participant. Starts hidden; main.ts
+         shows it on first launch only (hasSeenPermissionsPrompt).
+
+         Note this dialog does NOT itself grant anything — only the OS
+         picker can hand the app a security-scoped URL. It is a consent and
+         explanation layer that triggers each platform's real grant
+         mechanism; see permissions.ts's own header. -->
+    <div id="permissions" hidden></div>
 </body>
 </html>
