@@ -8,10 +8,10 @@ assumes Claude-specific state beyond one pointer noted below.
 why); this file is only *what's left*, plus the context needed to not
 re-learn it the hard way.
 
-**You are here:** `HEAD` is `822a617` (2026-09-13, after a `git filter-repo`
-history rewrite that moved the OTA tooling out of this repo — every commit
-hash before that point changed; don't compare against hashes recorded
-earlier than this note). Working tree is clean —
+**You are here:** `HEAD` is `a9c21a7` (2026-09-14). Everything before
+`822a617` (2026-09-13) predates a `git filter-repo` history rewrite that
+moved the OTA tooling out of this repo — don't compare against hashes
+recorded earlier than that note. Working tree is clean —
 everything described as "done" below is committed, not just present in a
 working tree. Before trusting any "done" claim in this file, it's still worth
 a quick `git log --oneline -10` and re-running the test suites (commands in
