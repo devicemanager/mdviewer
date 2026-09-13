@@ -36,6 +36,3 @@ node_modules/
 /src-tauri/target/
 /src-tauri/gen/
 
-# OTA Caddy service (runtime state, not source)
-/ota/caddy.log
-

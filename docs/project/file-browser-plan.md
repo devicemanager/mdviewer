@@ -18,9 +18,14 @@ stale the same way code comments do.
 **The OTA tunnel is healthy again** (confirmed 2026-09-13, end of session:
 `https://<ota-tunnel-host>/` → 200). Section 2a below is now history,
 not a live blocker — kept for the war story (a missing scratch file caused
-hours of "is the tunnel down" debugging) and because `ota/README.md` is now
-the actual source of truth for how the OTA server runs. The two items that
-were blocked on it (2b, 2c) are open again.
+hours of "is the tunnel down" debugging). **The OTA server tooling itself
+moved out of this repo on 2026-09-13** — it lived at `ota/` here until it
+turned out to carry this machine's LAN IP and tunnel hostname into project
+history, which was scrubbed via a `git filter-repo` rewrite. It now lives
+in a separate, untracked local folder outside this repo; see the mdviewer
+maintainer's local notes there for how the OTA server runs — this file
+still covers the port's own progress. The two items that were blocked on
+the tunnel (2b, 2c) are open again.
 
 Superseded planning artifact: `~/.claude/plans/staged-fluttering-octopus.md`
 (a Claude Code plan-mode file, outside the repo and outside git — its
@@ -79,11 +84,12 @@ rather than the tunnel being disabled.
 
 **Actual cause:** the health check was pointed at `/_probe.txt` — a scratch
 file that only ever existed for manual `curl` testing while first getting
-Caddy working (2026-09-09), deliberately deleted as cruft before `ota/`'s
-first commit, and never tracked in git. `/_probe.txt` → 404; Pangolin read
-that as unhealthy and 503'd every request at the edge, regardless of how
-healthy the actual server was. Full writeup is in `ota/README.md` — that's
-now the source of truth for the OTA server itself, not this file.
+Caddy working (2026-09-09), deliberately deleted as cruft before the OTA
+tooling's first commit (back when it briefly lived in this repo, at
+`ota/`), and never tracked in git. `/_probe.txt` → 404; Pangolin read that
+as unhealthy and 503'd every request at the edge, regardless of how healthy
+the actual server was. Full writeup lives with the OTA tooling itself (see
+the note above — it's no longer part of this repo).
 
 **Fixed** by repointing the Pangolin health check at `/` (always present —
 confirmed `https://<ota-tunnel-host>/` → 200 at session end).
@@ -91,8 +97,9 @@ confirmed `https://<ota-tunnel-host>/` → 200 at session end).
 **Also fixed 2026-09-13**: Caddy itself was a bare `nohup ... &` from a
 Claude Code Bash tool call, with no supervision — a crash or reboot would
 have silently taken OTA down. Replaced with a proper LaunchAgent
-(`ota/install-caddy-service.sh` / `ota/launchd/*.plist`), `KeepAlive`
-restart behavior verified live with a `kill -9`.
+(install script + plist, now living with the rest of the OTA tooling
+outside this repo), `KeepAlive` restart behavior verified live with a
+`kill -9`.
 
 Both items below (2b, 2c) are open again now that delivery works.
 
@@ -302,6 +309,7 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home 
   a fresh archive ("archive not found"); retrying immediately works.
 - iOS build sometimes needs stale `gen/apple/build/**/MDViewer.app` removed
   first ("Directory not empty").
-- OTA: Caddy serves `ota/serve/` on `:4000` → `<ota-tunnel-host>`.
-  Update `MDViewer.ipa`, `build-report.json`, and `install.html`
-  (copy to `index.html`) together.
+- OTA: Caddy (now outside this repo, see the note near the top of this
+  file) serves a `serve/` folder on `:4000` → `<ota-tunnel-host>`. Update
+  `MDViewer.ipa`, `build-report.json`, and `install.html` (copy to
+  `index.html`) there together.

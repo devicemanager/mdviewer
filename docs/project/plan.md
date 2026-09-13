@@ -1939,14 +1939,17 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
       Xcode's GUI entirely.
 
       OTA distribution (`itms-services://`) also built and verified
-      working end-to-end this pass — see `ota/` at the repo root
-      (Caddyfile + `serve/{install.html,manifest.plist,MDViewer.ipa,
-      build-report.json}`), served locally on <lan-host>:4000 and tunneled
+      working end-to-end this pass — a Caddy setup (Caddyfile +
+      `serve/{install.html,manifest.plist,MDViewer.ipa,
+      build-report.json}`) served locally on <lan-host>:4000 and tunneled
       through the user's existing Pangolin setup at
       `<ota-tunnel-host>`. Not part of this port's own build
       tooling (a manual/local workflow, not a script), but real and
       working — the user installed this exact build over the tunnel,
-      not just via direct USB installs.
+      not just via direct USB installs. (This tooling briefly lived at
+      `ota/` in this repo; moved to a separate untracked local folder
+      2026-09-13 once it turned out to carry this machine's LAN
+      IP/hostname into project history — see `file-browser-plan.md`.)
 
       **Four real, live-found-and-fixed bugs came out of actually
       installing and using this build on real hardware — every one of

@@ -9,8 +9,10 @@ not replaces, two other files:
 - **`docs/project/file-browser-plan.md`** — the technical plan: what's
   built, what's tested, what's left, phase by phase. Read this first for
   "what do I work on next."
-- **`ota/README.md`** — how the OTA distribution server runs and why. Read
-  this before touching anything OTA-related.
+- **The OTA distribution server's own README** — how it runs and why. It no
+  longer lives in this repo (see "The session's arc" point 9 below for why);
+  read it before touching anything OTA-related, from wherever it now lives
+  on this machine.
 
 This file is the narrative glue between them: what actually happened this
 session, in what order, and why it matters for whoever continues.
@@ -36,9 +38,10 @@ compiling:
 2. **The OTA distribution pipeline is now a supervised service, not a
    background job someone has to remember exists.** Caddy runs as a
    LaunchAgent (`org.devicemanager.mdviewer.ota-caddy`) with `KeepAlive` +
-   `RunAtLoad`, installed via `ota/install-caddy-service.sh`. The tunnel
-   (`https://<ota-tunnel-host>`) was 503ing for most of this session
-   and is now confirmed `200` — root cause and fix are in `ota/README.md`.
+   `RunAtLoad`. The tunnel (`https://<ota-tunnel-host>`) was 503ing for most
+   of this session and is now confirmed `200` — root cause and fix are in
+   the OTA tooling's own README, which (see point 9) no longer lives in
+   this repo.
 
 ## The session's arc, briefly
 
@@ -76,8 +79,21 @@ compiling:
 8. Turned that into the LaunchAgent described above, and in the process
    found the tunnel's actual root cause: Pangolin's health check pointed
    at `/_probe.txt`, a manual-testing scratch file deleted as cruft before
-   `ota/`'s first commit and never tracked in git. Fixed by repointing the
-   check at `/`. Confirmed the tunnel live before this compaction.
+   the OTA tooling's first commit and never tracked in git. Fixed by
+   repointing the check at `/`. Confirmed the tunnel live before this
+   compaction.
+9. Realized (next session) that the `ota/` directory itself — and several
+   docs it had leaked into (this file, `file-browser-plan.md`,
+   `plan.md`) — carried this machine's LAN IP and Pangolin tunnel hostname
+   into project history, which is irrelevant to mdviewer and shouldn't be
+   in a repo anyone might eventually push publicly. Nothing had been pushed
+   to `origin` yet, so rewrote local history with `git filter-repo`: removed
+   `ota/` from every commit and replaced the leaked IP/hostname (and one
+   more local hostname, in `plan.md`) with generic placeholders everywhere,
+   including commit messages. Moved the live OTA tooling to a separate,
+   untracked local folder outside this repo, updated its internal paths,
+   and reinstalled the LaunchAgent from there — verified both the LAN
+   endpoint and the tunnel still return `200` afterward.
 
 ## What's next
 
