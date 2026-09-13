@@ -52,8 +52,9 @@ pointer in this document; nothing else here depends on it.
 | `ios_folder_picker.rs` (native `UIDocumentPickerViewController`) | **Compiles on all 3 targets, never run** |
 | Phase 4 wiring (markup, CSS, `main.ts` glue) | Done, verified on Android emulator |
 | OTA server: supervised LaunchAgent + Pangolin health-check fix | Done, tunnel confirmed 200 |
+| Phase 5 (`diffFolderEntries` + skip-render-when-unchanged) | Done, verified on Android emulator |
 
-Test counts: **83** Rust, **217** web. All green.
+Test counts: **83** Rust, **224** web. All green.
 
 **Phase 4 landed 2026-09-13.** Markup, CSS and `main.ts` wiring are in;
 bundle grew 36.2kb → 48.6kb, confirming the modules are actually reachable
@@ -63,10 +64,24 @@ flag, the browser lists a real folder (subfolder first, non-markdown
 filtered), navigate in/up works, tapping a file opens it and closes the
 drawer, and drawer mutual exclusivity holds in both directions.
 
+**Phase 5 landed 2026-09-14.** `diffFolderEntries` (pure, positional
+comparison — order matters since `list_directory` is always
+folders-first-then-alphabetical) added to `fileBrowser.ts`, wired into
+`main.ts`'s `show()` so the post-fetch render is skipped when the fresh
+listing matches what the optimistic cache render already put on screen.
+Verified on the Android emulator with an `innerHTML`-set counter
+instrumented via CDP (not just unit tests): an unchanged reopen renders
+**once** (the cache render only); an external file added between opens
+still renders **twice** and the new file appears. `/data/local/tmp`'s own
+permission bits (`rwxrwx--x` — traversable but not listable by the app)
+had to be loosened to `777` for this specific test session, same
+workaround a prior session's leftover `browsetest/` fixture already
+implied; that's a debug-fixture-location quirk of this test document's
+fixed path, not a Phase 5 concern.
+
 **Still NOT done:**
 
-- Phase 5 (poll-on-reopen refresh as a distinct diffed step), Phase 6
-  (toolbar reorganisation), Phase 7 (background live refresh).
+- Phase 6 (toolbar reorganisation), Phase 7 (background live refresh).
 - The permissions prompt's "Choose a folder…" path is **untested on iOS** —
   it calls `request_folder_access`, which on iOS reaches the never-yet-run
   native picker. On Android that command returns `false` unconditionally
@@ -158,12 +173,14 @@ console — before anything is built on top of it.
 **Verify:** emulator screenshots of both drawers + the permissions dialog;
 cached-then-fresh render on relaunch; then real-device for the iOS path.
 
-### Phase 5 — Poll-on-reopen refresh
+### Phase 5 — Poll-on-reopen refresh — **DONE 2026-09-14**
 Re-run `list_directory` on every drawer open, diff against cache via a pure
 `diffFolderEntries(old, new) -> boolean` (split out for testability, same
 reasoning as `classify_link`), re-render only on change.
-**Verify:** unit-test the diff with fixtures; manually edit a file outside the
-app, reopen the drawer, confirm the change appears.
+**Verified:** 7 new unit tests on the diff function (added/removed/renamed/
+type-changed/reordered entries); Android emulator check via CDP confirmed
+an unchanged reopen renders once and a changed one renders twice with the
+new entry visible (see status snapshot above for the exact method).
 
 ### Phase 6 — Toolbar reorganization
 - File-browser button **left**; Find / TOC-index / Settings grouped **right**
