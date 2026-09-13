@@ -61,32 +61,36 @@ drawer, and drawer mutual exclusivity holds in both directions.
 
 ## 2. Blocked on the user
 
-### 2a. OTA tunnel returning 503 — blocks everything else in this section
-`https://<ota-tunnel-host>/*` returns **503 in ~0.6s** — an immediate
-"no healthy backend" rejection, not a timeout. Diagnosed 2026-09-13, and it
-is not this machine: everything here is healthy, verified rather than
-assumed:
+### 2a. OTA tunnel returning 503 — root cause found 2026-09-13, needs a Pangolin-side fix
+`https://<ota-tunnel-host>/*` returned **503 in ~0.6s** for most of
+this session — an immediate "no healthy backend" rejection, not a timeout.
+Extensive local verification (Caddy alive, bound to `0.0.0.0:4000`, LAN IP
+unchanged, firewall disabled, serving 200 on every path checked) ruled out
+everything on this machine, which pointed at Pangolin's health check itself
+rather than the tunnel being disabled.
 
-| Check | Result |
-|---|---|
-| Caddy process | Alive (PID 11741, up since Sep 9 — never killed) |
-| Bind | `*:4000`, dual-stack wildcard, matching `bind 0.0.0.0` |
-| Serving on LAN IP | `<lan-ip>:4000/install.html` -> 200 |
-| Health-check path | `<lan-ip>:4000/` -> 200 |
-| macOS firewall | Disabled entirely |
-| LAN IP | Still `<lan-ip>` (unchanged, so not a stale target) |
-| **Inbound connections to :4000** | **Zero over a 45s watch** |
+**Actual cause, confirmed:** the health check is pointed at `/_probe.txt` —
+a scratch file that only ever existed for manual `curl` testing while first
+getting Caddy working (2026-09-09), deliberately deleted as cruft before
+`ota/`'s first commit, and never tracked in git. `/_probe.txt` → 404;
+Pangolin reads that as unhealthy and 503s every request at the edge,
+regardless of how healthy the actual server is. Full writeup and the fix
+(point the health check at `/` instead, which is always present) is in
+`ota/README.md` — that's now the source of truth for the OTA server itself,
+not this file.
 
-That last row is decisive: Pangolin is not contacting this host at all — not
-connecting and failing, simply never connecting. The fault is upstream, on
-the Pangolin side. Most likely: the resource was disabled (this exact
-symptom occurred before and was resolved that way), or its target/health
-check points somewhere stale. **Re-check this first** — as of the last check
-(2026-09-13) it was still down; nothing on this machine can fix it, only the
-Pangolin dashboard/config can.
+**Still needs action**: whoever has Pangolin access must repoint the health
+check to `/`. Until that happens, the tunnel keeps 503ing even though the
+local server is correctly configured and running.
 
-**Blocks all OTA delivery**, so both items below (2b, 2c) are stuck until it
-resolves.
+**Also fixed 2026-09-13**: Caddy itself was a bare `nohup ... &` from a
+Claude Code Bash tool call, with no supervision — a crash or reboot would
+have silently taken OTA down. Replaced with a proper LaunchAgent
+(`ota/install-caddy-service.sh` / `ota/launchd/*.plist`), `KeepAlive`
+restart behavior verified live with a `kill -9`.
+
+**Blocks all OTA delivery** until the health-check path is fixed, so both
+items below (2b, 2c) are stuck until it resolves.
 
 ### 2b. Phase 0 spike results (outstanding, needs 2a resolved first)
 A diagnostic build is live at `https://<ota-tunnel-host>/install.html`
