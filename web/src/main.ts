@@ -71,6 +71,7 @@ import {
     attachFileBrowserHandlers,
     loadCachedFolder,
     storeCachedFolder,
+    diffFolderEntries,
     type FileBrowserEntry,
 } from "./fileBrowser.js";
 import {
@@ -555,12 +556,24 @@ function wireFileBrowser(closeOtherDrawers: () => void): { toggle: () => void; c
             const entries = toEntries(listing);
             currentPath = listing.path;
             storeCachedFolder(listing.path, entries);
-            renderFileBrowser(browserEl!, {
-                kind: "loaded",
-                path: listing.path,
-                parentPath: parentPath(listing.path),
-                entries,
-            });
+            // Phase 5: `cached` (captured above, before this call) is what
+            // was already on screen — either from a cache hit, or nothing
+            // (a "loading" state) on a miss. Skip the re-render when it's
+            // unchanged: the cached render already shows these exact
+            // entries, so redrawing would only flicker the list on every
+            // single reopen for no visible difference. `cached === undefined`
+            // still forces a render — either this is the very first listing
+            // ever shown, or the pre-fetch state was "loading"/an error, and
+            // either way there's nothing already-correct on screen to leave
+            // alone.
+            if (cached === undefined || diffFolderEntries(cached, entries)) {
+                renderFileBrowser(browserEl!, {
+                    kind: "loaded",
+                    path: listing.path,
+                    parentPath: parentPath(listing.path),
+                    entries,
+                });
+            }
         } catch (e) {
             // Rust's errors carry a stable `kind:` prefix
             // (not_found:/access_denied:/permission_denied:) — surfaced as-is

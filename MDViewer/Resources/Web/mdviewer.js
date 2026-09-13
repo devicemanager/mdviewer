@@ -849,6 +849,13 @@
   function loadCachedFolder(canonicalPath) {
     return loadFolderCacheData().folders[canonicalPath]?.entries;
   }
+  function diffFolderEntries(a, b) {
+    if (a.length !== b.length) return true;
+    for (let i = 0; i < a.length; i++) {
+      if (a[i].name !== b[i].name || a[i].isDir !== b[i].isDir) return true;
+    }
+    return false;
+  }
   function storeCachedFolder(canonicalPath, entries) {
     const data = loadFolderCacheData();
     data.folders[canonicalPath] = { entries, cachedAt: Date.now() };
@@ -1255,12 +1262,14 @@
         const entries = toEntries(listing);
         currentPath = listing.path;
         storeCachedFolder(listing.path, entries);
-        renderFileBrowser(browserEl, {
-          kind: "loaded",
-          path: listing.path,
-          parentPath: parentPath(listing.path),
-          entries
-        });
+        if (cached === void 0 || diffFolderEntries(cached, entries)) {
+          renderFileBrowser(browserEl, {
+            kind: "loaded",
+            path: listing.path,
+            parentPath: parentPath(listing.path),
+            entries
+          });
+        }
       } catch (e) {
         const message = String(e);
         if (path === null) {

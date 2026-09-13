@@ -4,6 +4,7 @@ import {
     attachFileBrowserHandlers,
     loadCachedFolder,
     storeCachedFolder,
+    diffFolderEntries,
     type FileBrowserEntry,
 } from "../src/fileBrowser.js";
 
@@ -159,6 +160,56 @@ describe("attachFileBrowserHandlers", () => {
         container.querySelector('button[data-action="open"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
         expect(onOpenFile).toHaveBeenCalledWith("second.md");
+    });
+});
+
+describe("diffFolderEntries", () => {
+    it("is false for two empty lists", () => {
+        expect(diffFolderEntries([], [])).toBe(false);
+    });
+
+    it("is false for identical lists", () => {
+        const entries: FileBrowserEntry[] = [
+            { name: "images", isDir: true },
+            { name: "notes.md", isDir: false },
+        ];
+        expect(diffFolderEntries(entries, [...entries])).toBe(false);
+    });
+
+    it("is true when a file was added", () => {
+        const a: FileBrowserEntry[] = [{ name: "notes.md", isDir: false }];
+        const b: FileBrowserEntry[] = [...a, { name: "new.md", isDir: false }];
+        expect(diffFolderEntries(a, b)).toBe(true);
+    });
+
+    it("is true when a file was removed", () => {
+        const a: FileBrowserEntry[] = [{ name: "notes.md", isDir: false }, { name: "old.md", isDir: false }];
+        const b: FileBrowserEntry[] = [{ name: "notes.md", isDir: false }];
+        expect(diffFolderEntries(a, b)).toBe(true);
+    });
+
+    it("is true when a name changed at the same position", () => {
+        const a: FileBrowserEntry[] = [{ name: "notes.md", isDir: false }];
+        const b: FileBrowserEntry[] = [{ name: "renamed.md", isDir: false }];
+        expect(diffFolderEntries(a, b)).toBe(true);
+    });
+
+    it("is true when a file becomes a folder of the same name", () => {
+        const a: FileBrowserEntry[] = [{ name: "thing", isDir: false }];
+        const b: FileBrowserEntry[] = [{ name: "thing", isDir: true }];
+        expect(diffFolderEntries(a, b)).toBe(true);
+    });
+
+    it("is true when the same names swap order", () => {
+        const a: FileBrowserEntry[] = [
+            { name: "a.md", isDir: false },
+            { name: "b.md", isDir: false },
+        ];
+        const b: FileBrowserEntry[] = [
+            { name: "b.md", isDir: false },
+            { name: "a.md", isDir: false },
+        ];
+        expect(diffFolderEntries(a, b)).toBe(true);
     });
 });
 

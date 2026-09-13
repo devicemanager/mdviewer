@@ -207,6 +207,28 @@ export function loadCachedFolder(canonicalPath: string): FileBrowserEntry[] | un
     return loadFolderCacheData().folders[canonicalPath]?.entries;
 }
 
+/**
+ * True if `a` and `b` differ in any entry's `name` or `isDir`, at any
+ * position, or in length. Split out as its own pure function for the same
+ * reason `classify_link` (src-tauri/src/lib.rs) is split out of
+ * `handle_link_click`: it's the one part of the poll-on-reopen refresh
+ * (Phase 5) worth unit-testing in isolation, since main.ts's own wiring has
+ * no test coverage at all (see any `wire*` function's comments).
+ *
+ * Positional, not set-based: `list_directory` (Rust) always returns
+ * folders-first-then-alphabetical, so two listings with the same names but
+ * a different order (e.g. a file replaced by a same-named folder) are a
+ * real, visible change worth re-rendering for, not a false positive to
+ * filter out.
+ */
+export function diffFolderEntries(a: FileBrowserEntry[], b: FileBrowserEntry[]): boolean {
+    if (a.length !== b.length) return true;
+    for (let i = 0; i < a.length; i++) {
+        if (a[i].name !== b[i].name || a[i].isDir !== b[i].isDir) return true;
+    }
+    return false;
+}
+
 export function storeCachedFolder(canonicalPath: string, entries: FileBrowserEntry[]): void {
     const data = loadFolderCacheData();
     data.folders[canonicalPath] = { entries, cachedAt: Date.now() };
