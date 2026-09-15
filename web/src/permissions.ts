@@ -84,8 +84,7 @@ function foldersHTML(folders: GrantedFolder[]): string {
  * questions at once". Rendered fresh on each state change (folder granted,
  * policy changed) rather than surgically patched: this is a once-per-install
  * screen, so a wholesale re-render costs nothing and keeps the markup a
- * single source of truth, the same call `renderTOC`/`renderFileBrowser`
- * already make.
+ * single source of truth, the same call `renderFileBrowser` already makes.
  */
 export function renderPermissions(root: HTMLElement, state: PermissionsState): void {
     root.innerHTML = `

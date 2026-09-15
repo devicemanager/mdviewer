@@ -1,4 +1,4 @@
-/* Shell layout for app.html — sidebar/toolbar/content regions. New file,
+/* Shell layout for app.html — drawer/toolbar/content regions. New file,
    not a Swift port (toolbar/sidebar are native SwiftUI in the Swift app,
    nothing here to port from). Loaded after mdviewer-base.css so these
    rules can override body's standalone-content-page assumptions without
@@ -12,8 +12,7 @@ html, body {
 body {
     /* mdviewer-base.css's `padding: 0 24px 48px` was written for
        renderer.html as a standalone content page. Here that horizontal
-       padding belongs to #main instead, so a full-height #sidebar isn't
-       inset by it. */
+       padding belongs to #main instead. */
     padding: 0;
     display: flex;
 }
@@ -24,106 +23,75 @@ body {
     min-width: 0;
 }
 
-#sidebar {
-    flex: 0 0 240px;
-    border-right: 1px solid var(--border-color, #e1e4e8);
-    overflow-y: auto;
-}
+/* `.drawer`/`.drawer-backdrop` — a slide-in-from-the-left, translucent
+   overlay panel, at every width. Originally written for a TOC sidebar
+   that had a *different* desktop treatment (an always-visible in-flow
+   240px column, only becoming this overlay below the phone/tablet
+   breakpoint) and generalized 2026-09-12 (file-browser plan's Phase 2)
+   into a shared class once a second drawer briefly needed the identical
+   mechanism — kept as a class rather than folded back into an ID-specific
+   rule, since `getElementById` (element lookup) and shared styling are
+   still separate concerns even with one drawer today.
 
-/* Real gap found live on triton (2026-09-10): a fixed 240px sidebar eats
-   more than half of an iPhone's width, leaving barely any room for
-   content — confirmed visually via screen mirroring. Below the phone/
-   tablet breakpoint, #sidebar stops being an always-visible in-flow
-   column and becomes a slide-in drawer instead — opened via the
-   toolbar's new sidebar-toggle button (toolbar.ts), closed by tapping
-   the backdrop, selecting a chapter, or toggling again (the user's own
-   words: "a popup sidebar... that moves away when selected"). Above the
-   breakpoint none of this applies — .open/.close are inert classes the
-   in-flow column ignores, same always-visible behavior as before.
-
-   768px matches the conventional phone/tablet breakpoint (roughly
-   iOS's own compact-vs-regular width class boundary) rather than a
-   platform check — this is a screen-space problem, not an iOS-specific
-   one, so it should apply equally to a narrow Android phone or a
-   resized desktop window, not just iOS.
-
-   Not a straightforward Swift port either way: `ContentView.swift`'s
-   `NavigationSplitView` does default to `sidebarVisibility = .all`
-   (matching this port's own "sidebar always visible" design, sidebar.ts's
-   own header/plan.md entry), but that's a toggle Swift flips under some
-   other condition (`hasSidebar`), not a screen-size rule — and
-   NavigationSplitView has its own separate, automatic compact-width
-   collapse behavior on iPhone regardless of that flag, which this port
-   has no direct equivalent of. This drawer is this port's own explicit
-   design for the phone case, not an attempt to replicate that automatic
-   collapse behavior exactly. */
-/* `.drawer`/`.drawer-backdrop` — generalized 2026-09-12 (file-browser
-   plan's Phase 2) out of what used to be `#sidebar`/`#sidebar-backdrop`-
-   specific rules, once a second drawer (the in-app file browser,
-   `#file-browser`, Phase 3/4) needed the exact same slide-in/backdrop-
-   material treatment. Applied via a class (`#sidebar` and `#file-browser`
-   both carry `class="drawer"` in app.html) rather than duplicating this
-   whole block per ID — IDs stay for element lookup (`getElementById`),
-   classes for shared styling. `drawer.ts`'s `openDrawer`/`closeDrawer`/
+   Unconditional since 2026-09-14/15 (dropping that TOC sidebar along with
+   its own in-flow desktop mode — the user's own call: the in-app file
+   browser, `#file-browser`, replaces it rather than sitting alongside
+   it): `#file-browser`'s own header comment already documented it as
+   "drawer-only at every width, no in-flow desktop form," but this block
+   was still gated behind `@media (max-width: 768px)` — inherited from
+   the old sidebar's breakpoint-only drawer behavior, never actually
+   updated to match. The result, caught live via CDP at a desktop-width
+   viewport: opening the file browser produced an unstyled, transparent,
+   flex-in-flow box pushing #main aside, not the designed overlay — this
+   rule now matches the file-browser's own already-stated design instead
+   of silently contradicting it. `drawer.ts`'s `openDrawer`/`closeDrawer`/
    `toggleDrawer` are what actually add/remove the `.open` class these
    rules key off. */
-@media (max-width: 768px) {
-    .drawer {
-        position: fixed;
-        top: 0;
-        bottom: 0;
-        left: 0;
-        width: 280px;
-        max-width: 85vw;
-        z-index: 50;
-        /* Translucent, not solid — the user's own word ("transparent
-           sidebar"). color-mix() keeps each theme's real --bg-color
-           (set by the swapped theme stylesheet) rather than a
-           hardcoded white/black that would look wrong against a dark
-           theme; backdrop-filter blurs whatever's still visible behind
-           it, matching the frosted-glass look native iOS drawers use.
-           Plain rgba() fallback first (progressive enhancement — an
-           engine that doesn't understand color-mix() keeps this line
-           instead, still translucent, just not theme-aware) since the
-           generated Xcode project's iOS deployment target (14.0) predates
-           color-mix()'s Safari 16.2 support; every device this was
-           actually tested on (iOS 26.x) supports it fine. */
-        background: rgba(255, 255, 255, 0.9);
-        background: color-mix(in srgb, var(--bg-color, #fff) 90%, transparent);
-        backdrop-filter: blur(16px);
-        -webkit-backdrop-filter: blur(16px);
-        box-shadow: 2px 0 24px rgba(0, 0, 0, 0.25);
-        transform: translateX(-100%);
-        transition: transform 0.2s ease-out;
-    }
-
-    .drawer.open {
-        transform: translateX(0);
-    }
-
-    /* Tap-outside-to-close scrim. Not part of #app's flex layout — an
-       independent full-screen overlay, hidden until its drawer opens. */
-    .drawer-backdrop {
-        display: none;
-        position: fixed;
-        inset: 0;
-        background: rgba(0, 0, 0, 0.3);
-        z-index: 40;
-    }
-
-    .drawer-backdrop.open {
-        display: block;
-    }
+.drawer {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 280px;
+    max-width: 85vw;
+    z-index: 50;
+    /* Translucent, not solid — the user's own word ("transparent
+       sidebar"). color-mix() keeps each theme's real --bg-color
+       (set by the swapped theme stylesheet) rather than a
+       hardcoded white/black that would look wrong against a dark
+       theme; backdrop-filter blurs whatever's still visible behind
+       it, matching the frosted-glass look native iOS drawers use.
+       Plain rgba() fallback first (progressive enhancement — an
+       engine that doesn't understand color-mix() keeps this line
+       instead, still translucent, just not theme-aware) since the
+       generated Xcode project's iOS deployment target (14.0) predates
+       color-mix()'s Safari 16.2 support; every device this was
+       actually tested on (iOS 26.x) supports it fine. */
+    background: rgba(255, 255, 255, 0.9);
+    background: color-mix(in srgb, var(--bg-color, #fff) 90%, transparent);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.25);
+    transform: translateX(-100%);
+    transition: transform 0.2s ease-out;
 }
 
-/* Hidden above the drawer breakpoint — a toggle for a sidebar that's
-   already permanently visible there would just be confusing. Declared
-   outside the max-width block above (which only targets #sidebar/
-   #sidebar-backdrop) since this needs the opposite condition. */
-@media (min-width: 769px) {
-    .sidebar-toggle-btn {
-        display: none;
-    }
+.drawer.open {
+    transform: translateX(0);
+}
+
+/* Tap-outside-to-close scrim. Not part of #app's flex layout — an
+   independent full-screen overlay, hidden until its drawer opens. */
+.drawer-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.3);
+    z-index: 40;
+}
+
+.drawer-backdrop.open {
+    display: block;
 }
 
 #main {
@@ -143,14 +111,20 @@ body {
    at phone width — all visible in a live baseline screenshot on real
    iOS/Android hardware) read as an unstyled HTML form, not app chrome.
    This pass: frosted glass (same color-mix()+backdrop-filter material as
-   the sidebar drawer, for one consistent "elevated surface" language
-   across the app rather than two different treatments), icon-only
-   buttons for Open/Find/Preferences/sidebar-toggle (toolbar.ts — a
-   short/no-text label needs far less width than "Preferences…", the
-   single biggest lever for the cut-off-content problem), a real segmented-
-   control look for the font-size group, and a trailing spacer so
-   Find/Preferences settle at the far edge on anything wider than a phone
-   instead of sitting wherever the flex row happens to end. */
+   the drawer, for one consistent "elevated surface" language across the
+   app rather than two different treatments), icon-only buttons (toolbar.ts
+   — a short/no-text label needs far less width than "Preferences…", the
+   single biggest lever for the cut-off-content problem), and a trailing
+   spacer so the right-hand icon group settles at the far edge on anything
+   wider than a phone instead of sitting wherever the flex row happens to
+   end.
+
+   Reorganized 2026-09-14/15 (file-browser plan's Phase 6): the font-size
+   segmented control this comment used to describe moved to Preferences'
+   Appearance tab (`.segmented-control`, below) along with the theme
+   `<select>`, and the sidebar-toggle button went away with the TOC
+   feature it opened — see toolbar.ts's own header for the current
+   left/right grouping. */
 #toolbar {
     flex: 0 0 auto;
     display: flex;
@@ -213,21 +187,20 @@ body {
 }
 
 /* Fixed + auto-fading toolbar, phone widths only (2026-09-11 mobile UX
-   pass — the user's own request: pinch-to-zoom already handles scale, so
-   the A-/A+ font-size buttons (`.toolbar-group`, hidden below) are dead
-   weight on a phone; the space they freed goes toward making the toolbar
-   itself `position: fixed` so it no longer scrolls away with the
-   document — a normal in-flow `#toolbar` shares `#main`'s own
-   `overflow-y: auto` scroll box today, so scrolling down to read loses
-   the toolbar entirely, taking Open/Find/the sidebar toggle with it.
-   Fixed solves that, but a toolbar permanently pinned over the content
-   would permanently eat reading space too — the user's own fix for
-   that: fade it out after a moment of no interaction, bring it back on
-   scroll or pinch-zoom (`toolbarAutoHide.ts`, wired from main.ts). Kept
-   to this breakpoint only, like every other mobile-only rule here —
-   desktop's toolbar has room to spare and no pinch gesture to lean on,
-   so it stays exactly as it already was: in-flow, always visible, A-/A+
-   included. */
+   pass — the user's own request: making the toolbar `position: fixed` so
+   it no longer scrolls away with the document — a normal in-flow
+   `#toolbar` shares `#main`'s own `overflow-y: auto` scroll box today, so
+   scrolling down to read loses the toolbar entirely, taking Open/Find/the
+   file browser with it. Fixed solves that, but a toolbar permanently
+   pinned over the content would permanently eat reading space too — the
+   user's own fix for that: fade it out after a moment of no interaction,
+   bring it back on scroll or pinch-zoom (`toolbarAutoHide.ts`, wired from
+   main.ts). Kept to this breakpoint only, like every other mobile-only
+   rule here — desktop's toolbar has room to spare and no pinch gesture to
+   lean on, so it stays exactly as it already was: in-flow, always
+   visible. (Font-size controls moved into Preferences' Appearance tab
+   2026-09-14/15, shown at every width there — the toolbar-space pressure
+   that once justified hiding them on phones doesn't apply to a modal.) */
 @media (max-width: 768px) {
     #toolbar {
         position: fixed;
@@ -296,8 +269,8 @@ body {
     background: color-mix(in srgb, var(--text-color, #000) 8%, transparent);
 }
 
-/* Icon-only buttons (Open/Find/Preferences/sidebar-toggle, toolbar.ts) —
-   a fixed square tap target close to Apple HIG's 44pt recommendation,
+/* Icon-only buttons (Open/Find/Preferences/file-browser-toggle, toolbar.ts)
+   — a fixed square tap target close to Apple HIG's 44pt recommendation,
    the icon itself centered and sized to leave comfortable padding
    around it rather than filling the whole button edge-to-edge. */
 .icon-btn {
@@ -314,19 +287,17 @@ body {
     height: 20px;
 }
 
-/* Font-size controls as one segmented-control-looking pill instead of
-   three separate bordered boxes — a single rounded container, thin
-   internal dividers, square-cornered buttons inside it (the container's
-   own border-radius plus overflow:hidden clips the end buttons back to
-   rounded corners). color-mix() with --text-color (not a fixed black
-   overlay) so the fill is a light wash in light themes and a light-on-
-   dark wash in dark ones automatically — a plain rgba(0,0,0,...) here
-   would be nearly invisible against GitHub Dark/Dracula's own dark
-   backgrounds, since --hover-bg (used elsewhere in this file) is never
-   actually defined by any theme file and always falls back to its own
-   hardcoded default. Same rgba()-then-color-mix() progressive-
-   enhancement fallback order as the sidebar drawer's own background. */
-.toolbar-group {
+/* Two-icon clusters on either end of the toolbar (toolbar.ts, 2026-09-14/15
+   Phase 6 reorg): file-browser-toggle + Open on the left, Find +
+   Preferences on the right — "visually grouped," the user's own call,
+   over a popover menu for the right pair. Same rounded-pill-with-dividers
+   shell `.segmented-control` (below) uses, sized for `.icon-btn`'s 40x40
+   children instead of text buttons — kept as a separate class rather than
+   reusing `.segmented-control` directly since the two contexts (a toolbar
+   row of icon buttons vs. a modal's font-size stepper) have different
+   enough child markup that sharing one class name would invite a future
+   edit to one to silently break the other. */
+.toolbar-icon-group {
     display: flex;
     align-items: stretch;
     border-radius: 10px;
@@ -335,53 +306,52 @@ body {
     overflow: hidden;
 }
 
-.toolbar-group button {
-    border-radius: 0;
-    padding: 8px 10px;
-}
-
-.toolbar-group button:not(:last-child) {
+.toolbar-icon-group button:not(:last-child) {
     border-right: 1px solid rgba(127, 127, 127, 0.25);
 }
 
-/* Font-size controls removed on phones (2026-09-11) — pinch-to-zoom
-   covers scale adjustment there, per the user's own call ("these do not
-   work very well here... we have pinch to do zooming"), and removing
-   them is what actually frees the room the fixed toolbar above needed.
-   Desktop keeps them: no pinch gesture on a mouse/trackpad-driven
-   window, and there's no width pressure to justify losing them there.
-   Placed after the base `.toolbar-group` rule above deliberately, not
-   just for reading order — a real bug caught live on the emulator: this
-   block used to sit *before* the base rule, and since a `@media`
-   condition doesn't add specificity, the later, unconditional
-   `display: flex` above always won regardless of width, silently
-   keeping the buttons on screen at every breakpoint. */
-@media (max-width: 768px) {
-    .toolbar-group {
-        display: none;
-    }
-}
-
-#toolbar [data-font-size] {
-    min-width: 1.5em;
-    text-align: center;
-}
-
-#toolbar select {
+/* Segmented-pill control — originally the toolbar's own font-size buttons
+   (`.toolbar-group`), renamed and moved here 2026-09-14/15 (file-browser
+   plan's Phase 6) once Preferences' Appearance tab became its only user.
+   A single rounded container, thin internal dividers, square-cornered
+   buttons inside it (the container's own border-radius plus
+   overflow:hidden clips the end buttons back to rounded corners).
+   color-mix() with --text-color (not a fixed black overlay) so the fill
+   is a light wash in light themes and a light-on-dark wash in dark ones
+   automatically — a plain rgba(0,0,0,...) here would be nearly invisible
+   against GitHub Dark/Dracula's own dark backgrounds, since --hover-bg
+   (used elsewhere in this file) is never actually defined by any theme
+   file and always falls back to its own hardcoded default. Same
+   rgba()-then-color-mix() progressive-enhancement fallback order as the
+   drawer's own background. */
+.segmented-control {
+    display: flex;
+    align-items: stretch;
+    border-radius: 10px;
     background: rgba(0, 0, 0, 0.05);
     background: color-mix(in srgb, var(--text-color, #000) 7%, transparent);
-    border: none;
-    border-radius: 10px;
-    padding: 8px 10px;
-    -webkit-appearance: none;
-    appearance: none;
+    overflow: hidden;
 }
 
-/* Pushes Find/Preferences to the trailing edge on anything wider than a
-   phone (where overflow-x's scroll never actually kicks in) — a normal
-   "leading controls, spacer, trailing controls" toolbar layout. Zero
-   width by default so it never becomes an awkward empty tap target of
-   its own; flex-grow is what actually does the pushing. */
+.segmented-control button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: none;
+    border-radius: 0;
+    padding: 8px 10px;
+    cursor: pointer;
+}
+
+.segmented-control button:not(:last-child) {
+    border-right: 1px solid rgba(127, 127, 127, 0.25);
+}
+
+/* Pushes the right-hand icon group to the trailing edge on anything wider
+   than a phone (where overflow-x's scroll never actually kicks in) — a
+   normal "leading controls, spacer, trailing controls" toolbar layout.
+   Zero width by default so it never becomes an awkward empty tap target
+   of its own; flex-grow is what actually does the pushing. */
 .toolbar-spacer {
     flex: 1 1 auto;
     min-width: 0;
@@ -517,94 +487,6 @@ body {
    mdviewer-base.css (written for renderer.html) — kept as-is here too,
    so its rendered output stays pixel-identical between the two pages. */
 
-/* Sidebar / TOC — ported visually from TableOfContentsView.swift. No
-   SwiftUI source to carry over 1:1 (List/.listStyle(.sidebar) are native
-   chrome), so these are new rules matching its intent: empty state
-   centered and muted, items unstyled buttons indented by level, three
-   font-size tiers matching fontForLevel's .headline/.subheadline/.caption. */
-
-#sidebar {
-    /* Left/right padding added in the 2026-09-10 visual pass — without
-       it, level-1 TOC items (sidebar.ts's own indent formula starts at
-       0px for level 1) sat flush against the sidebar's left edge with
-       no breathing room at all. .toc-item's own hover/active background
-       still spans full-width within this padded box (matching how
-       native list UIs like Mail/Notes highlight rows edge-to-edge, not
-       as individually-rounded pills) — only the padding moved, not the
-       hover treatment. */
-    padding: 12px;
-}
-
-/* Same status-bar clearance as #toolbar's own mobile padding-top
-   (2026-09-10, see that rule's comment) — the drawer is `position: fixed`
-   to the true top of the screen too, and its heading is the first thing
-   in it with no other content above to absorb the overlap. */
-@media (max-width: 768px) {
-    #sidebar {
-        padding-top: 36px;
-    }
-}
-
-.toc-empty {
-    height: 100%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: var(--muted-color, #6a737d);
-    text-align: center;
-    padding: 16px;
-}
-
-.toc-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-}
-
-.toc-item {
-    display: block;
-    width: 100%;
-    box-sizing: border-box;
-    text-align: left;
-    background: none;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    /* 8px vertical (up from 4px) — a real touch-target size fix, not
-       just visual polish: 4px top/bottom on a two-line-clamped item
-       left rows uncomfortably tight to tap accurately on a phone. */
-    padding: 8px 12px;
-    color: inherit;
-    font-family: inherit;
-    /* Matches TableOfContentsView's .lineLimit(2). */
-    display: -webkit-box;
-    -webkit-line-clamp: 2;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
-}
-
-.toc-item:hover,
-.toc-item:active {
-    background: rgba(0, 0, 0, 0.05);
-    background: color-mix(in srgb, var(--text-color, #000) 6%, transparent);
-}
-
-/* fontForLevel: level 1 → .headline, level 2 → .subheadline, 3+ → .caption. */
-.toc-level-1 {
-    font-size: 0.95em;
-    font-weight: 600;
-}
-
-.toc-level-2 {
-    font-size: 0.875em;
-    font-weight: 500;
-}
-
-.toc-level-3-plus {
-    font-size: 0.8em;
-    color: var(--muted-color, #6a737d);
-}
-
 /* Preferences — ported visually from PreferencesView.swift's TabView,
    as an overlay modal rather than a second native window; see
    preferences.ts's header for why. No SwiftUI source to carry over 1:1
@@ -719,6 +601,14 @@ body {
     font-weight: 600;
 }
 
+/* The Appearance tab (2026-09-14/15) is the first pane with more than one
+   `.prefs-field` — Theme, then Font size — so fields need their own
+   spacing now instead of relying on `.prefs-explanation`'s margin-top,
+   the only separator Privacy's single field ever needed. */
+.prefs-field:not(:last-child) {
+    margin-bottom: 16px;
+}
+
 .prefs-field select {
     font: inherit;
     padding: 4px 6px;
@@ -729,18 +619,26 @@ body {
     font-weight: normal;
 }
 
+/* The Appearance tab's font-size display, inside its `.segmented-control` —
+   same fixed-width-so-the-pill-doesn't-jitter-as-the-number-changes
+   treatment the toolbar's own version of this control used. */
+.prefs-field [data-font-size] {
+    min-width: 1.5em;
+    text-align: center;
+}
+
 .prefs-explanation {
     margin-top: 12px;
     font-size: 0.85em;
     color: var(--muted-color, #6a737d);
 }
 
-/* File browser (fileBrowser.ts) — 2026-09-12. Shares #sidebar's drawer
-   shell via the `.drawer` class; these rules are only what goes *inside*
-   it. Deliberately mirrors the TOC's own list styling (same padding,
-   radius, hover treatment) rather than inventing a second visual
-   language for what is, structurally, the same thing: a tappable list in
-   a drawer.
+/* File browser (fileBrowser.ts) — 2026-09-12, this app's one drawer since
+   2026-09-14/15's TOC removal. Uses the shared `.drawer` class for the
+   slide-in shell; these rules are only what goes *inside* it — a
+   tappable list, styled independently of the TOC list that used to share
+   this space (that styling was deleted along with the feature, not
+   reused here).
 
    The element ships `hidden` in app.html so it cannot flash before
    main.ts wires it, and wireFileBrowser clears that attribute once — from
@@ -753,8 +651,10 @@ body {
     overflow-y: auto;
 }
 
-/* Status-bar clearance, matching #sidebar's own mobile rule — see that
-   rule's comment for why a fixed value rather than env(safe-area-inset-*). */
+/* Same status-bar clearance as #toolbar's own mobile padding-top
+   (2026-09-10, see that rule's comment) — the drawer is `position: fixed`
+   to the true top of the screen too, and its content is the first thing
+   in it with no other content above to absorb the overlap. */
 @media (max-width: 768px) {
     #file-browser {
         padding-top: 36px;

@@ -19,8 +19,8 @@
          bar on their own, while the drawer's heading (no other content
          above it) didn't. `viewport-fit=cover` genuinely is inert here
          either way, so left at plain default; the actual fix is explicit
-         CSS padding-top on `#toolbar`/`#sidebar` at the mobile breakpoint
-         (app.css, "status-bar clearance" comments), a fixed value checked
+         CSS padding-top on `#toolbar`/`#file-browser` at the mobile
+         breakpoint (app.css, "status-bar clearance" comments), a fixed value checked
          against this emulator rather than anything env()-derived. iOS's
          WKWebView doesn't need this (it insets in-flow content correctly
          on its own), but the same padding-top applies there too rather
@@ -57,7 +57,7 @@
     <link rel="stylesheet" href="vendor/katex.min.css">
     <!-- Base styles (content-area typography/theme rules — unchanged, same file renderer.html uses) -->
     <link rel="stylesheet" href="mdviewer-base.css">
-    <!-- Shell layout (sidebar/toolbar/welcome regions — new, not a Swift port, see app.css itself) -->
+    <!-- Shell layout (drawer/toolbar/welcome regions — new, not a Swift port, see app.css itself) -->
     <link rel="stylesheet" href="app.css">
     <!-- Theme (swapped at runtime) -->
     <link rel="stylesheet" href="themes/github-light.css" id="theme-css">
@@ -71,39 +71,32 @@
 </head>
 <body>
     <div id="app">
-        <!-- TOC list — ported from SidebarView.swift/TableOfContentsView.swift
-             (sidebar.ts). Always visible above app.css's 768px breakpoint,
-             matching Swift, where the sidebar is a permanent part of the
-             NavigationSplitView regardless of whether a document is open,
-             showing "No headings found" as its own empty state rather than
-             disappearing. Below that breakpoint it's a slide-in drawer
-             instead (app.css, real gap found live on triton, 2026-09-10) —
-             toggled via the toolbar's sidebar-toggle button, not
-             conditionally hidden by JS; the markup itself is unconditional
-             either way. main.ts populates it on load and after every
-             setContent. `class="drawer"` is the shared mobile slide-in/
-             backdrop-material treatment (app.css, drawer.ts) — generalized
-             2026-09-12 out of what used to be `#sidebar`-only rules, once
-             the in-app file browser (`#file-browser`, immediately below)
-             needed the identical mechanism. -->
-        <nav id="sidebar" class="drawer"></nav>
-
-        <!-- In-app file browser (fileBrowser.ts), 2026-09-12. A second
-             drawer sharing #sidebar's exact slide-in treatment via the
-             `drawer` class. Unlike #sidebar it is drawer-only at every
-             width — it has no in-flow desktop form, since desktop already
-             has a native folder picker and this exists mainly because
-             mobile does not (see request_folder_access's own doc comment
-             in src-tauri/src/lib.rs). Starts `hidden`; main.ts's
+        <!-- In-app file browser (fileBrowser.ts), 2026-09-12 — this app's
+             one drawer since 2026-09-14/15, when a TOC sidebar that used to
+             sit here too (sidebar.ts, ported from SidebarView.swift/
+             TableOfContentsView.swift) was dropped entirely, the user's own
+             call: file browsing replaces it rather than sitting alongside
+             it as a second drawer. `class="drawer"` is the shared mobile
+             slide-in/backdrop-material treatment (app.css, drawer.ts) —
+             generalized 2026-09-12 out of what used to be `#sidebar`-only
+             rules, back when a second drawer first needed the identical
+             mechanism; kept even with only one drawer left, since the class
+             boundary (styling) is still separate from the id (element
+             lookup). Drawer-only at every width — it has no in-flow desktop
+             form, since desktop already has a native folder picker and
+             this exists mainly because mobile does not (see
+             request_folder_access's own doc comment in
+             src-tauri/src/lib.rs). Starts `hidden`; main.ts's
              wireFileBrowser() populates and reveals it. -->
         <nav id="file-browser" class="drawer" hidden></nav>
 
         <div id="main">
-            <!-- Milestone E's toolbar (toolbar.ts) — Open, font size,
-                 theme picker, Find, Preferences. Save/Editor-toggle/Export
+            <!-- Milestone E's toolbar (toolbar.ts) — file browser, Open,
+                 Find, Preferences (theme/font-size moved into Preferences'
+                 Appearance tab 2026-09-14/15). Save/Editor-toggle/Export
                  not built yet, see toolbar.ts's header comment. Starts
                  hidden; main.ts's wireToolbar() populates it and un-hides
-                 it, same pattern as #sidebar/#welcome/#content below. -->
+                 it, same pattern as #file-browser/#welcome/#content below. -->
             <header id="toolbar" hidden></header>
 
             <!-- Search (search.ts) — ported from SearchBarView.swift, a
@@ -152,37 +145,30 @@
     <!-- Preferences (preferences.ts) — an in-page modal, not a second
          native window like Swift's Settings scene; see preferences.ts's
          header for why. Outside #app (an overlay, not part of the
-         sidebar/toolbar/content layout). Starts hidden; the toolbar's
+         drawer/toolbar/content layout). Starts hidden; the toolbar's
          Preferences button (toolbar.ts) reveals it via main.ts's
          wirePreferences(). -->
     <div id="preferences" hidden></div>
 
-    <!-- Tap-outside-to-close scrim for the mobile sidebar drawer (app.css,
-         drawer.ts). Outside #app for the same reason #preferences is — a
-         full-screen overlay, not a flex layout participant; being a flex
-         sibling of #sidebar/#main would size it as a visible empty flex
-         item above the drawer breakpoint, where app.css gives it no
-         display rule of its own (only its `.open` state is styled, inside
-         the 768px media query). Only relevant/visible below that
-         breakpoint, same as #sidebar's own drawer behavior. Starts
-         `hidden` like every other overlay here — `.drawer-backdrop.open`
-         in app.css (two classes, specificity 0,2,0) beats the browser's
-         own `[hidden]{display:none}` (0,1,0) when JS adds `.open`, same
-         override pattern this file's #welcome/#toolbar/#search already
-         use, so `openDrawer`/`closeDrawer` (drawer.ts) never need to
-         touch the `hidden` attribute itself, only the class. Was
-         `#sidebar-backdrop.open` (ID+class) before 2026-09-12's
-         generalization to a shared `.drawer-backdrop` class, reused now by
-         the in-app file browser's own backdrop too. -->
-    <div id="sidebar-backdrop" class="drawer-backdrop" hidden></div>
-
-    <!-- The file browser's own backdrop. A separate element rather than
-         one shared scrim, because each drawer's open/close is independent
-         (drawer.ts takes the pair as arguments); sharing one would couple
-         them through the DOM instead. Mutual exclusivity — opening one
-         drawer closes the other, since both slide in from the left and
-         would otherwise overlap — is policy, enforced in main.ts's
-         wireUIShell, not something these elements imply on their own. -->
+    <!-- Tap-outside-to-close scrim for the mobile file-browser drawer
+         (app.css, drawer.ts). Outside #app for the same reason
+         #preferences is — a full-screen overlay, not a flex layout
+         participant; being a flex sibling of #file-browser/#main would
+         size it as a visible empty flex item above the drawer breakpoint,
+         where app.css gives it no display rule of its own (only its
+         `.open` state is styled, inside the 768px media query). Only
+         relevant/visible below that breakpoint, same as #file-browser's
+         own drawer behavior. Starts `hidden` like every other overlay
+         here — `.drawer-backdrop.open` in app.css (two classes,
+         specificity 0,2,0) beats the browser's own `[hidden]{display:none}`
+         (0,1,0) when JS adds `.open`, same override pattern this file's
+         #welcome/#toolbar/#search already use, so `openDrawer`/
+         `closeDrawer` (drawer.ts) never need to touch the `hidden`
+         attribute itself, only the class. Uses the shared
+         `.drawer-backdrop` class (generalized 2026-09-12 when this app
+         briefly had two drawers) even though only one drawer remains
+         since 2026-09-14/15's TOC removal — one class, one backdrop, no
+         mutual-exclusivity policy needed anymore. -->
     <div id="file-browser-backdrop" class="drawer-backdrop" hidden></div>
 
     <!-- Consolidated first-launch permissions prompt (permissions.ts),

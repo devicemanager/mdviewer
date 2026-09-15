@@ -8,13 +8,15 @@
 // to see more than one file at a time there.
 //
 // Same split every other feature module here follows (toolbar.ts,
-// sidebar.ts, preferences.ts, search.ts): pure `render*()` + a callback-
-// based `attach*Handlers(container, callbacks)`, no `invoke` calls inside
-// this file at all — those stay in main.ts's `wire*` glue (Phase 4), the
+// preferences.ts, search.ts): pure `render*()` + a callback-based
+// `attach*Handlers(container, callbacks)`, no `invoke` calls inside this
+// file at all — those stay in main.ts's `wire*` glue (Phase 4), the
 // established untested-boundary line this whole test suite already draws.
 // Reuses drawer.ts's `openDrawer`/`closeDrawer`/`toggleDrawer` (generalized
-// out of sidebar.ts, Phase 2) for the actual slide-in mechanism — this
-// module only owns what's *inside* the drawer, not the drawer itself.
+// out of a TOC sidebar module, Phase 2, since deleted along with the
+// feature it backed — see main.ts's own header) for the actual slide-in
+// mechanism — this module only owns what's *inside* the drawer, not the
+// drawer itself. Since 2026-09-14/15 it's this app's only drawer.
 //
 // Deliberately does NOT do any path-separator arithmetic (joining a
 // folder's path with an entry's name, or computing "up one level"): this

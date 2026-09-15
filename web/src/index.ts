@@ -5,7 +5,10 @@
 // assembly layer, the interaction listeners, and appShell's
 // welcome/content toggle — plus everything ported for Milestone C
 // (renderViewModel.ts, markdownTheme.ts) and Milestone E's UI shell so far
-// (sidebar.ts, toolbar.ts, preferences.ts, search.ts). Side-effect-free on purpose:
+// (toolbar.ts, preferences.ts, search.ts, fileBrowser.ts — sidebar.ts was
+// here too until 2026-09-14/15, when the TOC feature it backed was
+// dropped in favor of the file browser as this app's one drawer).
+// Side-effect-free on purpose:
 // nothing here touches `window` or runs anything at import time, so this
 // stays freely importable from tests (which is what every test file
 // actually does — importing individual modules directly, not this
@@ -42,7 +45,9 @@ export * from "./interactionListeners.js";
 export * from "./appShell.js";
 export * from "./renderViewModel.js";
 export * from "./markdownTheme.js";
-export * from "./sidebar.js";
 export * from "./toolbar.js";
 export * from "./preferences.js";
 export * from "./search.js";
+export * from "./fileBrowser.js";
+export * from "./permissions.js";
+export * from "./drawer.js";

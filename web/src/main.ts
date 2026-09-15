@@ -24,14 +24,15 @@
 // from. Toolbar itself is the same story (Milestone E, not built).
 //
 // What *is* wired here: `#welcome`/`#content` toggling (appShell.ts) and
-// the sidebar TOC (sidebar.ts) — both since `setContent`'s already the
-// one thing with a real reason to fire, and `headings` was the other
-// still-unconsumed piece of its return value. Guarded on the relevant
+// the in-app file browser (fileBrowser.ts) — the latter replaced a TOC
+// sidebar this same module used to wire (sidebar.ts, deleted 2026-09-14/15
+// per the user's own call: file browsing is this app's one drawer now,
+// not a second feature alongside it). Guarded on the relevant
 // `app.html`-only elements actually existing — `renderer.html` stays the
-// minimal content-only page it always was (no `#welcome`, no `#sidebar`),
-// even after Milestone D's flip made this bundle the real `mdviewer.js`
-// for both pages, so this wiring is a safe no-op there rather than
-// assuming which page is loaded.
+// minimal content-only page it always was (no `#welcome`, no
+// `#file-browser`), even after Milestone D's flip made this bundle the
+// real `mdviewer.js` for both pages, so this wiring is a safe no-op there
+// rather than assuming which page is loaded.
 //
 // That lookup runs on DOMContentLoaded, not at top level — this script
 // is a plain `<script src="mdviewer.js">` in `<head>` (same as
@@ -47,15 +48,16 @@
 import { createMDViewerApi, type MarkedLike } from "./mdviewerApi.js";
 import { attachInteractionListeners } from "./interactionListeners.js";
 import { showContent, showWelcome } from "./appShell.js";
-import { renderTOC, attachTOCClickHandler } from "./sidebar.js";
 import { closeDrawer, toggleDrawer } from "./drawer.js";
-import { renderToolbar, attachToolbarHandlers, updateToolbarFontSize, updateToolbarTheme } from "./toolbar.js";
+import { renderToolbar, attachToolbarHandlers } from "./toolbar.js";
 import { wireToolbarAutoHide, type AutoHideSource } from "./toolbarAutoHide.js";
 import {
     renderPreferences,
     showPreferences,
     hidePreferences,
     updatePreferencesPolicy,
+    updatePreferencesTheme,
+    updatePreferencesFontSize,
     attachPreferencesHandlers,
 } from "./preferences.js";
 import {
@@ -149,59 +151,6 @@ function wireWelcomeContentToggle(): void {
     });
 }
 
-/**
- * Ported from `SidebarView`/`TableOfContentsView` — see sidebar.ts. Wraps
- * `setContent` the same way `wireWelcomeContentToggle` does (composes
- * fine: each wrap's "raw" is whatever the previous one already wrapped),
- * since `headings` is only available once `setContent` actually runs.
- * Renders the empty state immediately too, matching Swift's sidebar
- * being part of the layout before any document is open, not appearing
- * only once one is.
- *
- * Returns a `toggle()` handle for the toolbar's sidebar-toggle button
- * (wireToolbar below) — mobile-drawer behavior added 2026-09-10, see
- * sidebar.ts's own header and app.css's 768px-breakpoint note for the
- * full story. The actual open/close/toggle primitives live in drawer.ts
- * (generalized 2026-09-12 once the file browser needed the same
- * mechanism); `#sidebar-backdrop` not existing is not a guard-and-bail
- * condition the way `#sidebar` itself is: the backdrop is optional
- * (`closeDrawer`/`toggleDrawer` both accept `undefined`), so a page with a
- * sidebar but no backdrop element still gets a working drawer, just
- * without tap-outside-to-close.
- */
-function wireSidebar(): { toggle: () => void; close: () => void } | undefined {
-    const sidebarEl = document.getElementById("sidebar");
-    if (!sidebarEl) return undefined;
-    const backdropEl = document.getElementById("sidebar-backdrop");
-
-    renderTOC(sidebarEl, []);
-    attachTOCClickHandler(sidebarEl, (anchor) => {
-        window.MDViewer.scrollToAnchor(anchor);
-        // "Moves away when selected" (the user's own words) — a no-op
-        // above app.css's drawer breakpoint, where .open does nothing.
-        closeDrawer(sidebarEl, backdropEl);
-    });
-    backdropEl?.addEventListener("click", () => {
-        closeDrawer(sidebarEl, backdropEl);
-    });
-    const rawSetContent = window.MDViewer.setContent.bind(window.MDViewer);
-    window.MDViewer.setContent = async (markdown) => {
-        const result = await rawSetContent(markdown);
-        renderTOC(sidebarEl, result.headings);
-        return result;
-    };
-
-    return {
-        toggle: () => {
-            toggleDrawer(sidebarEl, backdropEl);
-        },
-        // For drawer mutual exclusivity (wireUIShell) — both drawers slide
-        // in from the left, so opening one must close the other.
-        close: () => {
-            closeDrawer(sidebarEl, backdropEl);
-        },
-    };
-}
 
 const THEME_STORAGE_KEY = "mdviewer.themeId";
 const FONT_SIZE_STORAGE_KEY = "mdviewer.fontSize";
@@ -243,27 +192,106 @@ function storeFontSize(size: number): void {
 }
 
 /**
+ * Constructs the one `RenderViewModel` instance this app uses, applying the
+ * stored (or system-derived) theme/font-size before any document loads —
+ * matches `MarkdownRenderView`'s `onAppear` calling
+ * `applyCurrentThemeAndFontSize` and its `.onChange(of: colorScheme)`
+ * calling `applySystemAppearance`.
+ *
+ * Extracted out of `wireToolbar` 2026-09-14/15 (file-browser plan's
+ * Phase 6): once font-size/theme controls moved out of the toolbar and
+ * into Preferences' Appearance tab, `wireToolbar` was no longer the only
+ * consumer of this instance — `wirePreferences` needed it too, so
+ * construction moved up to `wireUIShell`, called once, and handed to both.
+ */
+function createRenderViewModel(): RenderViewModel {
+    const renderVM = new RenderViewModel({
+        renderer: window.MDViewer,
+        getRemoteContentPolicy: () => "ask",
+        loadStoredThemeId,
+        storeThemeId,
+        loadStoredFontSize,
+        storeFontSize,
+    });
+    renderVM.applyCurrentThemeAndFontSize();
+
+    // Ported from MarkdownRenderView's `.onChange(of: colorScheme)` calling
+    // `renderVM.applySystemAppearance(isDark:)` — a real gap found live on
+    // triton's first-ever launch (fresh install, no stored theme yet):
+    // without this, a system-dark-mode device still opened on GitHub Light,
+    // since RenderViewModel's constructor only ever reads a *stored* theme
+    // id and otherwise defaults to githubLight, with nothing to consult the
+    // system's actual appearance. Only swaps between the two GitHub themes
+    // specifically (matches Swift's own narrow behavior, see
+    // `applySystemAppearance`'s doc comment) — a user who's picked
+    // Dracula/Nord/etc. isn't silently overridden.
+    const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    renderVM.applySystemAppearance(darkModeQuery.matches);
+    // Live updates too, matching Swift's reactive `colorScheme` environment
+    // value — not just the one-time check above. This only updates
+    // `renderVM` itself; whichever UI displays the theme (wirePreferences'
+    // Appearance tab, since the toolbar no longer does) keeps its own
+    // display in sync with a separate listener of its own.
+    darkModeQuery.addEventListener("change", (e) => {
+        renderVM.applySystemAppearance(e.matches);
+    });
+
+    return renderVM;
+}
+
+/**
  * Ported from `PreferencesView`/`GeneralPrefsView`/`AppearancePrefsView`
- * (see preferences.ts's own header for the full scoping story — Privacy
- * is the only real tab this pass). Renders once at startup, same "render
- * once, update in place" pattern as sidebar/toolbar — `open()` doesn't
- * re-render, it just fetches the current policy (Rust owns that state,
- * unlike theme/font-size which live in this page's own `localStorage`)
- * and reveals the already-built panel.
+ * (see preferences.ts's own header for the full scoping story). Renders
+ * once at startup, same "render once, update in place" pattern as
+ * toolbar/fileBrowser — `open()` doesn't re-render, it just fetches the
+ * current policy (Rust owns that state, unlike theme/font-size which live
+ * in this page's own `localStorage` via `renderVM`) and reveals the
+ * already-built panel.
+ *
+ * `renderVM` is the one instance `createRenderViewModel` builds
+ * (`wireUIShell`) — Appearance tab wiring moved here 2026-09-14/15
+ * (file-browser plan's Phase 6) from `wireToolbar`, which used to own
+ * both the instance and its toolbar-row UI.
  *
  * Returns `undefined` on `renderer.html` (no `#preferences` element
  * there), same guard-and-no-op pattern every other `wire*` function uses.
  */
-function wirePreferences(): { open: () => void } | undefined {
+function wirePreferences(renderVM: RenderViewModel): { open: () => void } | undefined {
     const prefsEl = document.getElementById("preferences");
     if (!prefsEl) return undefined;
 
-    renderPreferences(prefsEl, "ask"); // placeholder default — open() below fetches the real value before showing
+    // "ask" is a placeholder default — open() below fetches the real
+    // policy before showing; renderVM's theme/font-size are real from
+    // the start, since that state already lives in localStorage.
+    renderPreferences(prefsEl, "ask", renderVM.theme.id, renderVM.fontSize);
     attachPreferencesHandlers(prefsEl, {
         onClose: () => hidePreferences(prefsEl),
         onPolicyChange: (policy) => {
             void window.__TAURI__.core.invoke("set_remote_content_policy", { policy });
         },
+        onThemeChange: (theme) => {
+            renderVM.setTheme(theme);
+        },
+        onFontDecrease: () => {
+            renderVM.decreaseFontSize();
+            updatePreferencesFontSize(prefsEl, renderVM.fontSize);
+        },
+        onFontReset: () => {
+            renderVM.resetFontSize();
+            updatePreferencesFontSize(prefsEl, renderVM.fontSize);
+        },
+        onFontIncrease: () => {
+            renderVM.increaseFontSize();
+            updatePreferencesFontSize(prefsEl, renderVM.fontSize);
+        },
+    });
+
+    // Keeps the displayed theme in sync with system dark-mode changes made
+    // while this panel may not be open — createRenderViewModel's own
+    // listener already updates renderVM itself; this one only updates
+    // what's on screen here.
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+        updatePreferencesTheme(prefsEl, renderVM.theme.id);
     });
 
     return {
@@ -328,58 +356,20 @@ function wireGlobalShortcuts(search: { open: () => void } | undefined): void {
 
 /**
  * Ported from `MainToolbar.swift`, scoped down — see toolbar.ts's header
- * comment for what's deliberately not here yet (Editor toggle, Save,
- * Export).
- *
- * First real caller of `renderViewModel.ts`'s `RenderViewModel` in this
- * port. Its `renderMarkdown()`/`getRemoteContentPolicy` are unused by this
- * call site on purpose, not an oversight: in this architecture, Rust's
- * `render_file` (src-tauri/src/lib.rs) already calls
- * `window.MDViewer.setContent` and pushes the remote-content policy
- * directly via `eval`, bypassing `RenderViewModel.renderMarkdown()`
- * entirely — unlike Swift, where `RenderViewModel` is the *only* path to
- * the WebView. Only `setTheme`/`setFontSize` (via `applyCurrentThemeAndFontSize`,
- * `increaseFontSize`/`decreaseFontSize`/`resetFontSize`) are actually
- * exercised here. `getRemoteContentPolicy` is still required by
- * `RenderViewModelDeps`'s type, so it's supplied as a real function that's
- * simply never called from this path, rather than an `as` cast to paper
- * over the mismatch.
+ * comment for what's deliberately not here (Editor toggle, Save, Export,
+ * and — since 2026-09-14/15's Phase 6 — theme/font-size, moved to
+ * Preferences' Appearance tab, and the TOC sidebar toggle, gone along
+ * with the feature it opened).
  */
 function wireToolbar(
     preferences: { open: () => void } | undefined,
     search: { open: () => void } | undefined,
-    sidebar: { toggle: () => void } | undefined,
     fileBrowser: { toggle: () => void } | undefined,
 ): void {
     const toolbarEl = document.getElementById("toolbar");
     if (!toolbarEl) return;
 
-    const renderVM = new RenderViewModel({
-        renderer: window.MDViewer,
-        getRemoteContentPolicy: () => "ask",
-        loadStoredThemeId,
-        storeThemeId,
-        loadStoredFontSize,
-        storeFontSize,
-    });
-    renderVM.applyCurrentThemeAndFontSize(); // matches MarkdownRenderView's onAppear, before any document loads
-
-    // Ported from MarkdownRenderView's `.onChange(of: colorScheme)` calling
-    // `renderVM.applySystemAppearance(isDark:)` — a real gap found live on
-    // triton's first-ever launch (fresh install, no stored theme yet):
-    // without this, a system-dark-mode device still opened on GitHub Light,
-    // since RenderViewModel's constructor only ever reads a *stored* theme
-    // id and otherwise defaults to githubLight, with nothing to consult the
-    // system's actual appearance. `applySystemAppearance` itself already
-    // existed (renderViewModel.ts) and is untouched — it was simply never
-    // called from anywhere in this port until now. Only swaps between the
-    // two GitHub themes specifically (matches Swift's own narrow behavior,
-    // see `applySystemAppearance`'s doc comment) — a user who's picked
-    // Dracula/Nord/etc. isn't silently overridden.
-    const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    renderVM.applySystemAppearance(darkModeQuery.matches);
-
-    renderToolbar(toolbarEl, renderVM.fontSize, renderVM.theme.id);
+    renderToolbar(toolbarEl);
     toolbarEl.hidden = false;
 
     // Real bug, found in the 2026-09-10 mobile UX pass, not a Swift-parity
@@ -423,39 +413,15 @@ function wireToolbar(
         wireToolbarAutoHide(toolbarEl, autoHideSources, window.matchMedia("(max-width: 768px)"));
     }
 
-    // Live updates too, matching Swift's reactive `colorScheme` environment
-    // value — not just the one-time check above.
-    darkModeQuery.addEventListener("change", (e) => {
-        renderVM.applySystemAppearance(e.matches);
-        updateToolbarTheme(toolbarEl, renderVM.theme.id);
-    });
     attachToolbarHandlers(toolbarEl, {
         onOpen: () => {
             void window.__TAURI__.core.invoke("open_document_command");
-        },
-        onFontDecrease: () => {
-            renderVM.decreaseFontSize();
-            updateToolbarFontSize(toolbarEl, renderVM.fontSize);
-        },
-        onFontReset: () => {
-            renderVM.resetFontSize();
-            updateToolbarFontSize(toolbarEl, renderVM.fontSize);
-        },
-        onFontIncrease: () => {
-            renderVM.increaseFontSize();
-            updateToolbarFontSize(toolbarEl, renderVM.fontSize);
-        },
-        onThemeChange: (theme) => {
-            renderVM.setTheme(theme);
         },
         onPreferences: () => {
             preferences?.open();
         },
         onFind: () => {
             search?.open();
-        },
-        onToggleSidebar: () => {
-            sidebar?.toggle();
         },
         onToggleFileBrowser: () => {
             fileBrowser?.toggle();
@@ -501,20 +467,25 @@ function parentPath(path: string): string | null {
 }
 
 /**
- * The in-app file browser (fileBrowser.ts), 2026-09-12. This is where the
- * `invoke` calls live — the module itself stays invoke-free so it can be
- * unit-tested without mocking Tauri, the same tested/untested boundary
- * every other `wire*` function here draws.
+ * The in-app file browser (fileBrowser.ts), 2026-09-12 — this app's one
+ * drawer since 2026-09-14/15, when the TOC sidebar it used to share
+ * mutual-exclusivity with was dropped entirely (the user's own call: file
+ * browsing replaces it, not a second feature alongside it). This is
+ * where the `invoke` calls live — the module itself stays invoke-free so
+ * it can be unit-tested without mocking Tauri, the same tested/untested
+ * boundary every other `wire*` function here draws.
  *
  * Cache-then-refresh on every open: a cached listing renders immediately
  * (so revisiting a folder is instant, the user's own ask), and the live
  * `list_directory` call replaces it when it lands. That also covers
  * refresh-on-reopen for free — every open re-fetches, so a folder whose
- * contents changed on disk updates the next time it's looked at.
+ * contents changed on disk updates the next time it's looked at
+ * (file-browser plan's Phase 5 adds a diff so an unchanged reopen skips
+ * the redundant re-render).
  *
- * Returns a `toggle()` handle for the toolbar button, matching wireSidebar.
+ * Returns a `toggle()` handle for the toolbar button.
  */
-function wireFileBrowser(closeOtherDrawers: () => void): { toggle: () => void; close: () => void } | undefined {
+function wireFileBrowser(): { toggle: () => void } | undefined {
     const browserEl = document.getElementById("file-browser");
     if (!browserEl) return undefined;
     const backdropEl = document.getElementById("file-browser-backdrop");
@@ -617,9 +588,10 @@ function wireFileBrowser(closeOtherDrawers: () => void): { toggle: () => void; c
             void window.__TAURI__.core.invoke("handle_link_click", {
                 href: `file://${joinPath(currentPath, name)}`,
             });
-            // "Moves away when selected", matching the TOC drawer's own
-            // behaviour — a document is now open, so the browser has served
-            // its purpose for this interaction.
+            // "Moves away when selected" (the user's own words, from when
+            // this rule was first written for the TOC drawer) — a document
+            // is now open, so the browser has served its purpose for this
+            // interaction.
             closeDrawer(browserEl, backdropEl);
         },
         onNavigate: (name) => {
@@ -638,13 +610,9 @@ function wireFileBrowser(closeOtherDrawers: () => void): { toggle: () => void; c
     });
 
     return {
-        close: () => {
-            closeDrawer(browserEl, backdropEl);
-        },
         toggle: () => {
             const opening = !browserEl.classList.contains("open");
             if (opening) {
-                closeOtherDrawers();
                 // Re-fetch on every open, not just the first — this is what
                 // picks up files added or removed on disk since last time.
                 void show(currentPath ?? null);
@@ -716,27 +684,13 @@ function wirePermissions(): void {
 
 function wireUIShell(): void {
     wireWelcomeContentToggle();
-    const sidebar = wireSidebar();
-    const preferences = wirePreferences();
+    const renderVM = createRenderViewModel();
+    const preferences = wirePreferences(renderVM);
     const search = wireSearch();
     wireGlobalShortcuts(search);
-    // Drawer mutual exclusivity is policy, so it lives here rather than in
-    // either drawer's own module: both slide in from the left edge and
-    // would overlap if both opened. Each drawer's toggle closes the other
-    // first — wired in both directions, not just one.
-    const fileBrowser = wireFileBrowser(() => sidebar?.close());
+    const fileBrowser = wireFileBrowser();
     wirePermissions();
-    wireToolbar(
-        preferences,
-        search,
-        sidebar && {
-            toggle: () => {
-                fileBrowser?.close();
-                sidebar.toggle();
-            },
-        },
-        fileBrowser,
-    );
+    wireToolbar(preferences, search, fileBrowser);
 }
 
 if (document.readyState === "loading") {

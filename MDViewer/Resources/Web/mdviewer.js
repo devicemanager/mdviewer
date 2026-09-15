@@ -421,34 +421,6 @@
     elements.welcome.hidden = false;
   }
 
-  // src/sidebar.ts
-  function classForLevel(level) {
-    if (level === 1) return "toc-level-1";
-    if (level === 2) return "toc-level-2";
-    return "toc-level-3-plus";
-  }
-  function renderTOC(sidebar, headings) {
-    if (headings.length === 0) {
-      sidebar.innerHTML = '<div class="toc-empty"><p>No headings found</p></div>';
-      return;
-    }
-    const items = headings.map((h) => {
-      const indent = (h.level - 1) * 12;
-      return `<li><button type="button" class="toc-item ${classForLevel(h.level)}" style="padding-left:${indent}px" data-anchor="${escapeHtml(h.anchor)}">${escapeHtml(h.title)}</button></li>`;
-    }).join("");
-    sidebar.innerHTML = `<ul class="toc-list">${items}</ul>`;
-  }
-  function attachTOCClickHandler(sidebar, onSelect) {
-    sidebar.addEventListener("click", (e) => {
-      const target = e.target;
-      if (!(target instanceof Element)) return;
-      const button = target.closest("button[data-anchor]");
-      if (button?.dataset.anchor) {
-        onSelect(button.dataset.anchor);
-      }
-    });
-  }
-
   // src/drawer.ts
   function openDrawer(drawer, backdrop) {
     drawer.classList.add("open");
@@ -464,6 +436,74 @@
     } else {
       openDrawer(drawer, backdrop);
     }
+  }
+
+  // src/toolbar.ts
+  var ICON_BROWSE = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5a1 1 0 0 1 1-1h4l1.5 2h6.5a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1v-8Z"/><path d="M2.5 9.5h15"/></svg>`;
+  var ICON_OPEN = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5a1 1 0 0 1 1-1H8l1.5 2H16.5a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-9.5Z"/></svg>`;
+  var ICON_FIND = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="16.5" y1="16.5" x2="12.6" y2="12.6"/></svg>`;
+  var ICON_PREFERENCES = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1 4.7 4.7"/></svg>`;
+  function renderToolbar(toolbar) {
+    toolbar.innerHTML = `
+        <span class="toolbar-icon-group">
+            <button type="button" data-action="file-browser-toggle" class="icon-btn" aria-label="Browse files">${ICON_BROWSE}</button>
+            <button type="button" data-action="open" class="icon-btn" aria-label="Open\u2026">${ICON_OPEN}</button>
+        </span>
+        <span class="toolbar-spacer"></span>
+        <span class="toolbar-icon-group">
+            <button type="button" data-action="find" class="icon-btn" aria-label="Find">${ICON_FIND}</button>
+            <button type="button" data-action="preferences" class="icon-btn" aria-label="Preferences">${ICON_PREFERENCES}</button>
+        </span>
+    `;
+  }
+  function attachToolbarHandlers(toolbar, callbacks) {
+    toolbar.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      const button = target.closest("button[data-action]");
+      if (!button) return;
+      switch (button.dataset.action) {
+        case "file-browser-toggle":
+          callbacks.onToggleFileBrowser();
+          break;
+        case "open":
+          callbacks.onOpen();
+          break;
+        case "preferences":
+          callbacks.onPreferences();
+          break;
+        case "find":
+          callbacks.onFind();
+          break;
+      }
+    });
+  }
+
+  // src/toolbarAutoHide.ts
+  var DEFAULT_FADE_DELAY_MS = 2500;
+  function showToolbar(toolbarEl) {
+    toolbarEl.classList.remove("toolbar-faded");
+  }
+  function fadeToolbar(toolbarEl) {
+    toolbarEl.classList.add("toolbar-faded");
+  }
+  function wireToolbarAutoHide(toolbarEl, sources, mobileQuery, fadeDelayMs = DEFAULT_FADE_DELAY_MS) {
+    let fadeTimer;
+    function wake() {
+      if (!mobileQuery.matches) return;
+      showToolbar(toolbarEl);
+      if (fadeTimer) clearTimeout(fadeTimer);
+      fadeTimer = setTimeout(() => fadeToolbar(toolbarEl), fadeDelayMs);
+    }
+    for (const { target, type } of sources) {
+      target.addEventListener(type, wake, { passive: true });
+    }
+    mobileQuery.addEventListener("change", () => {
+      if (fadeTimer) clearTimeout(fadeTimer);
+      showToolbar(toolbarEl);
+      wake();
+    });
+    wake();
   }
 
   // src/markdownTheme.ts
@@ -501,110 +541,6 @@
     return themes.find((theme) => theme.id === id);
   }
 
-  // src/toolbar.ts
-  var ICON_SIDEBAR = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><line x1="3" y1="5.5" x2="17" y2="5.5"/><line x1="3" y1="10" x2="17" y2="10"/><line x1="3" y1="14.5" x2="17" y2="14.5"/></svg>`;
-  var ICON_BROWSE = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 6.5a1 1 0 0 1 1-1h4l1.5 2h6.5a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1h-12a1 1 0 0 1-1-1v-8Z"/><path d="M2.5 9.5h15"/></svg>`;
-  var ICON_OPEN = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 5.5a1 1 0 0 1 1-1H8l1.5 2H16.5a1 1 0 0 1 1 1v7.5a1 1 0 0 1-1 1h-13a1 1 0 0 1-1-1v-9.5Z"/></svg>`;
-  var ICON_FIND = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="8.5" cy="8.5" r="5.5"/><line x1="16.5" y1="16.5" x2="12.6" y2="12.6"/></svg>`;
-  var ICON_PREFERENCES = `<svg viewBox="0 0 20 20" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="2.6"/><path d="M10 2.5v2M10 15.5v2M17.5 10h-2M4.5 10h-2M15.3 4.7l-1.4 1.4M6.1 13.9l-1.4 1.4M15.3 15.3l-1.4-1.4M6.1 6.1 4.7 4.7"/></svg>`;
-  function themeOptionsHTML(selectedThemeId) {
-    return themes.map((theme) => {
-      const selected = theme.id === selectedThemeId ? " selected" : "";
-      return `<option value="${theme.id}"${selected}>${theme.displayName}</option>`;
-    }).join("");
-  }
-  function renderToolbar(toolbar, initialFontSize, initialThemeId) {
-    toolbar.innerHTML = `
-        <button type="button" data-action="sidebar-toggle" class="sidebar-toggle-btn icon-btn" aria-label="Table of contents">${ICON_SIDEBAR}</button>
-        <button type="button" data-action="file-browser-toggle" class="icon-btn" aria-label="Browse files">${ICON_BROWSE}</button>
-        <button type="button" data-action="open" class="icon-btn" aria-label="Open\u2026">${ICON_OPEN}</button>
-        <span class="toolbar-group">
-            <button type="button" data-action="font-decrease" aria-label="Decrease font size">A\u2212</button>
-            <button type="button" data-action="font-reset" aria-label="Reset font size" data-font-size>${initialFontSize}</button>
-            <button type="button" data-action="font-increase" aria-label="Increase font size">A+</button>
-        </span>
-        <select data-action="theme" aria-label="Theme">${themeOptionsHTML(initialThemeId)}</select>
-        <span class="toolbar-spacer"></span>
-        <button type="button" data-action="find" class="icon-btn" aria-label="Find">${ICON_FIND}</button>
-        <button type="button" data-action="preferences" class="icon-btn" aria-label="Preferences">${ICON_PREFERENCES}</button>
-    `;
-  }
-  function updateToolbarFontSize(toolbar, fontSize) {
-    const el = toolbar.querySelector("[data-font-size]");
-    if (el) el.textContent = String(fontSize);
-  }
-  function updateToolbarTheme(toolbar, themeId) {
-    const select = toolbar.querySelector('select[data-action="theme"]');
-    if (select) select.value = themeId;
-  }
-  function attachToolbarHandlers(toolbar, callbacks) {
-    toolbar.addEventListener("click", (e) => {
-      const target = e.target;
-      if (!(target instanceof Element)) return;
-      const button = target.closest("button[data-action]");
-      if (!button) return;
-      switch (button.dataset.action) {
-        case "sidebar-toggle":
-          callbacks.onToggleSidebar();
-          break;
-        case "file-browser-toggle":
-          callbacks.onToggleFileBrowser();
-          break;
-        case "open":
-          callbacks.onOpen();
-          break;
-        case "font-decrease":
-          callbacks.onFontDecrease();
-          break;
-        case "font-reset":
-          callbacks.onFontReset();
-          break;
-        case "font-increase":
-          callbacks.onFontIncrease();
-          break;
-        case "preferences":
-          callbacks.onPreferences();
-          break;
-        case "find":
-          callbacks.onFind();
-          break;
-      }
-    });
-    toolbar.addEventListener("change", (e) => {
-      const target = e.target;
-      if (!(target instanceof HTMLSelectElement) || target.dataset.action !== "theme") return;
-      const theme = themes.find((t) => t.id === target.value);
-      if (theme) callbacks.onThemeChange(theme);
-    });
-  }
-
-  // src/toolbarAutoHide.ts
-  var DEFAULT_FADE_DELAY_MS = 2500;
-  function showToolbar(toolbarEl) {
-    toolbarEl.classList.remove("toolbar-faded");
-  }
-  function fadeToolbar(toolbarEl) {
-    toolbarEl.classList.add("toolbar-faded");
-  }
-  function wireToolbarAutoHide(toolbarEl, sources, mobileQuery, fadeDelayMs = DEFAULT_FADE_DELAY_MS) {
-    let fadeTimer;
-    function wake() {
-      if (!mobileQuery.matches) return;
-      showToolbar(toolbarEl);
-      if (fadeTimer) clearTimeout(fadeTimer);
-      fadeTimer = setTimeout(() => fadeToolbar(toolbarEl), fadeDelayMs);
-    }
-    for (const { target, type } of sources) {
-      target.addEventListener(type, wake, { passive: true });
-    }
-    mobileQuery.addEventListener("change", () => {
-      if (fadeTimer) clearTimeout(fadeTimer);
-      showToolbar(toolbarEl);
-      wake();
-    });
-    wake();
-  }
-
   // src/preferences.ts
   var TABS = [
     { id: "general", label: "General" },
@@ -623,13 +559,19 @@
       return `<option value="${o.id}"${sel}>${escapeHtml(o.label)}</option>`;
     }).join("");
   }
+  function themeOptionsHTML(selectedThemeId) {
+    return themes.map((theme) => {
+      const selected = theme.id === selectedThemeId ? " selected" : "";
+      return `<option value="${theme.id}"${selected}>${theme.displayName}</option>`;
+    }).join("");
+  }
   function tabsHTML(activeTab) {
     return TABS.map((t) => {
       const active = t.id === activeTab ? " active" : "";
       return `<button type="button" class="prefs-tab${active}" data-tab="${t.id}">${t.label}</button>`;
     }).join("");
   }
-  function renderPreferences(root, initialPolicy, activeTab = "general") {
+  function renderPreferences(root, initialPolicy, initialThemeId, initialFontSize, activeTab = "general") {
     root.innerHTML = `
         <div class="prefs-overlay">
             <div class="prefs-panel" role="dialog" aria-label="Preferences">
@@ -640,7 +582,18 @@
                         <p class="prefs-placeholder">Not available yet.</p>
                     </div>
                     <div class="prefs-pane${activeTab === "appearance" ? " active" : ""}" data-pane="appearance">
-                        <p class="prefs-placeholder">Not available yet \u2014 use the toolbar's font size and theme controls.</p>
+                        <label class="prefs-field">
+                            <span>Theme</span>
+                            <select data-action="theme">${themeOptionsHTML(initialThemeId)}</select>
+                        </label>
+                        <div class="prefs-field">
+                            <span>Font size</span>
+                            <span class="segmented-control">
+                                <button type="button" data-action="font-decrease" aria-label="Decrease font size">A\u2212</button>
+                                <button type="button" data-action="font-reset" aria-label="Reset font size" data-font-size>${initialFontSize}</button>
+                                <button type="button" data-action="font-increase" aria-label="Increase font size">A+</button>
+                            </span>
+                        </div>
                     </div>
                     <div class="prefs-pane${activeTab === "privacy" ? " active" : ""}" data-pane="privacy">
                         <label class="prefs-field">
@@ -664,6 +617,14 @@
     const select = root.querySelector('select[data-action="policy"]');
     if (select) select.value = policy;
   }
+  function updatePreferencesTheme(root, themeId) {
+    const select = root.querySelector('select[data-action="theme"]');
+    if (select) select.value = themeId;
+  }
+  function updatePreferencesFontSize(root, fontSize) {
+    const el = root.querySelector("[data-font-size]");
+    if (el) el.textContent = String(fontSize);
+  }
   function attachPreferencesHandlers(root, callbacks) {
     root.addEventListener("click", (e) => {
       const target = e.target;
@@ -685,11 +646,30 @@
       }
       if (target.classList.contains("prefs-overlay")) {
         callbacks.onClose();
+        return;
+      }
+      const actionButton = target.closest("button[data-action]");
+      switch (actionButton?.dataset.action) {
+        case "font-decrease":
+          callbacks.onFontDecrease();
+          break;
+        case "font-reset":
+          callbacks.onFontReset();
+          break;
+        case "font-increase":
+          callbacks.onFontIncrease();
+          break;
       }
     });
     root.addEventListener("change", (e) => {
       const target = e.target;
-      if (!(target instanceof HTMLSelectElement) || target.dataset.action !== "policy") return;
+      if (!(target instanceof HTMLSelectElement)) return;
+      if (target.dataset.action === "theme") {
+        const theme = themes.find((t) => t.id === target.value);
+        if (theme) callbacks.onThemeChange(theme);
+        return;
+      }
+      if (target.dataset.action !== "policy") return;
       callbacks.onPolicyChange(target.value);
     });
   }
@@ -1058,35 +1038,6 @@
       void window.__TAURI__.core.invoke("open_document_command");
     });
   }
-  function wireSidebar() {
-    const sidebarEl = document.getElementById("sidebar");
-    if (!sidebarEl) return void 0;
-    const backdropEl = document.getElementById("sidebar-backdrop");
-    renderTOC(sidebarEl, []);
-    attachTOCClickHandler(sidebarEl, (anchor) => {
-      window.MDViewer.scrollToAnchor(anchor);
-      closeDrawer(sidebarEl, backdropEl);
-    });
-    backdropEl?.addEventListener("click", () => {
-      closeDrawer(sidebarEl, backdropEl);
-    });
-    const rawSetContent = window.MDViewer.setContent.bind(window.MDViewer);
-    window.MDViewer.setContent = async (markdown) => {
-      const result = await rawSetContent(markdown);
-      renderTOC(sidebarEl, result.headings);
-      return result;
-    };
-    return {
-      toggle: () => {
-        toggleDrawer(sidebarEl, backdropEl);
-      },
-      // For drawer mutual exclusivity (wireUIShell) — both drawers slide
-      // in from the left, so opening one must close the other.
-      close: () => {
-        closeDrawer(sidebarEl, backdropEl);
-      }
-    };
-  }
   var THEME_STORAGE_KEY = "mdviewer.themeId";
   var FONT_SIZE_STORAGE_KEY = "mdviewer.fontSize";
   function loadStoredThemeId() {
@@ -1116,15 +1067,50 @@
     } catch {
     }
   }
-  function wirePreferences() {
+  function createRenderViewModel() {
+    const renderVM = new RenderViewModel({
+      renderer: window.MDViewer,
+      getRemoteContentPolicy: () => "ask",
+      loadStoredThemeId,
+      storeThemeId,
+      loadStoredFontSize,
+      storeFontSize
+    });
+    renderVM.applyCurrentThemeAndFontSize();
+    const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+    renderVM.applySystemAppearance(darkModeQuery.matches);
+    darkModeQuery.addEventListener("change", (e) => {
+      renderVM.applySystemAppearance(e.matches);
+    });
+    return renderVM;
+  }
+  function wirePreferences(renderVM) {
     const prefsEl = document.getElementById("preferences");
     if (!prefsEl) return void 0;
-    renderPreferences(prefsEl, "ask");
+    renderPreferences(prefsEl, "ask", renderVM.theme.id, renderVM.fontSize);
     attachPreferencesHandlers(prefsEl, {
       onClose: () => hidePreferences(prefsEl),
       onPolicyChange: (policy) => {
         void window.__TAURI__.core.invoke("set_remote_content_policy", { policy });
+      },
+      onThemeChange: (theme) => {
+        renderVM.setTheme(theme);
+      },
+      onFontDecrease: () => {
+        renderVM.decreaseFontSize();
+        updatePreferencesFontSize(prefsEl, renderVM.fontSize);
+      },
+      onFontReset: () => {
+        renderVM.resetFontSize();
+        updatePreferencesFontSize(prefsEl, renderVM.fontSize);
+      },
+      onFontIncrease: () => {
+        renderVM.increaseFontSize();
+        updatePreferencesFontSize(prefsEl, renderVM.fontSize);
       }
+    });
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      updatePreferencesTheme(prefsEl, renderVM.theme.id);
     });
     return {
       open: () => {
@@ -1164,21 +1150,10 @@
       }
     });
   }
-  function wireToolbar(preferences, search, sidebar, fileBrowser) {
+  function wireToolbar(preferences, search, fileBrowser) {
     const toolbarEl = document.getElementById("toolbar");
     if (!toolbarEl) return;
-    const renderVM = new RenderViewModel({
-      renderer: window.MDViewer,
-      getRemoteContentPolicy: () => "ask",
-      loadStoredThemeId,
-      storeThemeId,
-      loadStoredFontSize,
-      storeFontSize
-    });
-    renderVM.applyCurrentThemeAndFontSize();
-    const darkModeQuery = window.matchMedia("(prefers-color-scheme: dark)");
-    renderVM.applySystemAppearance(darkModeQuery.matches);
-    renderToolbar(toolbarEl, renderVM.fontSize, renderVM.theme.id);
+    renderToolbar(toolbarEl);
     toolbarEl.hidden = false;
     const syncToolbarHeightVar = () => {
       document.documentElement.style.setProperty("--toolbar-h", `${toolbarEl.getBoundingClientRect().height}px`);
@@ -1193,37 +1168,15 @@
       }
       wireToolbarAutoHide(toolbarEl, autoHideSources, window.matchMedia("(max-width: 768px)"));
     }
-    darkModeQuery.addEventListener("change", (e) => {
-      renderVM.applySystemAppearance(e.matches);
-      updateToolbarTheme(toolbarEl, renderVM.theme.id);
-    });
     attachToolbarHandlers(toolbarEl, {
       onOpen: () => {
         void window.__TAURI__.core.invoke("open_document_command");
-      },
-      onFontDecrease: () => {
-        renderVM.decreaseFontSize();
-        updateToolbarFontSize(toolbarEl, renderVM.fontSize);
-      },
-      onFontReset: () => {
-        renderVM.resetFontSize();
-        updateToolbarFontSize(toolbarEl, renderVM.fontSize);
-      },
-      onFontIncrease: () => {
-        renderVM.increaseFontSize();
-        updateToolbarFontSize(toolbarEl, renderVM.fontSize);
-      },
-      onThemeChange: (theme) => {
-        renderVM.setTheme(theme);
       },
       onPreferences: () => {
         preferences?.open();
       },
       onFind: () => {
         search?.open();
-      },
-      onToggleSidebar: () => {
-        sidebar?.toggle();
       },
       onToggleFileBrowser: () => {
         fileBrowser?.toggle();
@@ -1243,7 +1196,7 @@
     if (idx <= 0) return null;
     return path.slice(0, idx);
   }
-  function wireFileBrowser(closeOtherDrawers) {
+  function wireFileBrowser() {
     const browserEl = document.getElementById("file-browser");
     if (!browserEl) return void 0;
     const backdropEl = document.getElementById("file-browser-backdrop");
@@ -1315,13 +1268,9 @@
       closeDrawer(browserEl, backdropEl);
     });
     return {
-      close: () => {
-        closeDrawer(browserEl, backdropEl);
-      },
       toggle: () => {
         const opening = !browserEl.classList.contains("open");
         if (opening) {
-          closeOtherDrawers();
           void show(currentPath ?? null);
         }
         toggleDrawer(browserEl, backdropEl);
@@ -1368,23 +1317,13 @@
   }
   function wireUIShell() {
     wireWelcomeContentToggle();
-    const sidebar = wireSidebar();
-    const preferences = wirePreferences();
+    const renderVM = createRenderViewModel();
+    const preferences = wirePreferences(renderVM);
     const search = wireSearch();
     wireGlobalShortcuts(search);
-    const fileBrowser = wireFileBrowser(() => sidebar?.close());
+    const fileBrowser = wireFileBrowser();
     wirePermissions();
-    wireToolbar(
-      preferences,
-      search,
-      sidebar && {
-        toggle: () => {
-          fileBrowser?.close();
-          sidebar.toggle();
-        }
-      },
-      fileBrowser
-    );
+    wireToolbar(preferences, search, fileBrowser);
   }
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", wireUIShell);

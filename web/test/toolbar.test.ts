@@ -1,8 +1,17 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { renderToolbar, updateToolbarFontSize, updateToolbarTheme, attachToolbarHandlers } from "../src/toolbar.js";
-import { themes } from "../src/markdownTheme.js";
+import { renderToolbar, attachToolbarHandlers, type ToolbarCallbacks } from "../src/toolbar.js";
 
 let toolbar: HTMLElement;
+
+function callbacks(overrides: Partial<ToolbarCallbacks> = {}): ToolbarCallbacks {
+    return {
+        onOpen: vi.fn(),
+        onPreferences: vi.fn(),
+        onFind: vi.fn(),
+        onToggleFileBrowser: vi.fn(),
+        ...overrides,
+    };
+}
 
 beforeEach(() => {
     document.body.innerHTML = '<header id="toolbar"></header>';
@@ -10,129 +19,52 @@ beforeEach(() => {
 });
 
 describe("renderToolbar", () => {
-    it("renders an Open button, font-size controls, and a theme select", () => {
-        renderToolbar(toolbar, 16, "github-light");
-        expect(toolbar.querySelector('button[data-action="open"]')).not.toBeNull();
-        expect(toolbar.querySelector('button[data-action="font-decrease"]')).not.toBeNull();
-        expect(toolbar.querySelector('button[data-action="font-increase"]')).not.toBeNull();
-        expect(toolbar.querySelector("select")).not.toBeNull();
-        expect(toolbar.querySelector('button[data-action="preferences"]')).not.toBeNull();
-        expect(toolbar.querySelector('button[data-action="find"]')).not.toBeNull();
-        expect(toolbar.querySelector('button[data-action="sidebar-toggle"]')).not.toBeNull();
+    it("renders the file-browser and open buttons on the left, find and preferences on the right", () => {
+        renderToolbar(toolbar);
         expect(toolbar.querySelector('button[data-action="file-browser-toggle"]')).not.toBeNull();
-    });
-
-    it("shows the initial font size on the reset button", () => {
-        renderToolbar(toolbar, 22, "github-light");
-        expect(toolbar.querySelector("[data-font-size]")!.textContent).toBe("22");
-    });
-
-    it("lists every theme, with the initial one selected", () => {
-        renderToolbar(toolbar, 16, "dracula");
-        const options = toolbar.querySelectorAll<HTMLOptionElement>("select option");
-        expect(options).toHaveLength(themes.length);
-        expect(toolbar.querySelector<HTMLSelectElement>("select")!.value).toBe("dracula");
-    });
-});
-
-describe("updateToolbarFontSize", () => {
-    it("updates the displayed size without touching the rest of the toolbar", () => {
-        renderToolbar(toolbar, 16, "github-light");
-        updateToolbarFontSize(toolbar, 20);
-        expect(toolbar.querySelector("[data-font-size]")!.textContent).toBe("20");
         expect(toolbar.querySelector('button[data-action="open"]')).not.toBeNull();
+        expect(toolbar.querySelector('button[data-action="find"]')).not.toBeNull();
+        expect(toolbar.querySelector('button[data-action="preferences"]')).not.toBeNull();
     });
-});
 
-describe("updateToolbarTheme", () => {
-    it("updates the select's value", () => {
-        renderToolbar(toolbar, 16, "github-light");
-        updateToolbarTheme(toolbar, "nord");
-        expect(toolbar.querySelector<HTMLSelectElement>("select")!.value).toBe("nord");
+    it("has no font-size or theme controls — those moved to Preferences' Appearance tab", () => {
+        renderToolbar(toolbar);
+        expect(toolbar.querySelector('[data-action="font-decrease"]')).toBeNull();
+        expect(toolbar.querySelector('[data-action="font-increase"]')).toBeNull();
+        expect(toolbar.querySelector("select")).toBeNull();
+    });
+
+    it("has no sidebar-toggle button — the TOC feature it opened was dropped", () => {
+        renderToolbar(toolbar);
+        expect(toolbar.querySelector('[data-action="sidebar-toggle"]')).toBeNull();
+    });
+
+    it("groups file-browser-toggle and open together, separately from find and preferences", () => {
+        renderToolbar(toolbar);
+        const groups = toolbar.querySelectorAll(".toolbar-icon-group");
+        expect(groups).toHaveLength(2);
+        expect(groups[0].querySelector('[data-action="file-browser-toggle"]')).not.toBeNull();
+        expect(groups[0].querySelector('[data-action="open"]')).not.toBeNull();
+        expect(groups[1].querySelector('[data-action="find"]')).not.toBeNull();
+        expect(groups[1].querySelector('[data-action="preferences"]')).not.toBeNull();
     });
 });
 
 describe("attachToolbarHandlers", () => {
     it("calls onOpen when the Open button is clicked", () => {
-        renderToolbar(toolbar, 16, "github-light");
+        renderToolbar(toolbar);
         const onOpen = vi.fn();
-        attachToolbarHandlers(toolbar, {
-            onOpen,
-            onFontDecrease: vi.fn(),
-            onFontReset: vi.fn(),
-            onFontIncrease: vi.fn(),
-            onThemeChange: vi.fn(),
-            onPreferences: vi.fn(),
-            onFind: vi.fn(),
-            onToggleSidebar: vi.fn(),
-            onToggleFileBrowser: vi.fn(),
-        });
+        attachToolbarHandlers(toolbar, callbacks({ onOpen }));
 
         toolbar.querySelector('button[data-action="open"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
         expect(onOpen).toHaveBeenCalledOnce();
     });
 
-    it("calls the matching font-size callback for each button", () => {
-        renderToolbar(toolbar, 16, "github-light");
-        const callbacks = {
-            onOpen: vi.fn(),
-            onFontDecrease: vi.fn(),
-            onFontReset: vi.fn(),
-            onFontIncrease: vi.fn(),
-            onThemeChange: vi.fn(),
-            onPreferences: vi.fn(),
-            onFind: vi.fn(),
-            onToggleSidebar: vi.fn(),
-            onToggleFileBrowser: vi.fn(),
-        };
-        attachToolbarHandlers(toolbar, callbacks);
-
-        toolbar.querySelector('[data-action="font-decrease"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        toolbar.querySelector('[data-action="font-reset"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-        toolbar.querySelector('[data-action="font-increase"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-
-        expect(callbacks.onFontDecrease).toHaveBeenCalledOnce();
-        expect(callbacks.onFontReset).toHaveBeenCalledOnce();
-        expect(callbacks.onFontIncrease).toHaveBeenCalledOnce();
-    });
-
-    it("calls onThemeChange with the matching MarkdownTheme when the select changes", () => {
-        renderToolbar(toolbar, 16, "github-light");
-        const onThemeChange = vi.fn();
-        attachToolbarHandlers(toolbar, {
-            onOpen: vi.fn(),
-            onFontDecrease: vi.fn(),
-            onFontReset: vi.fn(),
-            onFontIncrease: vi.fn(),
-            onThemeChange,
-            onPreferences: vi.fn(),
-            onFind: vi.fn(),
-            onToggleSidebar: vi.fn(),
-            onToggleFileBrowser: vi.fn(),
-        });
-
-        const select = toolbar.querySelector<HTMLSelectElement>("select")!;
-        select.value = "dracula";
-        select.dispatchEvent(new Event("change", { bubbles: true }));
-
-        expect(onThemeChange).toHaveBeenCalledWith(themes.find((t) => t.id === "dracula"));
-    });
-
     it("calls onPreferences when the Preferences button is clicked", () => {
-        renderToolbar(toolbar, 16, "github-light");
+        renderToolbar(toolbar);
         const onPreferences = vi.fn();
-        attachToolbarHandlers(toolbar, {
-            onOpen: vi.fn(),
-            onFontDecrease: vi.fn(),
-            onFontReset: vi.fn(),
-            onFontIncrease: vi.fn(),
-            onThemeChange: vi.fn(),
-            onPreferences,
-            onFind: vi.fn(),
-            onToggleSidebar: vi.fn(),
-            onToggleFileBrowser: vi.fn(),
-        });
+        attachToolbarHandlers(toolbar, callbacks({ onPreferences }));
 
         toolbar.querySelector('button[data-action="preferences"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
@@ -140,19 +72,9 @@ describe("attachToolbarHandlers", () => {
     });
 
     it("calls onFind when the Find button is clicked", () => {
-        renderToolbar(toolbar, 16, "github-light");
+        renderToolbar(toolbar);
         const onFind = vi.fn();
-        attachToolbarHandlers(toolbar, {
-            onOpen: vi.fn(),
-            onFontDecrease: vi.fn(),
-            onFontReset: vi.fn(),
-            onFontIncrease: vi.fn(),
-            onThemeChange: vi.fn(),
-            onPreferences: vi.fn(),
-            onFind,
-            onToggleSidebar: vi.fn(),
-            onToggleFileBrowser: vi.fn(),
-        });
+        attachToolbarHandlers(toolbar, callbacks({ onFind }));
 
         toolbar.querySelector('button[data-action="find"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
@@ -160,19 +82,9 @@ describe("attachToolbarHandlers", () => {
     });
 
     it("calls onToggleFileBrowser when the file-browser-toggle button is clicked", () => {
-        renderToolbar(toolbar, 16, "github-light");
+        renderToolbar(toolbar);
         const onToggleFileBrowser = vi.fn();
-        attachToolbarHandlers(toolbar, {
-            onOpen: vi.fn(),
-            onFontDecrease: vi.fn(),
-            onFontReset: vi.fn(),
-            onFontIncrease: vi.fn(),
-            onThemeChange: vi.fn(),
-            onPreferences: vi.fn(),
-            onFind: vi.fn(),
-            onToggleSidebar: vi.fn(),
-            onToggleFileBrowser,
-        });
+        attachToolbarHandlers(toolbar, callbacks({ onToggleFileBrowser }));
 
         toolbar
             .querySelector('button[data-action="file-browser-toggle"]')!
@@ -181,40 +93,10 @@ describe("attachToolbarHandlers", () => {
         expect(onToggleFileBrowser).toHaveBeenCalledOnce();
     });
 
-    it("calls onToggleSidebar when the sidebar-toggle button is clicked", () => {
-        renderToolbar(toolbar, 16, "github-light");
-        const onToggleSidebar = vi.fn();
-        attachToolbarHandlers(toolbar, {
-            onOpen: vi.fn(),
-            onFontDecrease: vi.fn(),
-            onFontReset: vi.fn(),
-            onFontIncrease: vi.fn(),
-            onThemeChange: vi.fn(),
-            onPreferences: vi.fn(),
-            onFind: vi.fn(),
-            onToggleSidebar,
-            onToggleFileBrowser: vi.fn(),
-        });
-
-        toolbar.querySelector('button[data-action="sidebar-toggle"]')!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
-
-        expect(onToggleSidebar).toHaveBeenCalledOnce();
-    });
-
     it("does nothing when the click isn't on a toolbar control", () => {
-        renderToolbar(toolbar, 16, "github-light");
+        renderToolbar(toolbar);
         const onOpen = vi.fn();
-        attachToolbarHandlers(toolbar, {
-            onOpen,
-            onFontDecrease: vi.fn(),
-            onFontReset: vi.fn(),
-            onFontIncrease: vi.fn(),
-            onThemeChange: vi.fn(),
-            onPreferences: vi.fn(),
-            onFind: vi.fn(),
-            onToggleSidebar: vi.fn(),
-            onToggleFileBrowser: vi.fn(),
-        });
+        attachToolbarHandlers(toolbar, callbacks({ onOpen }));
 
         toolbar.querySelector(".toolbar-spacer")!.dispatchEvent(new MouseEvent("click", { bubbles: true }));
 
