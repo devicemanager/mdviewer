@@ -8,7 +8,7 @@ assumes Claude-specific state beyond one pointer noted below.
 why); this file is only *what's left*, plus the context needed to not
 re-learn it the hard way.
 
-**You are here:** `HEAD` is `a9c21a7` (2026-09-14). Everything before
+**You are here:** `HEAD` is `10e734e` (2026-09-15). Everything before
 `822a617` (2026-09-13) predates a `git filter-repo` history rewrite that
 moved the OTA tooling out of this repo — don't compare against hashes
 recorded earlier than that note. Working tree is clean —
@@ -45,16 +45,19 @@ pointer in this document; nothing else here depends on it.
 | Piece | State |
 |---|---|
 | `list_directory` Rust command + `path_is_accessible` refactor | Done, 9 tests |
-| `drawer.ts` (drawer primitive generalized out of `sidebar.ts`) | Done, verified on emulator |
-| `.drawer`/`.drawer-backdrop` CSS generalization | Done, TOC drawer visually unchanged |
+| `drawer.ts` (drawer primitive, now backs the file browser only) | Done, verified on emulator |
+| `.drawer`/`.drawer-backdrop` CSS, unconditional at every width | Done, fixed a real desktop bug — see Phase 6 below |
 | `fileBrowser.ts` (render + localStorage cache) | Done, 21 tests |
 | `permissions.ts` (consolidated first-launch prompt) | Done, 16 tests |
 | `ios_folder_picker.rs` (native `UIDocumentPickerViewController`) | **Compiles on all 3 targets, never run** |
 | Phase 4 wiring (markup, CSS, `main.ts` glue) | Done, verified on Android emulator |
 | OTA server: supervised LaunchAgent + Pangolin health-check fix | Done, tunnel confirmed 200 |
 | Phase 5 (`diffFolderEntries` + skip-render-when-unchanged) | Done, verified on Android emulator |
+| Phase 6 (toolbar reorg, TOC sidebar dropped entirely) | Done, verified on Android emulator at phone and desktop widths |
 
-Test counts: **83** Rust, **224** web. All green.
+Test counts: **83** Rust, **215** web. All green. (Web count dropped from
+224 — Phase 6 deleted `sidebar.ts`'s 12 tests along with the feature; no
+other regressions.)
 
 **Phase 4 landed 2026-09-13.** Markup, CSS and `main.ts` wiring are in;
 bundle grew 36.2kb → 48.6kb, confirming the modules are actually reachable
@@ -79,9 +82,53 @@ workaround a prior session's leftover `browsetest/` fixture already
 implied; that's a debug-fixture-location quirk of this test document's
 fixed path, not a Phase 5 concern.
 
+**Phase 6 landed 2026-09-14/15, with a scope change made mid-flight, the
+user's own call:** the TOC sidebar (`sidebar.ts`, the table-of-contents
+drawer this app shipped with) was **dropped entirely** rather than kept
+alongside a reorganized toolbar — "the file browser replaces it," not a
+second drawer beside it. Concretely:
+- `sidebar.ts` and its 12 tests deleted; `#sidebar`/`#sidebar-backdrop`
+  removed from `app.html`; all `.toc-*` CSS removed. `#file-browser` is
+  this app's only drawer now — no more mutual-exclusivity policy needed
+  (there's nothing left to be mutually exclusive with).
+- Toolbar regrouped (toolbar.ts): file-browser-toggle + Open on the left
+  (primary action, the user's original framing), Find + Preferences
+  grouped on the right (`.toolbar-icon-group`) — no more TOC-index icon,
+  since there's no TOC.
+- Theme `<select>` and font-size controls moved out of the toolbar
+  entirely into Preferences' Appearance tab (preferences.ts), which was a
+  literal stub until now. Shown at every width, including mobile —
+  explicitly re-confirmed with the user rather than carrying over the old
+  toolbar's mobile-hide rule by default, since a spacious modal doesn't
+  have the toolbar row's space pressure. `main.ts`'s `RenderViewModel`
+  construction moved out of `wireToolbar` into its own
+  `createRenderViewModel()`, since `wirePreferences` needed the same
+  instance too.
+- **A real desktop bug found live via CDP while verifying this, not part
+  of the original Phase 6 scope but fixed in the same pass**: `.drawer`/
+  `.drawer-backdrop`'s actual positioning/background CSS was gated behind
+  `@media (max-width: 768px)`, inherited from the old TOC sidebar's
+  different desktop behavior (an always-visible in-flow column, only
+  becoming a drawer below that breakpoint). `#file-browser`'s own header
+  comment already documented it as "drawer-only at every width, no
+  in-flow desktop form," but nothing had ever updated the CSS to match —
+  opening it at a desktop-width viewport produced an unstyled, transparent
+  box pushing `#main` aside instead of the designed overlay. Fixed by
+  making `.drawer`/`.drawer-backdrop` unconditional; re-verified at both
+  widths afterward (below).
+
+**Verified live via CDP** (Android emulator, both a real phone-width
+viewport and a desktop-width one via `Emulation.setDeviceMetricsOverride`):
+toolbar grouping and absence of theme/font/TOC controls; Preferences →
+Appearance actually changes the live theme (`github-light` → `dracula`,
+confirmed via `#theme-css`'s href) and font size (confirmed via computed
+style on `#content`), and both persist to `localStorage`; the file browser
+opens as a proper frosted-glass fixed overlay with a working backdrop
+scrim and correct `#main` sizing at 1200px width, not just at phone width.
+
 **Still NOT done:**
 
-- Phase 6 (toolbar reorganisation), Phase 7 (background live refresh).
+- Phase 7 (background live refresh).
 - The permissions prompt's "Choose a folder…" path is **untested on iOS** —
   it calls `request_folder_access`, which on iOS reaches the never-yet-run
   native picker. On Android that command returns `false` unconditionally
@@ -166,7 +213,9 @@ console — before anything is built on top of it.
 - Mutual exclusivity: opening the file-browser drawer must close the TOC
   drawer and vice versa (both are left-edge overlays that would collide).
   `drawer.test.ts` proves the primitives don't share state; the *policy* is
-  unwritten and untested.
+  unwritten and untested. (Moot since Phase 6 dropped the TOC drawer
+  entirely — noted here only so this checklist stays an accurate record of
+  what Phase 4 actually built at the time, not a claim about today's code.)
 - First-launch gate: show `permissions.ts` when `hasSeenPermissionsPrompt()`
   is false.
 
@@ -182,17 +231,22 @@ type-changed/reordered entries); Android emulator check via CDP confirmed
 an unchanged reopen renders once and a changed one renders twice with the
 new entry visible (see status snapshot above for the exact method).
 
-### Phase 6 — Toolbar reorganization
-- File-browser button **left**; Find / TOC-index / Settings grouped **right**
-  (three icons, visually grouped — user chose this over a popover).
-- Move theme `<select>` + font-size controls into Preferences → Appearance,
-  wired to the `RenderViewModel` instance `wireToolbar` already builds.
-  That tab is currently a literal stub whose own comment anticipates exactly
-  this. Hide the theme select on mobile (font-size group already is).
-- Update `toolbar.test.ts` for the new layout.
-
-**Verify:** tests; emulator screenshots at phone and desktop widths; every
-action still works including the relocated theme picker.
+### Phase 6 — Toolbar reorganization — **DONE 2026-09-14/15, scope changed mid-flight**
+Landed differently than originally written here, per the user's own
+redirect: **the TOC sidebar was dropped entirely** rather than kept
+alongside a reorganized toolbar (this section used to say "Find /
+TOC-index / Settings grouped right" — there is no more TOC-index, because
+there is no more TOC). See the status snapshot above for the full
+breakdown: `sidebar.ts` deleted, toolbar regrouped to file-browser-toggle
++ Open (left) and Find + Preferences (right), theme/font-size moved into
+Preferences → Appearance (shown at every width, not hidden on mobile —
+also re-confirmed with the user rather than assumed), and a real desktop
+overlay-positioning bug found and fixed along the way.
+**Verified:** `toolbar.test.ts`/`preferences.test.ts` rewritten for the
+new shapes; Android emulator via CDP at both a phone-width and a
+desktop-width (`Emulation.setDeviceMetricsOverride`) viewport — toolbar
+grouping, live theme/font-size changes, localStorage persistence, and the
+file browser's overlay positioning all confirmed working at both widths.
 
 ### Phase 7 — Background live refresh (deferred, optional)
 Only after Phase 5 proves insufficient. Needs a **separate** watcher from
