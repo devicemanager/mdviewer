@@ -48,7 +48,7 @@
 import { createMDViewerApi, type MarkedLike } from "./mdviewerApi.js";
 import { attachInteractionListeners } from "./interactionListeners.js";
 import { showContent, showWelcome } from "./appShell.js";
-import { closeDrawer, toggleDrawer } from "./drawer.js";
+import { closeDrawer, openDrawer, toggleDrawer } from "./drawer.js";
 import { renderToolbar, attachToolbarHandlers } from "./toolbar.js";
 import { wireToolbarAutoHide, type AutoHideSource } from "./toolbarAutoHide.js";
 import {
@@ -485,7 +485,7 @@ function parentPath(path: string): string | null {
  *
  * Returns a `toggle()` handle for the toolbar button.
  */
-function wireFileBrowser(): { toggle: () => void } | undefined {
+function wireFileBrowser(): { toggle: () => void; openTo: (path: string | null) => void } | undefined {
     const browserEl = document.getElementById("file-browser");
     if (!browserEl) return undefined;
     const backdropEl = document.getElementById("file-browser-backdrop");
@@ -619,6 +619,15 @@ function wireFileBrowser(): { toggle: () => void } | undefined {
             }
             toggleDrawer(browserEl, backdropEl);
         },
+        // Unconditional open-and-show, as opposed to `toggle`: used right
+        // after granting a folder (wirePermissions, below) for immediate
+        // feedback, where the caller always wants the drawer visible and
+        // pointed at a specific path, never toggled shut if it happened to
+        // already be open.
+        openTo: (path) => {
+            void show(path);
+            openDrawer(browserEl, backdropEl);
+        },
     };
 }
 
@@ -633,8 +642,20 @@ function wireFileBrowser(): { toggle: () => void } | undefined {
  * dialog never grants anything itself — only the OS can — so a granted
  * folder appearing in the list is the result of the real grant having
  * succeeded, not of the user having agreed to something here.
+ *
+ * **Opens the file browser to the grant, 2026-10-03** — a real report:
+ * granting a folder (e.g. one level above Downloads) produced no folder
+ * view at all, since nothing here ever showed one — this modal only ever
+ * updated its own "folders you've granted" list. Takes the file-browser
+ * handle so a successful grant can hand straight off to it, pointed at the
+ * exact path just granted (the last entry in the re-read, authoritative
+ * `list_granted_folders` result — `grant_folder_access` always appends, so
+ * that's the one that was just added, not a guess) rather than `null`'s
+ * "current document" default, which would show the wrong folder, or
+ * nothing at all, whenever this runs before any document is open — the
+ * common case, since this prompt itself normally shows at first launch.
  */
-function wirePermissions(): void {
+function wirePermissions(fileBrowser: { toggle: () => void; openTo: (path: string | null) => void } | undefined): void {
     const permsEl = document.getElementById("permissions");
     if (!permsEl) return;
 
@@ -654,6 +675,8 @@ function wirePermissions(): void {
                 void window.__TAURI__.core.invoke("list_granted_folders").then((paths) => {
                     folders = (paths as string[]).map((path) => ({ path }));
                     rerender();
+                    const justGranted = folders[folders.length - 1]?.path;
+                    if (justGranted) fileBrowser?.openTo(justGranted);
                 });
             });
         },
@@ -689,7 +712,7 @@ function wireUIShell(): void {
     const search = wireSearch();
     wireGlobalShortcuts(search);
     const fileBrowser = wireFileBrowser();
-    wirePermissions();
+    wirePermissions(fileBrowser);
     wireToolbar(preferences, search, fileBrowser);
 }
 

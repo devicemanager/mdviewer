@@ -1274,10 +1274,19 @@
           void show(currentPath ?? null);
         }
         toggleDrawer(browserEl, backdropEl);
+      },
+      // Unconditional open-and-show, as opposed to `toggle`: used right
+      // after granting a folder (wirePermissions, below) for immediate
+      // feedback, where the caller always wants the drawer visible and
+      // pointed at a specific path, never toggled shut if it happened to
+      // already be open.
+      openTo: (path) => {
+        void show(path);
+        openDrawer(browserEl, backdropEl);
       }
     };
   }
-  function wirePermissions() {
+  function wirePermissions(fileBrowser) {
     const permsEl = document.getElementById("permissions");
     if (!permsEl) return;
     let folders = [];
@@ -1291,6 +1300,8 @@
           void window.__TAURI__.core.invoke("list_granted_folders").then((paths) => {
             folders = paths.map((path) => ({ path }));
             rerender();
+            const justGranted = folders[folders.length - 1]?.path;
+            if (justGranted) fileBrowser?.openTo(justGranted);
           });
         });
       },
@@ -1322,7 +1333,7 @@
     const search = wireSearch();
     wireGlobalShortcuts(search);
     const fileBrowser = wireFileBrowser();
-    wirePermissions();
+    wirePermissions(fileBrowser);
     wireToolbar(preferences, search, fileBrowser);
   }
   if (document.readyState === "loading") {

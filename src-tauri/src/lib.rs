@@ -1244,20 +1244,30 @@ struct DirListing {
 /// beyond it, which this command doesn't work around, just honestly
 /// reflects).
 ///
+/// **Fallback added 2026-10-03** (real-user report: granting a folder from
+/// the first-launch permissions prompt, before ever opening a document,
+/// produced no folder view at all). `DocumentBaseDir` being unset no longer
+/// means "nothing to browse" outright — if a folder has already been
+/// granted (tier two, `GrantedFolders`) with no document open yet, the
+/// *most recently* granted one stands in as the browse root instead. Once a
+/// document is open this never triggers (`DocumentBaseDir` always wins),
+/// matching the behavior every other caller still relies on unchanged.
+///
 /// Thin wrapper over `list_directory_at`, same split as every other command
 /// in this file, purely so the real logic is testable against real temp
 /// dirs via `tauri::test::mock_app()`-managed state without needing a real
 /// window or OS dialog.
 #[tauri::command]
 fn list_directory<R: Runtime>(app: AppHandle<R>, path: Option<String>) -> Result<DirListing, String> {
-    let base_dir = app
-        .state::<DocumentBaseDir>()
-        .0
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or_else(|| "not_found: no document open yet".to_string())?;
+    let document_base_dir = app.state::<DocumentBaseDir>().0.lock().unwrap().clone();
     let granted = app.state::<GrantedFolders>().0.lock().unwrap().clone();
+    let base_dir = match document_base_dir {
+        Some(dir) => dir,
+        None => granted
+            .last()
+            .cloned()
+            .ok_or_else(|| "not_found: no document open yet".to_string())?,
+    };
     let target = path.map(PathBuf::from).unwrap_or_else(|| base_dir.clone());
     list_directory_at(&base_dir, &granted, &target)
 }
@@ -2030,6 +2040,54 @@ mod tests {
         std::fs::remove_dir_all(&root).ok();
     }
 
+    /// The exact real-device report (2026-09-17): granting a folder *above*
+    /// `base_dir` (not a sibling, a genuine ancestor covering base_dir
+    /// itself) was reported as not actually letting the browser reach any
+    /// other folder under it. Unlike the sibling-grant test above, `granted`
+    /// here is `root` itself, an ancestor of `base_dir` (`root/doc`) — this
+    /// is the "grant a folder one level above Downloads" shape from that
+    /// report, not the "grant a specific sibling folder" shape already
+    /// covered.
+    #[test]
+    fn list_directory_at_granted_ancestor_of_base_dir_lists_the_ancestor_itself() {
+        let root = temp_dir_for("browse-granted-ancestor-root");
+        let dir = root.join("doc");
+        let sibling = root.join("other");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir_all(&sibling).unwrap();
+
+        let granted = vec![root.canonicalize().unwrap()];
+        let listing = list_directory_at(&dir, &granted, &root).unwrap();
+
+        let names: Vec<&str> = listing.entries.iter().map(|e| e.name.as_str()).collect();
+        assert!(names.contains(&"doc"), "{names:?}");
+        assert!(names.contains(&"other"), "{names:?}");
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// Continuing the scenario above: once the ancestor's own listing shows
+    /// `other` as a subfolder, can the browser actually navigate *into*
+    /// it? `other` was never itself granted — only `root` (its parent) was
+    /// — so this specifically exercises `folder_covers`'s transitive
+    /// coverage of a granted folder's own descendants, not just the
+    /// granted folder itself.
+    #[test]
+    fn list_directory_at_subfolder_of_a_granted_ancestor_also_resolves() {
+        let root = temp_dir_for("browse-granted-ancestor-child-root");
+        let dir = root.join("doc");
+        let sibling = root.join("other");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir_all(&sibling).unwrap();
+        std::fs::write(sibling.join("note.md"), "").unwrap();
+
+        let granted = vec![root.canonicalize().unwrap()];
+        let listing = list_directory_at(&dir, &granted, &sibling).unwrap();
+
+        let names: Vec<&str> = listing.entries.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, vec!["note.md"]);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
     #[test]
     fn list_directory_at_nonexistent_path_is_not_found() {
         let dir = temp_dir_for("browse-missing");
@@ -2074,6 +2132,72 @@ mod tests {
 
         let Err(err) = result else { return };
         assert!(err.starts_with("permission_denied:"), "{err}");
+    }
+
+    // MARK: - list_directory (command, fallback to a granted folder —
+    // 2026-10-03 real-user report: granting a folder before ever opening a
+    // document produced no folder view at all)
+
+    #[test]
+    fn list_directory_with_no_document_and_no_grant_is_not_found() {
+        let app = mock_app_with_state();
+        let err = list_directory(app.handle().clone(), None).unwrap_err();
+        assert!(err.starts_with("not_found:"), "{err}");
+    }
+
+    #[test]
+    fn list_directory_with_no_document_falls_back_to_the_granted_folder() {
+        let dir = temp_dir_for("browse-fallback-granted");
+        std::fs::write(dir.join("note.md"), "# hi").unwrap();
+
+        let app = mock_app_with_state();
+        app.state::<GrantedFolders>().0.lock().unwrap().push(dir.canonicalize().unwrap());
+
+        let listing = list_directory(app.handle().clone(), None).unwrap();
+
+        assert_eq!(listing.path, dir.canonicalize().unwrap().to_string_lossy());
+        let names: Vec<&str> = listing.entries.iter().map(|e| e.name.as_str()).collect();
+        assert_eq!(names, vec!["note.md"]);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn list_directory_with_no_document_and_multiple_grants_uses_the_most_recent() {
+        let first = temp_dir_for("browse-fallback-first");
+        let second = temp_dir_for("browse-fallback-second");
+        std::fs::write(second.join("latest.md"), "# hi").unwrap();
+
+        let app = mock_app_with_state();
+        {
+            let state = app.state::<GrantedFolders>();
+            let mut granted = state.0.lock().unwrap();
+            granted.push(first.canonicalize().unwrap());
+            granted.push(second.canonicalize().unwrap());
+        }
+
+        let listing = list_directory(app.handle().clone(), None).unwrap();
+
+        assert_eq!(listing.path, second.canonicalize().unwrap().to_string_lossy());
+        std::fs::remove_dir_all(&first).ok();
+        std::fs::remove_dir_all(&second).ok();
+    }
+
+    #[test]
+    fn list_directory_prefers_the_open_document_over_any_granted_folder() {
+        let doc_dir = temp_dir_for("browse-fallback-doc");
+        let granted_dir = temp_dir_for("browse-fallback-other-granted");
+        std::fs::write(doc_dir.join("current.md"), "# hi").unwrap();
+        std::fs::write(granted_dir.join("other.md"), "# hi").unwrap();
+
+        let app = mock_app_with_state();
+        *app.state::<DocumentBaseDir>().0.lock().unwrap() = Some(doc_dir.clone());
+        app.state::<GrantedFolders>().0.lock().unwrap().push(granted_dir.canonicalize().unwrap());
+
+        let listing = list_directory(app.handle().clone(), None).unwrap();
+
+        assert_eq!(listing.path, doc_dir.canonicalize().unwrap().to_string_lossy());
+        std::fs::remove_dir_all(&doc_dir).ok();
+        std::fs::remove_dir_all(&granted_dir).ok();
     }
 
     // MARK: - folder_covers (parity with FolderAccessManager.covers())
