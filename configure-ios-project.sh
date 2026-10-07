@@ -23,6 +23,14 @@
 #      Tauri does not generate an ad-hoc/manual-signing export options file, so
 #      `xcodebuild -exportArchive` has nothing to work from.
 #
+#   4. Minimum iOS deployment target (15.0, not the scaffolded 14.0)
+#      Xcode 27 refuses IPHONEOS_DEPLOYMENT_TARGET = 14.0 — a fresh `tauri
+#      ios init` scaffolds 14.0 into project.yml/Podfile and the very first
+#      device archive fails before compiling anything. Patched here in all
+#      three places the minimum version is declared (project.yml, which
+#      xcodegen regenerates the .xcodeproj from; the .pbxproj itself; and
+#      the Podfile's `platform :ios` line, when one exists).
+#
 # Run this once after `tauri ios init`, and again any time the generated
 # project is recreated. Idempotent — safe to re-run at any point.
 #
@@ -43,12 +51,17 @@ BUNDLE_ID="${BUNDLE_ID:-org.devicemanager.mdviewer}"
 # id. Set PROVISIONING_PROFILE explicitly if yours is named differently.
 PROVISIONING_PROFILE="${PROVISIONING_PROFILE:-$BUNDLE_ID}"
 SIGN_IDENTITY="${SIGN_IDENTITY:-Apple Distribution}"
+# Xcode 27 dropped support for building with a 14.0 minimum (see item 4 in
+# the header); 15.0 is the value verified working with a real device archive.
+IOS_DEPLOYMENT_TARGET="${IOS_DEPLOYMENT_TARGET:-15.0}"
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 GEN_APPLE="$REPO_ROOT/src-tauri/gen/apple"
 INFO_PLIST="$GEN_APPLE/mdviewer_iOS/Info.plist"
 PBXPROJ="$GEN_APPLE/mdviewer.xcodeproj/project.pbxproj"
 EXPORT_OPTIONS="$GEN_APPLE/build/ExportOptions-AdHoc.plist"
+PROJECT_YML="$GEN_APPLE/project.yml"
+PODFILE="$GEN_APPLE/Podfile"
 
 # ---- Preflight ------------------------------------------------------------
 if [[ ! -d "$GEN_APPLE" ]]; then
@@ -135,6 +148,42 @@ cat > "$EXPORT_OPTIONS" <<PLIST
 PLIST
 plutil -lint "$EXPORT_OPTIONS" >/dev/null
 echo "ExportOptions-AdHoc.plist: written to ${EXPORT_OPTIONS#"$REPO_ROOT"/}"
+
+# ---- 4. Minimum iOS deployment target ------------------------------------
+# Xcode 27 refuses a 14.0 minimum outright, and the failure surfaces as an
+# opaque build misconfiguration rather than a clear "raise your deployment
+# target" message — easy to re-derive the hard way, which is why it lives
+# here. A fresh `tauri ios init` scaffolds 14.0, so reapply the target
+# everywhere the minimum version is declared. Idempotent: values already
+# equal to the target are left untouched.
+if [[ -f "$PROJECT_YML" ]]; then
+    if grep -Eq "^[[:space:]]*iOS: $IOS_DEPLOYMENT_TARGET\$" "$PROJECT_YML"; then
+        echo "project.yml: iOS deployment target already $IOS_DEPLOYMENT_TARGET"
+    elif grep -Eq "^[[:space:]]*iOS: [0-9]+\.[0-9]+" "$PROJECT_YML"; then
+        sed -i '' -E "s/^([[:space:]]*iOS: )[0-9]+\.[0-9]+.*$/\1$IOS_DEPLOYMENT_TARGET/" "$PROJECT_YML"
+        echo "project.yml: iOS deployment target set to $IOS_DEPLOYMENT_TARGET"
+    else
+        echo "project.yml: no deploymentTarget iOS key found — raise it manually" >&2
+    fi
+fi
+if grep -q "IPHONEOS_DEPLOYMENT_TARGET" "$PBXPROJ"; then
+    if grep -q "IPHONEOS_DEPLOYMENT_TARGET = $IOS_DEPLOYMENT_TARGET;" "$PBXPROJ"; then
+        echo "project.pbxproj: IPHONEOS_DEPLOYMENT_TARGET already $IOS_DEPLOYMENT_TARGET"
+    else
+        sed -i '' "s/IPHONEOS_DEPLOYMENT_TARGET = [0-9.]*;/IPHONEOS_DEPLOYMENT_TARGET = $IOS_DEPLOYMENT_TARGET;/g" "$PBXPROJ"
+        echo "project.pbxproj: IPHONEOS_DEPLOYMENT_TARGET set to $IOS_DEPLOYMENT_TARGET"
+    fi
+fi
+if [[ -f "$PODFILE" ]]; then
+    if grep -Eq "^[#[:space:]]*platform :ios, '$IOS_DEPLOYMENT_TARGET'" "$PODFILE"; then
+        echo "Podfile: platform :ios already $IOS_DEPLOYMENT_TARGET (or commented)"
+    elif grep -Eq "^[#[:space:]]*platform :ios, '" "$PODFILE"; then
+        sed -i '' -E "s/^([#[:space:]]*platform :ios, ')[0-9.]*'/\1$IOS_DEPLOYMENT_TARGET'/" "$PODFILE"
+        echo "Podfile: platform :ios set to $IOS_DEPLOYMENT_TARGET"
+    else
+        echo "Podfile: no platform :ios line found — leaving as is (CocoaPods default)"
+    fi
+fi
 
 echo
 echo "iOS project configured. Build an ad-hoc IPA with:"
