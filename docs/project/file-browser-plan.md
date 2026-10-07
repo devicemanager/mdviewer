@@ -1,6 +1,6 @@
 # Mobile file browser + permissions — remaining work
 
-**Written 2026-09-12, last updated 2026-09-13** to consolidate open threads
+**Written 2026-09-12, last updated 2026-10-07** to consolidate open threads
 so this work can be picked up cold, without the originating conversation, and
 **regardless of which model or tool is used to continue it** — nothing here
 assumes Claude-specific state beyond one pointer noted below.
@@ -8,7 +8,9 @@ assumes Claude-specific state beyond one pointer noted below.
 why); this file is only *what's left*, plus the context needed to not
 re-learn it the hard way.
 
-**You are here:** `HEAD` is `10e734e` (2026-09-15). Everything before
+**You are here:** `HEAD` is `4f4f811` (2026-10-07) — the grant-fallback fix
+(`6f14d51`) plus the deployment-target script absorb, with this doc's update
+landing right after. Everything before
 `822a617` (2026-09-13) predates a `git filter-repo` history rewrite that
 moved the OTA tooling out of this repo — don't compare against hashes
 recorded earlier than that note. Working tree is clean —
@@ -49,15 +51,17 @@ pointer in this document; nothing else here depends on it.
 | `.drawer`/`.drawer-backdrop` CSS, unconditional at every width | Done, fixed a real desktop bug — see Phase 6 below |
 | `fileBrowser.ts` (render + localStorage cache) | Done, 21 tests |
 | `permissions.ts` (consolidated first-launch prompt) | Done, 16 tests |
-| `ios_folder_picker.rs` (native `UIDocumentPickerViewController`) | **Compiles on all 3 targets, never run** |
+| `ios_folder_picker.rs` (native `UIDocumentPickerViewController`) | **Ran on the iOS Simulator 2026-10-07 (first ever presentation, via a Maestro-driven grant flow); never on a real device** |
 | Phase 4 wiring (markup, CSS, `main.ts` glue) | Done, verified on Android emulator |
+| Grant fallback + `openTo` handoff (`6f14d51`) — no-document grants & grants above the open document | Done, verified end-to-end on the iOS Simulator 2026-10-07 (see below) |
 | OTA server: supervised LaunchAgent + Pangolin health-check fix | Done, tunnel confirmed 200 |
 | Phase 5 (`diffFolderEntries` + skip-render-when-unchanged) | Done, verified on Android emulator |
 | Phase 6 (toolbar reorg, TOC sidebar dropped entirely) | Done, verified on Android emulator at phone and desktop widths |
 
-Test counts: **83** Rust, **215** web. All green. (Web count dropped from
+Test counts: **89** Rust, **215** web. All green (re-run 2026-10-07). (Web count dropped from
 224 — Phase 6 deleted `sidebar.ts`'s 12 tests along with the feature; no
-other regressions.)
+other regressions. The Rust count rose 83 → 89 with the 6
+grant-fallback/ancestor tests that pin the fix below.)
 
 **Phase 4 landed 2026-09-13.** Markup, CSS and `main.ts` wiring are in;
 bundle grew 36.2kb → 48.6kb, confirming the modules are actually reachable
@@ -129,11 +133,14 @@ scrim and correct `#main` sizing at 1200px width, not just at phone width.
 **Still NOT done:**
 
 - Phase 7 (background live refresh).
-- The permissions prompt's "Choose a folder…" path is **untested on iOS** —
-  it calls `request_folder_access`, which on iOS reaches the never-yet-run
-  native picker. On Android that command returns `false` unconditionally
-  (no Storage Access Framework support yet), so the button currently does
-  nothing there by design.
+- The permissions prompt's "Choose a folder…" path is **tested on the iOS
+  Simulator as of 2026-10-07** (prompt → picker presented → folder granted
+  → `openTo` opened the browser at the grant — the full first-launch flow,
+  driven by Maestro), but still **never on a real device** — the security-
+  scoped bookmark *restore* half was likewise proven only with simulator-
+  created bytes, not with a device's own grants. On Android the command
+  returns `false` unconditionally (no Storage Access Framework support
+  yet), so the button currently does nothing there by design.
 
 ---
 
@@ -183,13 +190,25 @@ whether "open a file from Files, then browse its siblings" works *without* an
 explicit folder grant. If it does, the browser is useful immediately after any
 file-association open. If it doesn't, a folder grant becomes mandatory before
 browsing is possible at all — which changes the first-run UX materially.
+Still unanswered as of 2026-10-07 (the phone was unreachable that whole
+session — `idevice_id -l` → none), which is exactly why the temporary
+`spike_read_dir_variants` command was *kept* rather than cleaned up with the
+other debug code from that session: section 4's "remove it once answered"
+bullet stays open until a device run happens.
 
-### 2c. Native picker has never been presented (ready to test — OTA delivery works again)
-`ios_folder_picker.rs` compiles for `aarch64-apple-ios` but has not run once.
-UIKit delegate plumbing is exactly the class of code that compiles clean and
-misbehaves on device. **Treat as unverified.** Needs a real tap-through —
-`await window.__TAURI__.core.invoke('request_folder_access')` from Safari's
-console — before anything is built on top of it.
+### 2c. Native picker — first presented 2026-10-07, but only on the simulator
+`ios_folder_picker.rs` compiles for `aarch64-apple-ios`, and on 2026-10-07 it
+was **actually presented for the first time ever — on the iPhone 16 Pro Max
+simulator**, as part of the Maestro-driven grant flow that verified the
+`6f14d51` fix: prompt → "Choose a folder…" → `UIDocumentPickerViewController`
+appeared → folder picked → grant persisted → browser opened at it. That
+retires "has not run once" and proves the delegate plumbing, threading
+(`async` + `spawn_blocking`) and bookmarking work at least in the
+simulator's environment. **UIKit delegate behavior on a real device is still
+unverified**, though — simulator ≠ device for document-provider and
+security-scope semantics, so the real tap-through from Safari's console
+(`await window.__TAURI__.core.invoke('request_folder_access')`) remains the
+last box to tick.
 
 ---
 
@@ -287,6 +306,18 @@ their own phase.
 - **`renderer.html` CSP** has the same missing `ipc:` in `connect-src` that
   `app.html` needed. Left deliberately unfixed — CLAUDE.md lists
   `renderer.html` as a file that "moves across unchanged". Needs a decision.
+- **The auto-fading toolbar is permanently untappable whenever nothing
+  scrolls (found 2026-10-07, flagged, not fixed).** After 2.5s idle the
+  toolbar gets `opacity: 0.06; pointer-events: none`, and the only wake
+  sources are `#main`'s `scroll` and `visualViewport`'s resize/scroll —
+  with no open document (or any document short enough not to overflow),
+  neither ever fires, so Open/Find/Preferences/Browse files go dead while
+  nearly invisible until a pinch-zoom or a rotation past 768px. This
+  specifically makes the "grant → drawer closes → tap Browse → nothing"
+  shape *look* like the grant fix above isn't working on a phone. Fix
+  options need a design call (wake on any tap/pointerdown, or skip the
+  fade when `#main` isn't scrollable) — full writeup in plan.md's
+  2026-10-07 entries.
 
 ---
 
@@ -347,13 +378,13 @@ their own phase.
 here" note at the top refers to):
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
-cd src-tauri && cargo test --offline   # expect 83 passed
-cd ../web && npx tsc --noEmit && npx vitest run   # expect 217 passed
+cd src-tauri && cargo test --offline   # expect 89 passed
+cd ../web && npx tsc --noEmit && npx vitest run   # expect 215 passed
 ```
 
 **Build environment**
 
-`src-tauri/gen/` is gitignored, and three things in there are *not*
+`src-tauri/gen/` is gitignored, and four things in there are *not*
 reproducible from tracked config — run `./configure-ios-project.sh` after any
 `tauri ios init` (or any time the generated project is recreated) to reapply
 them. It is idempotent, and verified to take a freshly-scaffolded project all
@@ -366,6 +397,10 @@ the way to a correctly-signed ad-hoc IPA:
    signing with an "iPhone Developer" identity; ad-hoc needs manual signing
    against the Apple Distribution cert the profile actually embeds.
 3. `ExportOptions-AdHoc.plist` — Tauri generates no ad-hoc export options.
+4. Minimum iOS deployment target 14.0 → 15.0 (added 2026-10-07) — Xcode 27
+   refuses 14.0 outright with an opaque build error, and a fresh `tauri ios
+   init` scaffolds it into `project.yml`/`project.pbxproj`/`Podfile`. The
+   script patches all three; override with `IOS_DEPLOYMENT_TARGET` if needed.
 
 Note the file-association entries (`CFBundleDocumentTypes`,
 `UTExportedTypeDeclarations`) are deliberately *not* in that script: those
@@ -380,10 +415,40 @@ export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
 export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home  # gradle needs it
 ```
 - `xcodebuild -exportArchive` often fails on the **first** attempt right after
-  a fresh archive ("archive not found"); retrying immediately works.
+  a fresh archive ("archive not found"); retrying immediately works. And as
+  of 2026-10-07 the ad-hoc **export** step itself crashes with
+  `errSecInternalComponent` on this machine even from a good archive — the
+  shipped IPA is instead zipped directly from the `.xcarchive`'s `Payload`
+  (signature survives; audit before serving).
+- **Release builds don't link** (2026-10-07): Tauri 2.11.5 / swift-rs 1.0.8
+  emit local (`t`) Rust symbols that Xcode 27 / Swift 6.1's link step
+  rejects. Every OTA build so far was `--debug`, which is unaffected — the
+  release IPA path is simply unproven, decision open (see plan.md).
 - iOS build sometimes needs stale `gen/apple/build/**/MDViewer.app` removed
   first ("Directory not empty").
 - OTA: Caddy (now outside this repo, see the note near the top of this
   file) serves a `serve/` folder on `:4000` → `<ota-tunnel-host>`. Update
   `MDViewer.ipa`, `build-report.json`, and `install.html` (copy to
   `index.html`) there together.
+
+**Driving the iOS Simulator** (the method behind every 2026-10-07
+verification claim):
+
+- Maestro needs `JAVA_HOME=$(brew --prefix openjdk@17)`; `--device <udid>` is
+  a *global* flag before the subcommand (`maestro --device <udid> test …`).
+  The device-matched sim (iPhone 16 Pro Max, iOS 18.5) is
+  `234AB132-310F-431C-9327-7351F67B93FF`.
+- `maestro hierarchy` (accessibility tree) is the live source of truth for
+  UI state. `xcrun simctl io <udid> screenshot` returns **stale frames** once
+  the display sleeps — images came back with status-bar clocks running
+  backwards; same lesson as `adb exec-out screencap` above.
+- Any tap on a toolbar button races the auto-fade (section 4's open issue):
+  it must land within ~2.5s of launch, or it falls through the faded
+  toolbar and does nothing — "COMPLETED" from Maestro means the coordinates
+  were touched, not that a handler ran.
+- App data root: `xcrun simctl get_app_container <udid>
+  org.devicemanager.mdviewer data`; the grant store and state files live
+  under `Library/Application Support/org.devicemanager.mdviewer/` —
+  `app_config_dir()` appends the bundle id, so files seeded at the
+  `Application Support/` top level are read by nothing (a whole "test" can
+  silently prove nothing this way).

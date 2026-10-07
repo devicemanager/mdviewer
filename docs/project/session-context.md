@@ -1,117 +1,137 @@
 # Session context — for picking this up cold
 
-**Written 2026-09-13**, at the end of a session that hit usage limits twice
-(started on Opus 5, switched to Sonnet 5 mid-session, now compacting again).
-This file exists so the *next* session — on whatever model or account picks
-it up — doesn't have to re-derive any of this from scratch. It complements,
-not replaces, two other files:
+**Written 2026-10-07**, replacing the 2026-09-13 version (that one's arc is
+fully absorbed into `plan.md`/`file-browser-plan.md` already — nothing
+durable was lost with it). This file exists so the *next* session — on
+whatever model or account picks it up — doesn't re-derive any of this from
+scratch. It complements, not replaces, two other files:
 
 - **`docs/project/file-browser-plan.md`** — the technical plan: what's
   built, what's tested, what's left, phase by phase. Read this first for
-  "what do I work on next."
-- **The OTA distribution server's own README** — how it runs and why. It no
-  longer lives in this repo (see "The session's arc" point 9 below for why);
-  read it before touching anything OTA-related, from wherever it now lives
-  on this machine.
+  "what do I work on next." Its section 5 carries the build/verification
+  gotchas this session confirmed or added.
+- **The OTA distribution server's own README** — how it runs and why; it
+  lives outside this repo (moved there 2026-09-13, together with scrubbing
+  this machine's LAN IP/tunnel hostname out of git history — that scrub is
+  done, just don't re-leak them).
 
-This file is the narrative glue between them: what actually happened this
-session, in what order, and why it matters for whoever continues.
+This file is the narrative glue: what actually happened this session, in
+what order, and why it matters for whoever continues.
 
 ## Where things stand right now
 
-`HEAD` is `59352ac`. Working tree clean. 83 Rust tests, 217 web tests, all
-green. Both features shipped this session are verified working, not just
-compiling:
+`HEAD` is `4f4f811` (two commits: the grant fix `6f14d51` + the
+deployment-target script absorb), this doc update landing right after.
+Working tree clean. **89 Rust tests, 215 web tests, `tsc --noEmit` clean**,
+all green as of the end of session.
 
-1. **The mobile file browser + first-launch permissions prompt are wired
-   into the live app** (`file-browser-plan.md`'s Phase 4) and verified
-   end-to-end on the Android emulator via CDP — not just unit-tested.
-   Three real bugs were found and fixed this way that 217 passing unit
-   tests had missed entirely (a CSS `hidden`/`.open` conflict, a blank
-   first-render race, and a misclassified error state). This is the
-   session's core lesson, worth internalizing before trusting any
-   "tests pass" claim on UI wiring code in this codebase: `main.ts` has
-   no test coverage of its own (documented in its own comments as
-   "not used by any test"), so wiring bugs only ever surface by actually
-   running the app.
+1. **The real-device bug is fixed and verified end-to-end** — committed as
+   `6f14d51`, full writeup in `plan.md`'s 2026-10-07 entries. The report
+   (2026-09-17: granting a folder above the current document, or granting
+   from the first-launch prompt before any document was open, produced no
+   usable folder view) had two real bugs: `list_directory` returned
+   `not_found: no document open yet` before consulting the grants, and
+   `wirePermissions` never handed a successful grant to the file browser.
+   Both fixed (grant fallback to the most recent grant as browse root;
+   new `openTo(path)` handoff), 6 new tests pinning the shapes that were
+   already sound.
 
-2. **The OTA distribution pipeline is now a supervised service, not a
-   background job someone has to remember exists.** Caddy runs as a
-   LaunchAgent (`org.devicemanager.mdviewer.ota-caddy`) with `KeepAlive` +
-   `RunAtLoad`. The tunnel (`https://<ota-tunnel-host>`) was 503ing for most
-   of this session and is now confirmed `200` — root cause and fix are in
-   the OTA tooling's own README, which (see point 9) no longer lives in
-   this repo.
+   **Verified by running it**, on the device-matched simulator (iPhone 16
+   Pro Max, iOS 18.5) driven by Maestro: first-launch prompt → native
+   folder picker (first-ever presentation of `ios_folder_picker.rs`) →
+   grant → Done → the browser opened by itself at the grant; a real
+   3490-byte security-scoped bookmark persisted and restored alive on
+   relaunch; Browse listed the restored grant; a seeded
+   `last_opened_document` rendered at startup; both corrupt-store shapes
+   (garbage bookmark bytes, malformed JSON) survived startup. Details and
+   method in `file-browser-plan.md` §1/§2c/§5.
+
+2. **A new bug was found and flagged, not fixed**: the auto-fading
+   toolbar (`opacity: 0.06; pointer-events: none` after 2.5s idle) never
+   comes back when nothing on screen scrolls — with no document open, the
+   *entire* toolbar (Open/Find/Preferences/Browse files) is dead and
+   nearly invisible until a pinch-zoom or rotation. It makes the very bug
+   fixed in point 1 *look* unfixed on a phone ("tap Browse, nothing
+   happens"). Fix design (wake on tap vs. don't fade when unscrollable)
+   needs a decision — see `plan.md` + `file-browser-plan.md` §4.
+
+3. **The device crash report is still undiagnosed** ("starts and
+   immediately crashes" on the real iPhone). Every startup path that
+   could be exercised was exercised on the device-matched simulator —
+   real bookmark restore, both corrupt stores, last-opened restore — and
+   all survive; the OTA transport was ruled out by md5 (served IPA is
+   byte-identical to local). What's missing is a crash log: iOS keeps
+   those on-device (USB + unlock → `idevicecrashreport`/`idevicesyslog`,
+   both installed and working, or on the phone: Settings → Privacy &
+   Security → Analytics → Analytics Data → MDViewer). The phone was
+   unreachable all session (`idevice_id -l` → none).
+
+4. **Cleanup done**: the temporary `debug_grant_folder` command and the
+   temporary Maestro flow are gone (they never landed in a commit).
+   `spike_read_dir_variants` was deliberately **kept** — §2b's device
+   spike is still unanswered and its procedure references it. Note the
+   IPA currently served over OTA was built *before* that cleanup, so it
+   still contains the debug command; rebuild before the next OTA update.
+
+5. **Build/tooling state**: the OTA `.ipa` currently live is a **debug**
+   archive zipped directly from the `.xcarchive` (`xcodebuild
+   -exportArchive` crashes with `errSecInternalComponent` here), audited
+   and byte-verified through the tunnel. **Release builds don't link at
+   all** (Tauri 2.11.5 / swift-rs 1.0.8 local symbols vs. Xcode 27 /
+   Swift 6.1) — decision open (upgrade/patch swift-rs, capture crash
+   data from Xcode instead, or defer). Xcode 27 also refuses the
+   scaffolded iOS 14.0 deployment target; that 15.0 bump is now scripted
+   in `configure-ios-project.sh` section 4 instead of being a hand-edit.
 
 ## The session's arc, briefly
 
-1. Consolidated prior open threads into `file-browser-plan.md` (a separate
-   compaction, same pattern as this file).
-2. Shipped an OTA build, confirmed no regressions, committed the *entire*
-   uncommitted multi-session Tauri port for the first time (7 commits,
-   chunked by subsystem — see `git log` around `9ee897f` and earlier).
-3. Hardened iOS build reproducibility (`configure-ios-project.sh`, verified
-   with a full strip-and-restore-and-archive cycle).
-4. Wired the file browser into the running app (Phase 4), found and fixed
-   three real bugs via live CDP inspection, committed and verified across
-   all three build targets (ios/android/host `cargo check`, `tsc`,
-   `vitest`).
-5. Hit the Opus usage limit here; **switched to Sonnet 5**, re-verified
-   working tree was clean and tests green before continuing (nothing was
-   lost in the switch — the working tree carries all state, not the
-   model).
-6. User reported the OTA tunnel returning "no reply from server." Diagnosed
-   thoroughly: local server was completely healthy (verified via direct
-   LAN-IP curl, firewall check, bind check) but **zero inbound connections
-   ever reached the host** — meaning Pangolin itself wasn't even trying,
-   not that it was trying and failing.
-7. User asked how Caddy was started, suspecting a leftover Ghostty tab.
-   Traced it properly: not Ghostty, not a launchd job, not in any shell's
-   `.zsh_history`. The actual answer — a `nohup caddy run ... &` from a
-   **Claude Code Bash tool call** three days earlier — was only found by
-   grepping this project's own session transcripts under
-   `~/.claude/projects/-Users-rene-Source-mdviewer/*.jsonl` for `"caddy
-   run"`, which pointed at the exact tool call and timestamp. Lesson: a
-   background job started by an agent's tool call is invisible to every
-   normal Unix "who started this" technique except the agent's own
-   transcripts — worth remembering the next time something similarly
-   orphaned turns up on this machine.
-8. Turned that into the LaunchAgent described above, and in the process
-   found the tunnel's actual root cause: Pangolin's health check pointed
-   at `/_probe.txt`, a manual-testing scratch file deleted as cruft before
-   the OTA tooling's first commit and never tracked in git. Fixed by
-   repointing the check at `/`. Confirmed the tunnel live before this
-   compaction.
-9. Realized (next session) that the `ota/` directory itself — and several
-   docs it had leaked into (this file, `file-browser-plan.md`,
-   `plan.md`) — carried this machine's LAN IP and Pangolin tunnel hostname
-   into project history, which is irrelevant to mdviewer and shouldn't be
-   in a repo anyone might eventually push publicly. Nothing had been pushed
-   to `origin` yet, so rewrote local history with `git filter-repo`: removed
-   `ota/` from every commit and replaced the leaked IP/hostname (and one
-   more local hostname, in `plan.md`) with generic placeholders everywhere,
-   including commit messages. Moved the live OTA tooling to a separate,
-   untracked local folder outside this repo, updated its internal paths,
-   and reinstalled the LaunchAgent from there — verified both the LAN
-   endpoint and the tunnel still return `200` afterward.
+1. Root-caused the 2026-09-17 device report from code + the file-browser
+   plan's own test evidence: two real bugs (above), ancestor access
+   control already sound (hence only tests for it).
+2. Fixed both, rebuilt the web bundle deterministically, all suites green,
+   committed `6f14d51`.
+3. Rebuilt and served a debug OTA IPA; md5-verified tunnel delivery
+   end-to-end (that's what ruled transport out for the crash report).
+4. Drove the full grant flow on the simulator with Maestro for the first
+   time this project — which both verified the fix and retired "never
+   run once" on the native picker.
+5. Spent the bulk of the mid-session debugging what looked like the fix
+   not working after relaunch — turned out to be the toolbar auto-fade
+   (point 2) plus **stale simulator screenshots** (the display had
+   slept; images came back with clocks running backwards) — a trap that
+   cost real time twice before switching to the a11y hierarchy as the
+   source of truth.
+6. Exercised the device-only startup paths properly: correctly-located
+   state files (an earlier test had seeded the wrong directory —
+   `app_config_dir()` appends the bundle id, top-level files are read by
+   nothing), corrupt stores, last-opened restore — all survive.
+7. Release-build/tooling investigation (point 5 above), then cleanup,
+   docs, commits.
 
 ## What's next
 
-With OTA delivery working again, the two device-dependent items in
-`file-browser-plan.md` section 2 are unblocked and are the highest-value
-next step: the Phase 0 `read_dir` spike and the never-once-run iOS native
-folder picker. Both need an actual iPhone and Safari's Web Inspector, not
-another session's worth of local reasoning.
+- **Get the device crash log** — the only true blocker on the reported
+  crash. USB + unlock, or the user reading MDViewer entries in on-device
+  Analytics. Then retest OTA with the app **deleted first** (version is
+  still `0.1.0`, so an upgrade install won't re-show the one-time
+  first-launch prompt).
+- **Real-device pass of the grant flow** — picker on device, security
+  scope restored from device-created bytes, scenario (a) (grant above an
+  open document) through the UI, plus §2b's `read_dir` spike (code kept
+  for it).
+- **Two open decisions**: the release-build block, and the toolbar-fade
+  fix design (both written up; neither chosen).
+- If the phone stays unreachable: `file-browser-plan.md` §3/§4 for what's
+  emulator/verifiable instead, and the standing desktop-test gap.
 
-If no device is available, Phase 6 (toolbar reorganization) and Phase 5
-(poll-on-reopen diffing) are both fully specified in `file-browser-plan.md`
-and emulator-verifiable without any device dependency.
+## Patterns worth repeating
 
-## A pattern worth repeating
-
-Every real bug this session was found by *running the thing* — CDP against
-a live emulator, `curl` against a live server, grepping live process state
-— never by reading code and reasoning about it. The plan doc's own section
-5 ("hard-won context") has the accumulated specific gotchas; this file is
-the meta-lesson: verify claims about running systems by observing the
-running system, not by re-reading what should be true.
+Every real bug this project finds is found by *running the thing* — CDP
+against a live emulator, Maestro against a live simulator, `curl` against a
+live server — never by reading code and trusting it. This session adds the
+corollary: **screenshots are the first evidence to go stale.** Twice now
+(`adb exec-out screencap` on Android, `xcrun simctl io screenshot` on iOS)
+they showed confidently wrong frames while the live DOM/a11y tree was
+right. When a screenshot and a live read disagree, believe the live read —
+and check the screenshot's own timestamp/status-bar clock before believing
+the screenshot at all.

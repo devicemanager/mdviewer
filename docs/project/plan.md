@@ -2787,7 +2787,129 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
     216/216 `web/` tests. **Not yet run on a real device** — the picker has
     never actually been presented; that is the next verification step, and
     nothing about "it compiles" should be read as "it works," least of all
-    for UIKit delegate plumbing.
+    for UIKit delegate plumbing. (Superseded in part 2026-10-07: the
+    picker was first actually presented that day — on the simulator, see
+    the entry below; the real-device gap stands.)
+
+  - **Grant-above-document / grant-before-document fixed and verified
+    end-to-end on the iOS Simulator (2026-10-07, committed `6f14d51`)** —
+    the real-device report from 2026-09-17 ("granting a folder above the
+    current document's folder... from here it cannot navigate to any
+    other folder", plus its first-launch variant: a grant made before any
+    document was open produced no folder view at all) had two genuine
+    bugs behind it, both in the TS port rather than in the iOS
+    access-control layer:
+
+    1. `list_directory` returned `not_found: no document open yet` *before*
+       it ever consulted `GrantedFolders` — a grant with no document open
+       was simply unreachable, which is the common case for the
+       first-launch prompt itself. It now falls back to the most recently
+       granted folder as the browse root; `DocumentBaseDir` still wins
+       unchanged once a document is open, so every other caller behaves
+       exactly as before.
+    2. `wirePermissions` never handed a successful grant to the file
+       browser — Done only refreshed the modal's own folder list.
+       `wireFileBrowser()` now also returns `openTo(path)` (`show` +
+       `openDrawer`, deliberately never toggling the drawer shut), and
+       `wirePermissions` calls it with the path just granted (the last
+       entry of the re-read, authoritative `list_granted_folders` —
+       `grant_folder_access` always appends).
+
+    The ancestor shape itself was never an access-control bug: the pure
+    `list_directory_at` logic already resolved grants above `base_dir`
+    correctly, now pinned by 2 new ancestor tests alongside 4 new
+    fallback/preference tests (6 new total; 89 Rust, 215 web, `tsc`
+    clean, `mdviewer.js` rebuilt from `web/src`).
+
+    Verified by running it, on the device-matched simulator (iPhone 16
+    Pro Max, iOS 18.5) rather than the desktop, since every leg of this
+    is mobile-only — driven by Maestro (`JAVA_HOME=$(brew --prefix
+    openjdk@17)`; `--device <udid>` is a *global* flag before the
+    subcommand): fresh install → first-launch prompt → "Choose a
+    folder…" → the native picker (`ios_folder_picker.rs` — §2c's
+    never-run-once module got its first-ever presentation this way) →
+    granted → Done → *the file browser opened by itself* with the grant
+    listed, subfolders first, non-markdown filtered. The persistence leg
+    too: a real 3490-byte security-scoped bookmark written to
+    `Library/Application Support/<bundle-id>/`, restored alive on
+    relaunch, Browse listing the restored grant (tapped within the first
+    2.5s — see the toolbar entry below), a real seeded
+    `last_opened_document` path rendering at startup, and both
+    corrupt-store shapes (valid JSON wrapping garbage bookmark bytes;
+    malformed JSON outright) surviving startup with no crash reports.
+
+    Two measurement gotchas from the verification itself, each of which
+    cost time believing the wrong evidence:
+    - `app_config_dir()` on iOS is `Library/Application Support/
+      <bundle-id>/` — files seeded at the `Application Support/` top
+      level are read by *nothing*, so the first "corrupt store survives
+      relaunch" test proved exactly nothing (the app never saw the
+      file).
+    - `xcrun simctl io <udid> screenshot` returns **stale frames** once
+      the simulator's display sleeps — screenshots came back with status
+      bar clocks running *backwards* (the same lesson `adb exec-out
+      screencap` taught further up, one platform over). The a11y
+      hierarchy (`maestro hierarchy`) is live DOM-level truth; trust it
+      over pixels whenever they disagree.
+
+  - **New bug found while verifying, flagged not fixed: the auto-fading
+    toolbar is permanently untappable whenever nothing scrolls
+    (2026-10-07)** — repeated `tapOn: "Browse files"` steps "completed"
+    (an XCUITest tap is just coordinates) without ever opening the
+    drawer, while the exact same tap immediately after launch worked and
+    showed the listing. The mechanism is in the 2026-09-11 toolbar
+    spec's own code: 2.5s of idle applies
+    `#toolbar.toolbar-faded { opacity: 0.06; pointer-events: none }`, a
+    faded toolbar is transparent to hit-testing so taps fall through to
+    the content underneath and no button handler ever fires, and the
+    only wake sources are `#main`'s `scroll` and `visualViewport`'s
+    resize/scroll. **With no document open — or any document short enough
+    not to overflow — nothing ever scrolls**, so the toolbar never comes
+    back: the entire toolbar (Open, Find, Preferences, Browse files) is
+    dead while looking nearly invisible. Recovery needs pinch-zoom or
+    rotating past the 768px breakpoint. This matters directly for the
+    bug fixed above: on a phone, restored grant + no scrollable document
+    + drawer closed means the button that reopens the folder view does
+    nothing — the reported symptom *looks* unfixed even with the fix
+    landed. Flagged rather than silently fixed, per the working
+    agreement: one concern per change, and the fix is a design decision
+    (wake on any tap/pointerdown vs. skip fading when `#main` isn't
+    scrollable) that deserves its own call. Evidence is black-box —
+    time-since-launch A/B on identical taps plus the CSS rule; nobody
+    has read the computed style back off a live iOS webview, since that
+    needs the Safari GUI.
+
+  - **iOS release/OTA tooling, 2026-10-07 (debug IPA only; release
+    blocked, decision open)** — accumulated while chasing the same
+    device report:
+    - **Release builds cannot link** on Tauri 2.11.5 + swift-rs 1.0.8
+      under Xcode 27 / Swift 6.1: swift-rs emits its Rust symbols as
+      local (`t`) rather than global and the archive's link step fails
+      on them. Debug builds are unaffected — which is what every OTA
+      build to date has shipped — so **the release IPA path remains
+      unproven**. The options (upgrade Tauri/swift-rs, patch swift-rs,
+      capture crash data from Xcode instead, or defer iOS release) are
+      laid out, not chosen.
+    - `xcodebuild -exportArchive` crashed with `errSecInternalComponent`
+      on this machine's ad-hoc export, so the shipped IPA is assembled
+      by zipping the `.xcarchive`'s `Payload` directly instead
+      (signature intact — audited byte-level before serving).
+    - Xcode 27 also refuses `IPHONEOS_DEPLOYMENT_TARGET = 14.0`, which
+      a fresh `tauri ios init` still scaffolds into all three of
+      `project.yml`/`project.pbxproj`/`Podfile`. The 14.0 → 15.0 bump
+      was hand-applied during this session and is now scripted as
+      `configure-ios-project.sh` section 4 (`4f4f811`), so the next
+      scaffold doesn't silently lose it.
+    - The report's "starts and immediately crashes" claim on the real
+      device is **still undiagnosed**: every startup path that could be
+      exercised was exercised on the device-matched simulator (real
+      bookmark restore, both corrupt-store shapes, last-opened restore)
+      and all survive, and the OTA transport was ruled out by md5 — the
+      served IPA is byte-identical to the local one. No crash log has
+      ever been captured (iOS keeps them on-device: USB + unlock for
+      `idevicecrashreport`, or Settings → Privacy & Security →
+      Analytics on the phone itself); the phone was unreachable all
+      session (`idevice_id -l` → none).
 - [ ] Manual smoke test of the golden path and edge cases on each of the 5
       platforms before calling it done, per the working agreement
 - [ ] Re-verify all security invariants per platform (custom scheme, CSP,

@@ -6,6 +6,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ---
 
+## [Unreleased]
+
+### Fixed
+- **Folder grants now always produce a usable folder view**: granting a folder from the first-launch prompt *before* opening any document — or granting a folder above the one currently open — now opens the file browser at the folder you just granted. Previously the grant could succeed and still leave no way to see it (reported from a real device; verified end-to-end on the iOS Simulator, including grant persistence across launches).
+
+---
+
 ## [1.2.1] — 2026-07-17
 
 ### Added
