@@ -333,7 +333,8 @@ pub fn run() {
             set_remote_content_policy,
             spike_read_dir_variants,
             list_directory,
-            list_granted_folders
+            list_granted_folders,
+            log_frontend_error
         ]);
 
     // `tauri::menu` — and so a native File menu — is `#[cfg(desktop)]` only;
@@ -501,6 +502,15 @@ pub fn run() {
             }
         }
     });
+}
+
+/// The frontend's half of the out-of-band debug log: `errorForwarding.ts`
+/// sends uncaught JS errors and unhandled rejections here so they land in
+/// the same file as the native breadcrumbs (see `debug_log.rs`). A no-op
+/// wherever that log isn't active, i.e. everywhere but iOS.
+#[tauri::command]
+fn log_frontend_error(message: String) {
+    debug_log::log(&format!("js: {message}"));
 }
 
 /// Test-only, mirrors `ContentView.swift`'s `MDVIEWER_TEST_DOCUMENT_PATH`

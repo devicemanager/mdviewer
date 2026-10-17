@@ -48,6 +48,7 @@
 import { createMDViewerApi, type MarkedLike } from "./mdviewerApi.js";
 import { attachInteractionListeners } from "./interactionListeners.js";
 import { showContent, showWelcome } from "./appShell.js";
+import { wireErrorForwarding } from "./errorForwarding.js";
 import { closeDrawer, openDrawer, toggleDrawer } from "./drawer.js";
 import { renderToolbar, attachToolbarHandlers } from "./toolbar.js";
 import { wireToolbarAutoHide, type AutoHideSource } from "./toolbarAutoHide.js";
@@ -118,6 +119,13 @@ declare global {
         ): boolean;
     }
 }
+
+// First thing, so an error anywhere below still reaches the native debug
+// log (see errorForwarding.ts). Errors thrown while the vendor <script>s
+// ahead of this one load can't be caught here — they ran before this
+// file did — and catching them would need an earlier inline script,
+// which the CSP rightly forbids.
+wireErrorForwarding(window, (message) => window.__TAURI__.core.invoke("log_frontend_error", { message }));
 
 window.MDViewer = createMDViewerApi({
     marked: window.marked,

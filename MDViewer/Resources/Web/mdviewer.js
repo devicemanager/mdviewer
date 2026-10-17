@@ -421,6 +421,51 @@
     elements.welcome.hidden = false;
   }
 
+  // src/errorForwarding.ts
+  var MAX_FORWARDED = 50;
+  var MAX_MESSAGE_LENGTH = 2e3;
+  function formatErrorEvent(event) {
+    const where = event.filename ? ` (${event.filename}:${event.lineno}:${event.colno})` : "";
+    const stack = event.error instanceof Error && event.error.stack ? `
+${event.error.stack}` : "";
+    return truncate(`error: ${event.message}${where}${stack}`);
+  }
+  function formatRejection(reason) {
+    if (reason instanceof Error) {
+      return truncate(`unhandled rejection: ${reason.message}${reason.stack ? `
+${reason.stack}` : ""}`);
+    }
+    let text;
+    try {
+      text = typeof reason === "string" ? reason : JSON.stringify(reason) ?? String(reason);
+    } catch {
+      text = String(reason);
+    }
+    return truncate(`unhandled rejection: ${text}`);
+  }
+  function truncate(text) {
+    return text.length > MAX_MESSAGE_LENGTH ? `${text.slice(0, MAX_MESSAGE_LENGTH)}\u2026 [truncated]` : text;
+  }
+  function wireErrorForwarding(target, send) {
+    let forwarded = 0;
+    function forward(message) {
+      if (forwarded > MAX_FORWARDED) return;
+      forwarded += 1;
+      const text = forwarded > MAX_FORWARDED ? `further errors suppressed after ${MAX_FORWARDED}` : message;
+      try {
+        send(text).catch(() => {
+        });
+      } catch {
+      }
+    }
+    target.addEventListener("error", (event) => {
+      forward(formatErrorEvent(event));
+    });
+    target.addEventListener("unhandledrejection", (event) => {
+      forward(formatRejection(event.reason));
+    });
+  }
+
   // src/drawer.ts
   function openDrawer(drawer, backdrop) {
     drawer.classList.add("open");
@@ -1028,6 +1073,7 @@
   };
 
   // src/main.ts
+  wireErrorForwarding(window, (message) => window.__TAURI__.core.invoke("log_frontend_error", { message }));
   window.MDViewer = createMDViewerApi({
     marked: window.marked,
     domPurify: window.DOMPurify,
