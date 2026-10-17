@@ -4,53 +4,63 @@ This document describes the technical architecture of MDViewer at a high level.
 
 ## System Overview
 
-MDViewer is a native macOS Markdown viewer built with SwiftUI and WKWebView. The architecture follows the MVVM (Model-View-ViewModel) pattern.
+MDViewer is a native macOS Markdown viewer built with SwiftUI and WKWebView, following the MVVM (Model-View-ViewModel) pattern. SwiftUI draws the window chrome (sidebar, toolbar, editor, Preferences); a WKWebView renders the document itself, using bundled JavaScript libraries.
 
+```mermaid
+flowchart LR
+    entry["MDViewerApp<br/>AppDelegate<br/><i>window, menus,<br/>open-file events</i>"]
+
+    subgraph views["Views · SwiftUI"]
+        direction LR
+        content["ContentView<br/><i>NavigationSplitView</i>"]
+        sidebar["SidebarView<br/>TableOfContentsView"]
+        toolbar["MainToolbar<br/>SearchBarView"]
+        editor["MarkdownEditorView"]
+        renderView["MarkdownRenderView<br/>WebRendererView"]
+        prefs["PreferencesView"]
+    end
+
+    subgraph vms["View models"]
+        direction LR
+        docVM["DocumentViewModel<br/><i>open, reload, recent files</i>"]
+        sideVM["SidebarViewModel<br/><i>TOC via swift-markdown</i>"]
+        renderVM["RenderViewModel<br/><i>content, theme, font, search</i>"]
+        exportVM["ExportViewModel<br/><i>PDF via NSPrintOperation, HTML</i>"]
+    end
+
+    subgraph models["Models"]
+        direction LR
+        mdDoc["MarkdownDocument"]
+        tocItem["TOCItem"]
+        theme["MarkdownTheme"]
+    end
+
+    subgraph utils["Utilities"]
+        direction LR
+        watcher["FileWatcher<br/><i>kqueue, 0.5 s debounce</i>"]
+        bookmarks["BookmarkManager<br/><i>security-scoped bookmarks</i>"]
+        scheme["LocalSchemeHandler<br/><i>mdviewer-local://</i>"]
+    end
+
+    subgraph web["WKWebView · renderer.html"]
+        direction LR
+        api["mdviewer.js<br/><i>window.MDViewer API</i>"]
+        pipeline["marked → Shiki, KaTeX, Mermaid<br/>→ DOMPurify → page"]
+        styles["mdviewer-base.css<br/>themes/*.css"]
+    end
+
+    disk[("Markdown files<br/>and local images")]
+    ql["MDViewerQL<br/><i>Quick Look extension:<br/>own WKWebView,<br/>same renderer.html</i>"]
+
+    entry --> views --> vms
+    vms --> models
+    vms --> utils --> disk
+    renderVM <==>|"evaluateJavaScript ⇄<br/>script messages"| api
+    web -->|"bundle files,<br/>images"| scheme
+    ql -.-> web
 ```
-┌──────────────────────────────────────────────────────────────┐
-│                     macOS Application                        │
-├──────────────────────────────────────────────────────────────┤
-│                                                              │
-│  ┌────────────────┐          ┌──────────────────────────┐   │
-│  │  SwiftUI Views │◄────────►│  View Models            │   │
-│  │                │          │  (Logic & State)        │   │
-│  │ - ContentView  │          │                        │   │
-│  │ - SidebarView  │          └──────────────────────────┘   │
-│  │ - ToolbarView  │                    ▲                     │
-│  │ - EditorView   │                    │                     │
-│  └────────────────┘                    │ Publishes events    │
-│         ▲                               │                     │
-│         │ Renders                       ▼                     │
-│         │          ┌──────────────────────────┐               │
-│         │          │  Models                  │               │
-│         └─────────►│  - MarkdownDocument      │               │
-│                    │  - TOCItem               │               │
-│                    │  - MarkdownTheme         │               │
-│                    └──────────────────────────┘               │
-│                                                              │
-│  ┌──────────────────────────────────────────────────────┐   │
-│  │              WKWebView Renderer                      │   │
-│  │  ┌────────────────────────────────────────────────┐  │   │
-│  │  │  renderer.html (Template)                      │  │   │
-│  │  │  ┌──────────────────────────────────────────┐  │  │   │
-│  │  │  │ mdviewer.js (Bridge + marked.js)         │  │  │   │
-│  │  │  │ ┌───────────────────────────────────────┐│  │  │   │
-│  │  │  │ │ JavaScript Libraries (Bundled)       ││  │  │   │
-│  │  │  │ │ - marked (v18)                       ││  │  │   │
-│  │  │  │ │ - Shiki (v4, syntax highlighting)   ││  │  │   │
-│  │  │  │ │ - KaTeX (v0.17, math)                ││  │  │   │
-│  │  │  │ │ - Mermaid.js (v11, diagrams)         ││  │  │   │
-│  │  │  │ │ - DOMPurify (sanitization)          ││  │  │   │
-│  │  │  │ └───────────────────────────────────────┘│  │  │   │
-│  │  │  │ mdviewer-base.css (Layout & Themes)   │  │  │   │
-│  │  │  └──────────────────────────────────────────┘  │  │   │
-│  │  └────────────────────────────────────────────────┘  │   │
-│  └──────────────────────────────────────────────────────┘   │
-│                          ▲ ▼                                  │
-│                    Swift ◄► JS Bridge                        │
-│                                                              │
-└──────────────────────────────────────────────────────────────┘
-```
+
+Thin arrows show which layer uses which. The heavy arrow is the Swift ↔ JavaScript bridge (details below): `RenderViewModel` calls into `window.MDViewer`, and the page answers with script messages that `WebRendererView` receives. The renderer never loads `file://` URLs: everything, bundled libraries included, comes through `LocalSchemeHandler`, which serves images only from the open document's own folder.
 
 ## Core Components
 
