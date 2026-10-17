@@ -2985,6 +2985,41 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
     Security → Analytics & Improvements → Analytics Data → Share) — the
     log complements it. Decide before any App Store build whether the
     log stays (it writes file paths into a user-visible folder).
+  - **First iOS App Store submission prepared (2026-10-17)** — the user
+    asked to submit the iPhone version; their calls: same bundle ID /
+    one App Store record as the Mac app (universal purchase), debug log
+    in debug builds only, iPhone only, version 1.0.0. Done:
+    `5886bd5` debug log + `spike_read_dir_variants` compiled into debug
+    builds only; `b81409e` third-party notices in-app (Preferences →
+    About, MDViewerApp.swift's AboutPanel text verbatim, versions pinned
+    by test) — every OTA build before this shipped the vendored
+    libraries with no notices at all; `1144489` 1.0.0 (build 1),
+    `ITSAppUsesNonExemptEncryption` via a tracked `src-tauri/Info.ios.plist`,
+    a privacy manifest declaring only what the *release* binary imports
+    (file timestamps — `stat` family from std::fs; the objc2 bindings
+    in debug binaries are dead-stripped), iPhone-only, applied by a new
+    configure-ios-project.sh section 0 that regenerates the project with
+    xcodegen (Externals/ moved aside, or built libapp.a files become
+    duplicate resources); `6cf9648` closed drawer's shadow bled a grey
+    strip into every screen; `3cd9dd1` the `..` dead end fixed —
+    `list_directory` now returns `parent` only when it's browsable;
+    `4e3b634` `build-appstore-ios.sh`, iPhone listing draft
+    (`docs/appstore/listing-ios.md`), four 6.9" screenshots, privacy
+    policy wording for iPhone. **Blocked on the user**: no Apple ID in
+    Xcode and no ASC API key on this machine, so the App Store export
+    stops at "No Accounts"; App Store Connect record/metadata and the
+    final submit are theirs. **Flagged, not fixed**: (1) remote images
+    never load in the port — Swift serves a dynamic CSP that allows
+    `https:` images unless the policy is Never, the port's static
+    `tauri.conf.json` CSP never does, so "Always load" does nothing
+    (privacy-safe, but a parity gap; fixing it relaxes a security
+    invariant); (2) `origin/main` is 49 commits behind and GitHub Pages
+    serves `main:/docs`, so the next push 404s the live
+    `/privacy.html` URL and the About text's `THIRD_PARTY_NOTICES.md`
+    link (both moved in the local docs restructure); (3) Mermaid's stock
+    build bundles its own DOMPurify 3.4.12 — the advisory needs
+    `IN_PLACE` mode, which Mermaid never uses (`sanitize(string)` only),
+    so not exploitable as shipped.
 - [ ] Manual smoke test of the golden path and edge cases on each of the 5
       platforms before calling it done, per the working agreement
 - [ ] Re-verify all security invariants per platform (custom scheme, CSP,

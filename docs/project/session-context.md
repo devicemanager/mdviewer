@@ -1,81 +1,66 @@
 # Session context — for picking this up cold
 
-**Written 2026-10-17**, replacing the 2026-10-07 version (its arc is fully
-absorbed into `plan.md`/`file-browser-plan.md` — nothing durable was lost).
-This file exists so the *next* session — on whatever model or account picks
-it up — doesn't re-derive any of this from scratch. It complements, not
-replaces, two other files:
+**Written 2026-10-17 (end of session)**, replacing the earlier 2026-10-17
+version; everything durable from it is in `plan.md`/`file-browser-plan.md`.
+Read alongside:
 
-- **`docs/project/file-browser-plan.md`** — the technical plan: what's
-  built, what's tested, what's left. Read this first for "what do I work on
-  next." Its section 5 carries the build/verification gotchas.
-- **The OTA distribution server's own README** — lives outside this repo
-  (don't re-leak this machine's LAN IP/tunnel hostname into git).
+- **`docs/project/file-browser-plan.md`** — what's built/tested/left, and
+  §5's build/verification gotchas.
+- **`docs/appstore/listing-ios.md`** — the iPhone App Store listing draft and
+  its "Before submitting" checklist.
+- **The OTA server's README** — sibling `mdviewer-ota` folder, outside this
+  repo (don't leak its LAN IP/tunnel hostname into git).
 
-## Where things stand right now
+## Where things stand
 
-`HEAD` is `93acd6b`, this doc update landing right after. Working tree
-clean. **94 Rust tests, 227 web tests, `tsc --noEmit` clean**, all green.
+`HEAD` is `4e3b634` plus this doc commit. Working tree clean.
+**96 Rust tests, 235 web tests, `tsc --noEmit` clean.** Nothing pushed:
+`origin/main` is 49 commits behind.
 
-1. **Toolbar-fade dead-tap bug fixed** (`14bff30`). The 2026-10-07 session
-   flagged it with two fix options; the user chose both: no fade when
-   `#main` can't scroll, and the faded toolbar stays tappable — a tap
-   reveals it (that first tap swallowed), the next one acts. Verified on
-   the device-matched simulator in debug *and* release builds.
+The user reports the OTA build no longer crashes and works as planned, and
+asked to submit the iPhone version to the App Store. Their decisions: one
+App Store record with the Mac app (same bundle ID), debug log in debug
+builds only, iPhone only, version 1.0.0.
 
-2. **iOS release builds unblocked** (`5998aa9`, Tauri 2.11.5 → 2.12.4,
-   lockfile-only). Root cause: swift-rs's Swift-side `@_cdecl` exports
-   were `internal` up to its 1.0.7 tag (Xcode 27's optimized build makes
-   them local), and tauri 2.11.5 pinned SwiftPM to that tag via a shipped
-   `Package.resolved`. Release device archive builds; a release simulator
-   build ran end to end (startup restore, Shiki/KaTeX/Mermaid, browser).
-   The export step still needs the zip-the-`Payload` workaround.
+**Ready:** release build 1.0.0 (build 1) archives with a privacy manifest,
+export-compliance key, iPhone-only family and in-app license notices.
+`./build-appstore-ios.sh` does configure → archive → bundle checks →
+export (or `--upload`). Listing text and four 6.9" screenshots are in
+`docs/appstore/`.
 
-3. **USB debugging is not available — confirmed by the user, and they
-   want to keep developing over OTA.** So the app now writes its own log
-   (`4bd5f18`, `93acd6b`): `Documents/mdviewer-debug.log`, visible in
-   Files → On My iPhone → MDViewer, with startup breadcrumbs, Rust panics
-   and forwarded JS errors. Verified on the simulator, including a
-   deliberate panic and JS error (temporary, removed before commit).
+**Blocked on the user:**
+1. Signing/upload credentials: no Apple ID in Xcode and no App Store
+   Connect API key here. The export stops at "No Accounts".
+2. App Store Connect: add iOS to the `org.devicemanager.mdviewer` record
+   (or create it), fill in the metadata from `listing-ios.md`, and submit.
+   The submit is theirs.
+3. Before pushing: keep `docs/privacy.html` (live privacy URL) and the
+   About text's `THIRD_PARTY_NOTICES.md` link working, since the local docs
+   restructure moved both.
 
-4. **A diagnostic OTA build is live** (debug archive at `93acd6b`,
-   md5-verified through the tunnel). Its instructions say to install
-   *over* the existing app, not delete first, so any state that triggers
-   the crash survives. Waiting on the user to install it and send back
-   `mdviewer-debug.log` plus any `MDViewer-*.ips` from Analytics Data.
+**Flagged, not fixed:** remote images never load in the port (static CSP
+vs. Swift's dynamic one), so "Always load" in Preferences → Privacy does
+nothing. Privacy-safe but a parity gap; fixing it relaxes the CSP, so it
+needs the user's call.
 
 ## What's next
 
-- **Read what the user sends back** from the diagnostic build: the last
-  line of `mdviewer-debug.log` before a crash says which startup step it
-  died in; an `.ips` names the faulting thread/frame for native crashes.
-  If the app *doesn't* crash with this build, that's information too
-  (the old one was built before the Tauri 2.12.4 bump).
-- **Release build over OTA** is now possible and a cheap next experiment
-  if debug keeps crashing (debug vs. release differ in exactly the
-  swift-rs/optimizer area just fixed).
-- **Real-device pass of the grant flow** + §2b's `read_dir` spike (code
-  kept for it) — needs the phone.
-- **Noticed, pre-existing, not fixed**: the file browser offers
-  `.. (up one level)` at a grant's root, and following it lands on
-  `access_denied: outside the document's folder and no folder has been
-  granted` — a dead end the UI invites. Small, but a design call (hide the
-  row at the root vs. show a friendlier message).
-- If the phone stays unreachable: `file-browser-plan.md` §3/§4 (Android
-  `content://` gap, security-scope lifetime gap, desktop never verified,
-  sandbox entitlements still absent).
+- Once credentials exist: `./build-appstore-ios.sh --upload`, then the
+  App Store Connect side. Bump `bundle.iOS.bundleVersion` in
+  `tauri.conf.json` for every later upload.
+- OTA dev builds keep working as before (debug archive + zip Payload; see
+  file-browser-plan.md §5). They're now 1.0.0 (1) too.
+- Remaining port work: `file-browser-plan.md` §3/§4 (Android `content://`
+  gap, security-scope lifetime gap, desktop never verified).
 
 ## Patterns worth repeating
 
-Every real bug this project finds is found by *running the thing*. This
-session adds two corollaries:
-
-- **Check what SwiftPM actually resolved, not what Cargo says.** The
-  swift-rs *crate* version was irrelevant to the release link failure;
-  the Swift code came from a git tag pinned by a `Package.resolved` inside
-  the tauri crate. `workspace-state.json` in the build dir tells the truth.
-- **The a11y tree reports the drawer's rows at identical bounds open or
-  closed**, so it can't tell you drawer state; and separate `maestro test`
-  runs take seconds to start — long enough for the toolbar to fade again
-  between taps. Put multi-tap interactions in one flow, and judge visual
-  state from clock-checked screenshots.
+- **Derive the privacy manifest from the release binary** (`nm -u` +
+  `strings` on the archived executable), not from the debug one or from
+  guesses. Debug binaries carry objc2 bindings that release dead-strips.
+- **Regenerating the Xcode project is safe only via
+  configure-ios-project.sh**: it moves `Externals/` aside for xcodegen and
+  then reapplies every hand-edit.
+- **Store screenshots expose real bugs.** The drawer-shadow strip had been
+  in every screenshot for weeks before anyone looked at one as a
+  customer would.

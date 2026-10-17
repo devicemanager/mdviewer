@@ -8,7 +8,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+- **iPhone**: open-source license notices are now shown in the app under **Preferences → About**, together with the app version — the same notices the Mac app shows in its About panel.
+
 ### Fixed
+- **File browser no longer offers a dead end**: ".. (up one level)" is only shown when the folder above can actually be opened. Previously it also appeared at the top of a granted folder, and tapping it showed an "access denied" error.
+- **No more shadow along the left screen edge**: the closed file browser no longer casts a faint grey strip onto the page.
 - **The toolbar on phones can always be brought back**: it fades after a few seconds of reading, but previously it could only return by scrolling or zooming — with no document open, or one short enough not to scroll, the toolbar stayed hidden and unresponsive. It now doesn't fade when there's nothing to scroll, and tapping the faded toolbar brings it back (that first tap only reveals it, so you can't hit a button you can't see).
 - **Folder grants now always produce a usable folder view**: granting a folder from the first-launch prompt *before* opening any document — or granting a folder above the one currently open — now opens the file browser at the folder you just granted. Previously the grant could succeed and still leave no way to see it (reported from a real device; verified end-to-end on the iOS Simulator, including grant persistence across launches).
 
