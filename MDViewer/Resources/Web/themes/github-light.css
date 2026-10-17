@@ -1,8 +1,19 @@
 /* GitHub Light Theme */
+/* Token contract (2026-10-17): every theme defines all of --bg-color,
+   --surface-color (elevated panels), --text-color, --muted-color,
+   --link-color, --accent-bg/--accent-fg (filled buttons), --border-color
+   and the content tokens below. app.css's interface reads only these, so a
+   theme that skips one gets the light fallback — which is exactly how
+   Dracula's interface ended up white-on-white. Each text pair meets WCAG
+   2.2 AA (4.5:1); web/visual/audit.visual.ts checks it in a real browser. */
 :root {
     --bg-color: #ffffff;
+    --surface-color: #ffffff;
     --text-color: #24292e;
+    --muted-color: #57606a;
     --link-color: #0366d6;
+    --accent-bg: #0366d6;
+    --accent-fg: #ffffff;
     --border-color: #e1e4e8;
     --blockquote-border: #dfe2e5;
     --blockquote-color: #6a737d;

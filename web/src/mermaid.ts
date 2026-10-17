@@ -38,7 +38,22 @@ export interface MermaidInitOptions {
     startOnLoad: boolean;
     theme: string;
     securityLevel: string;
+    themeVariables?: Record<string, string>;
 }
+
+/**
+ * Overrides for Mermaid's own "dark" theme (2026-10-17). Its defaults put
+ * flowchart labels at #ccc on #585858 (4.4:1) and the first git-graph
+ * branch label at #2c2c2c on #797d7d (3.4:1) — under WCAG 2.2 AA's 4.5:1,
+ * found by the visual contrast audit. Only the failing pairs change; the
+ * rest of Mermaid's dark palette is left as designed. The light "default"
+ * theme passes as-is.
+ */
+export const DARK_THEME_VARIABLES: Record<string, string> = {
+    primaryTextColor: "#e6e6e6", // flowchart node and edge labels: 5.7:1 on #585858
+    textColor: "#e6e6e6",
+    gitBranchLabel0: "#111111", // "main" label on its #797d7d swatch: 4.9:1
+};
 
 /** The subset of Mermaid's API this module needs (injected — see restoreMath's KatexLike for why). */
 export interface MermaidLike {
@@ -58,6 +73,7 @@ export function initializeMermaid(mermaid: MermaidLike, isDark: boolean): void {
         startOnLoad: false,
         theme: isDark ? "dark" : "default",
         securityLevel: "loose",
+        ...(isDark ? { themeVariables: DARK_THEME_VARIABLES } : {}),
     });
 }
 

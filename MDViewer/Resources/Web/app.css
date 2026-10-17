@@ -68,7 +68,7 @@ body {
        color-mix()'s Safari 16.2 support; every device this was
        actually tested on (iOS 26.x) supports it fine. */
     background: rgba(255, 255, 255, 0.9);
-    background: color-mix(in srgb, var(--bg-color, #fff) 90%, transparent);
+    background: color-mix(in srgb, var(--surface-color, var(--bg-color, #fff)) 90%, transparent);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
     /* Shadow only while open (2026-10-17): a closed drawer at
@@ -133,6 +133,14 @@ body {
    left/right grouping. */
 #toolbar {
     flex: 0 0 auto;
+    /* Sticky (2026-10-17): #toolbar lives inside #main's own scroll box, so
+       in plain flow it scrolled away with the document on desktop, taking
+       Open/Find/Preferences with it — found by the visual audit. Sticky
+       keeps it in the layout (no padding compensation needed, unlike the
+       phone's position: fixed below, which overrides this). */
+    position: sticky;
+    top: 0;
+    z-index: 30; /* above #content, below the drawer/backdrop */
     display: flex;
     align-items: center;
     gap: 6px;
@@ -149,8 +157,8 @@ body {
        underneath, the same visual language iOS's own translucent
        navigation/tab bars use, rather than a hard ruled-off line. */
     box-shadow: 0 1px 0 rgba(0, 0, 0, 0.06), 0 4px 16px rgba(0, 0, 0, 0.06);
-    position: relative;
-    z-index: 30; /* above #content, below the sidebar drawer/backdrop */
+    /* position/z-index: set at the top of this rule (sticky, 30 — above
+       #content, below the drawer/backdrop). */
     /* Real gap, caught looking at an actual narrow (phone-width) Android
        screenshot: at 1000px desktop width every control fits, but at
        phone width the theme picker and part of the font-size controls
@@ -203,8 +211,8 @@ body {
    bring it back on scroll or pinch-zoom (`toolbarAutoHide.ts`, wired from
    main.ts). Kept to this breakpoint only, like every other mobile-only
    rule here — desktop's toolbar has room to spare and no pinch gesture to
-   lean on, so it stays exactly as it already was: in-flow, always
-   visible. (Font-size controls moved into Preferences' Appearance tab
+   lean on, so it stays in the layout — sticky at the top of #main
+   (the rule above) rather than fixed and fading. (Font-size controls moved into Preferences' Appearance tab
    2026-09-14/15, shown at every width there — the toolbar-space pressure
    that once justified hiding them on phones doesn't apply to a modal.) */
 @media (max-width: 768px) {
@@ -391,7 +399,7 @@ body {
     align-items: center;
     gap: 8px;
     padding: 8px 12px;
-    background: var(--bg-color, #fff);
+    background: var(--surface-color, var(--bg-color, #fff));
     border: 1px solid var(--border-color, #e1e4e8);
     border-radius: 8px;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
@@ -403,7 +411,7 @@ body {
 }
 
 .search-icon {
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
 }
 
 .search-input {
@@ -420,7 +428,7 @@ body {
 .search-done {
     background: none;
     border: none;
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
     cursor: pointer;
     font: inherit;
     padding: 2px 4px;
@@ -438,15 +446,16 @@ body {
     justify-content: center;
     gap: 4px;
     padding: 24px;
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
     text-align: center;
 }
 
 /* Redesigned 2026-09-10 (see app.html's #welcome comment for why) — icon,
    heading, subtitle, button, instead of one bare sentence. */
 .welcome-icon {
-    color: var(--muted-color, #6a737d);
-    opacity: 0.5;
+    /* Full muted colour, not 50% of it: at half opacity the icon measured
+       1.9–2:1 against the page, under WCAG's 3:1 for graphics. */
+    color: var(--muted-color, #57606a);
     margin-bottom: 12px;
 }
 
@@ -464,8 +473,8 @@ body {
 .welcome-open-btn {
     font: inherit;
     font-weight: 600;
-    color: #fff;
-    background: var(--link-color, #0366d6);
+    color: var(--accent-fg, #fff);
+    background: var(--accent-bg, #0366d6);
     border: none;
     border-radius: 10px;
     padding: 12px 24px;
@@ -520,7 +529,7 @@ body {
     max-width: calc(100vw - 32px);
     height: 340px;
     max-height: calc(100vh - 32px);
-    background: var(--bg-color, #fff);
+    background: var(--surface-color, var(--bg-color, #fff));
     color: var(--text-color, #24292e);
     border-radius: 8px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
@@ -573,7 +582,7 @@ body {
     border-bottom: 2px solid transparent;
     padding: 6px 4px 10px;
     font: inherit;
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
     cursor: pointer;
 }
 
@@ -598,7 +607,7 @@ body {
 }
 
 .prefs-placeholder {
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
 }
 
 .prefs-field {
@@ -637,7 +646,7 @@ body {
 .prefs-explanation {
     margin-top: 12px;
     font-size: 0.85em;
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
 }
 
 /* The About tab (aboutPanel.ts, 2026-10-17) — the third-party notices,
@@ -657,7 +666,7 @@ body {
     font-family: inherit;
     font-size: 0.75em;
     line-height: 1.45;
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
 }
 
 /* File browser (fileBrowser.ts) — 2026-09-12, this app's one drawer since
@@ -726,13 +735,13 @@ body {
 }
 
 .file-browser-up {
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
 }
 
 .file-browser-empty,
 .file-browser-loading,
 .file-browser-error {
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
     text-align: center;
     padding: 16px;
 }
@@ -771,7 +780,7 @@ body {
     max-width: 100%;
     max-height: 100%;
     overflow-y: auto;
-    background: var(--bg-color, #fff);
+    background: var(--surface-color, var(--bg-color, #fff));
     color: var(--text-color, #24292e);
     border-radius: 8px;
     box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
@@ -786,7 +795,7 @@ body {
 
 .permissions-intro {
     margin: 0 0 20px;
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
     font-size: 0.9em;
 }
 
@@ -802,14 +811,14 @@ body {
 .permissions-explanation {
     margin: 0 0 12px;
     font-size: 0.85em;
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
 }
 
 .permissions-no-folders {
     margin: 0 0 12px;
     font-size: 0.85em;
     font-style: italic;
-    color: var(--muted-color, #6a737d);
+    color: var(--muted-color, #57606a);
 }
 
 .permissions-folder-list {
@@ -871,11 +880,37 @@ body {
 
 .permissions-done-btn {
     width: 100%;
-    background: var(--link-color, #0366d6);
-    color: #fff;
+    background: var(--accent-bg, #0366d6);
+    color: var(--accent-fg, #fff);
 }
 
 .permissions-grant-btn:hover,
 .permissions-done-btn:hover {
     filter: brightness(0.94);
 }
+
+/* ---- Contrast fixes in shared content styles (2026-10-17) --------------
+   Found by the visual audit (web/visual/audit.visual.ts) against WCAG 2.2
+   AA. Kept here, in the port's own stylesheet, rather than in
+   mdviewer-base.css, which renderer.html shares with the Swift app. */
+
+/* Code-block language label: mdviewer-base.css's fixed #888 is 3.5:1 on
+   white and 4.1:1 on the dark code background. */
+.code-lang-label {
+    color: var(--muted-color, #57606a);
+}
+
+/* Shiki's bundled "github-light"/"github-dark" palettes (the vendored
+   bundle can't change here) include a few token colours under 4.5:1 on
+   their own code backgrounds. Each is remapped to the matching colour from
+   GitHub's newer, contrast-checked Primer palette — same hue and role, so
+   highlighting reads the same, just legibly. Shiki writes colours inline
+   ("color:#D73A49;--shiki-dark:#F97583"), hence the attribute selectors.
+   Light rules are scoped to :not(.dark-theme) so mdviewer-base.css's dark
+   switch still wins in dark themes. */
+body:not(.dark-theme) .shiki span[style*="color:#D73A49" i] { color: #cf222e !important; } /* keyword red, 4.5 -> 5.4 */
+body:not(.dark-theme) .shiki span[style*="color:#E36209" i] { color: #bc4c00 !important; } /* orange, 3.5 -> 5.0 */
+body:not(.dark-theme) .shiki span[style*="color:#22863A" i] { color: #116329 !important; } /* green, 4.5 -> 7.4 */
+body:not(.dark-theme) .shiki span[style*="color:#6A737D" i] { color: #57606a !important; } /* comment, 4.8 -> 6.2 */
+body.dark-theme .shiki span[style*="--shiki-dark:#6A737D" i] { color: #959da5 !important; } /* comment, 3.1 -> 5.1 */
+

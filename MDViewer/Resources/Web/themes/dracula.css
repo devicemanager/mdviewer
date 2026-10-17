@@ -14,6 +14,28 @@ html {
     --md-dracula-blue: #8be9fd;
     --md-dracula-cyan: #8ec0fc;
     --md-dracula-green: #50fa7b;
+
+    /* Token contract (2026-10-17) — see github-light.css. Dracula's own
+       rules use --md-dracula-*; app.css's interface (toolbar, drawer,
+       Preferences, dialogs) reads the shared names, and without these it
+       fell back to light-theme values: near-white icons and file names on
+       a near-white surface (1.1–1.5:1). Muted text is Dracula's comment
+       colour lightened from 3.0:1 to pass on both bg and current-line. */
+    --bg-color: #282a36;
+    --surface-color: #343746;
+    --text-color: #f8f8f2;
+    --muted-color: #afb8d1;
+    --link-color: #8be9fd;
+    --accent-bg: #bd93f9;
+    --accent-fg: #282a36;
+    --border-color: #44475a;
+    --blockquote-border: #6272a4;
+    --blockquote-color: #afb8d1;
+    --table-border: #44475a;
+    --table-row-alt: #44475a;
+    --code-bg: #44475a;
+    --code-inline-bg: #44475a;
+    --highlight-bg: rgba(241, 250, 108, 0.3);
 }
 
 body {
@@ -52,7 +74,8 @@ body {
 
 .markdown-body blockquote {
     border-left-color: var(--md-dracula-comment);
-    color: var(--md-dracula-comment);
+    /* Was --md-dracula-comment (#6272a4): 3.0:1, below AA for text. */
+    color: var(--blockquote-color);
 }
 
 .markdown-body table {

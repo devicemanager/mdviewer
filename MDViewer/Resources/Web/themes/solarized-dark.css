@@ -1,0 +1,36 @@
+/* Solarized Dark Theme — 2026-10-17. Same history as solarized-light.css:
+   listed for years, never existed (404). Palette: Solarized; official values
+   that fail WCAG 2.2 AA on base03 are replaced by the nearest same-hue shade
+   that passes (blue links are 4.1:1 there). Full token contract — see
+   github-light.css. */
+:root {
+    --bg-color: #002b36;          /* base03 */
+    --surface-color: #073642;     /* base02 — elevated panels */
+    --text-color: #adb9b9;        /* base1, lightened to 7.4:1 */
+    --muted-color: #8d9d9e;       /* base0, lightened to 4.6:1 on base02 */
+    --link-color: #4aa3df;        /* blue, lightened to 5.3:1 */
+    --accent-bg: #4aa3df;
+    --accent-fg: #002b36;
+    --border-color: #0f4553;
+    --blockquote-border: #2a5560;
+    --blockquote-color: #8d9d9e;
+    --table-border: #0f4553;
+    --table-row-alt: #04313d;
+    --code-bg: #073642;
+    --code-inline-bg: rgba(147, 161, 161, 0.15);
+    --highlight-bg: rgba(181, 137, 0, 0.35);
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+code:not(pre code) {
+    background-color: var(--code-inline-bg);
+    color: var(--text-color);
+}
+
+pre {
+    background-color: var(--code-bg);
+}

@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from "vitest";
-import { initializeMermaid, runMermaidDiagrams, type MermaidLike } from "../src/mermaid.js";
+import { initializeMermaid, runMermaidDiagrams, DARK_THEME_VARIABLES, type MermaidLike } from "../src/mermaid.js";
 
 function mockMermaid(overrides: Partial<MermaidLike> = {}): MermaidLike {
     return {
@@ -20,13 +20,14 @@ describe("initializeMermaid", () => {
         });
     });
 
-    it("initializes with the 'dark' theme when dark", () => {
+    it("initializes with the 'dark' theme, plus the contrast overrides, when dark", () => {
         const mermaid = mockMermaid();
         initializeMermaid(mermaid, true);
         expect(mermaid.initialize).toHaveBeenCalledWith({
             startOnLoad: false,
             theme: "dark",
             securityLevel: "loose",
+            themeVariables: DARK_THEME_VARIABLES,
         });
     });
 });

@@ -277,11 +277,19 @@
   }
 
   // src/mermaid.ts
+  var DARK_THEME_VARIABLES = {
+    primaryTextColor: "#e6e6e6",
+    // flowchart node and edge labels: 5.7:1 on #585858
+    textColor: "#e6e6e6",
+    gitBranchLabel0: "#111111"
+    // "main" label on its #797d7d swatch: 4.9:1
+  };
   function initializeMermaid(mermaid, isDark) {
     mermaid.initialize({
       startOnLoad: false,
       theme: isDark ? "dark" : "default",
-      securityLevel: "loose"
+      securityLevel: "loose",
+      ...isDark ? { themeVariables: DARK_THEME_VARIABLES } : {}
     });
   }
   function runMermaidDiagrams(mermaid) {
@@ -290,6 +298,41 @@
     } catch (e) {
       console.warn("Mermaid render error:", e);
     }
+  }
+
+  // src/markdownTheme.ts
+  var pdfPageSizes = {
+    a4: {
+      id: "a4",
+      displayName: "A4",
+      cssSize: "210mm 297mm",
+      pointSize: { width: 595.28, height: 841.89 }
+    },
+    letter: {
+      id: "letter",
+      displayName: "Letter",
+      cssSize: "8.5in 11in",
+      pointSize: { width: 612, height: 792 }
+    },
+    a3: {
+      id: "a3",
+      displayName: "A3",
+      cssSize: "297mm 420mm",
+      pointSize: { width: 841.89, height: 1190.55 }
+    }
+  };
+  var themes = [
+    { id: "github-light", displayName: "GitHub Light", cssFileName: "github-light", isDark: false },
+    { id: "github-dark", displayName: "GitHub Dark", cssFileName: "github-dark", isDark: true },
+    { id: "solarized-light", displayName: "Solarized Light", cssFileName: "solarized-light", isDark: false },
+    { id: "solarized-dark", displayName: "Solarized Dark", cssFileName: "solarized-dark", isDark: true },
+    { id: "dracula", displayName: "Dracula", cssFileName: "dracula", isDark: true },
+    { id: "nord", displayName: "Nord", cssFileName: "nord", isDark: true }
+  ];
+  var githubLight = themes[0];
+  var githubDark = themes[1];
+  function findTheme(id) {
+    return themes.find((theme) => theme.id === id);
   }
 
   // src/mdviewerApi.ts
@@ -334,7 +377,7 @@
         if (link) {
           link.href = `themes/${themeName}.css`;
         }
-        const isDark = themeName.includes("dark");
+        const isDark = themes.find((t) => t.cssFileName === themeName)?.isDark ?? themeName.includes("dark");
         document.body.classList.toggle("dark-theme", isDark);
         initializeMermaid(deps.mermaid, isDark);
       },
@@ -610,41 +653,6 @@ https://github.com/devicemanager/mdviewer/blob/main/THIRD_PARTY_NOTICES.md`;
       wake();
     });
     wake();
-  }
-
-  // src/markdownTheme.ts
-  var pdfPageSizes = {
-    a4: {
-      id: "a4",
-      displayName: "A4",
-      cssSize: "210mm 297mm",
-      pointSize: { width: 595.28, height: 841.89 }
-    },
-    letter: {
-      id: "letter",
-      displayName: "Letter",
-      cssSize: "8.5in 11in",
-      pointSize: { width: 612, height: 792 }
-    },
-    a3: {
-      id: "a3",
-      displayName: "A3",
-      cssSize: "297mm 420mm",
-      pointSize: { width: 841.89, height: 1190.55 }
-    }
-  };
-  var themes = [
-    { id: "github-light", displayName: "GitHub Light", cssFileName: "github-light", isDark: false },
-    { id: "github-dark", displayName: "GitHub Dark", cssFileName: "github-dark", isDark: true },
-    { id: "solarized-light", displayName: "Solarized Light", cssFileName: "solarized-light", isDark: false },
-    { id: "solarized-dark", displayName: "Solarized Dark", cssFileName: "solarized-dark", isDark: true },
-    { id: "dracula", displayName: "Dracula", cssFileName: "dracula", isDark: true },
-    { id: "nord", displayName: "Nord", cssFileName: "nord", isDark: true }
-  ];
-  var githubLight = themes[0];
-  var githubDark = themes[1];
-  function findTheme(id) {
-    return themes.find((theme) => theme.id === id);
   }
 
   // src/preferences.ts

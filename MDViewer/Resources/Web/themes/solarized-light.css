@@ -1,0 +1,39 @@
+/* Solarized Light Theme — 2026-10-17.
+   Listed in the app (and in the Swift app's MarkdownTheme.swift) since v1.x,
+   but this file never existed: selecting the theme loaded a 404 and the page
+   fell back to unstyled defaults. Palette: Ethan Schoonover's Solarized
+   (https://ethanschoonover.com/solarized/). Where an official value fails
+   WCAG 2.2 AA contrast on this background it's the nearest same-hue shade
+   that passes (base00 body text #657b83 is only 4.1:1 here; blue links 3.4:1).
+   Defines the full token contract app.css relies on — see github-light.css. */
+:root {
+    --bg-color: #fdf6e3;          /* base3 */
+    --surface-color: #fdf6e3;
+    --text-color: #45575c;        /* base01, darkened to 7:1 */
+    --muted-color: #556870;       /* base00, darkened to 4.8:1 on base2 */
+    --link-color: #1f6fa8;        /* blue, darkened to 4.9:1 */
+    --accent-bg: #1f6fa8;
+    --accent-fg: #ffffff;
+    --border-color: #e4dcc4;
+    --blockquote-border: #d6ceb5;
+    --blockquote-color: #556870;
+    --table-border: #e4dcc4;
+    --table-row-alt: #f5eedb;
+    --code-bg: #eee8d5;           /* base2 */
+    --code-inline-bg: rgba(7, 54, 66, 0.07);
+    --highlight-bg: rgba(181, 137, 0, 0.3);
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+code:not(pre code) {
+    background-color: var(--code-inline-bg);
+    color: var(--text-color);
+}
+
+pre {
+    background-color: var(--code-bg);
+}

@@ -37,6 +37,7 @@ import { resolveEmoji } from "./emoji.js";
 import { gateRemoteResourcesInHTML, loadRemoteResources as restoreRemoteResources, type RemoteContentPolicy } from "./remote.js";
 import { rewriteLocalResources } from "./localResources.js";
 import { initializeMermaid, runMermaidDiagrams, type MermaidLike } from "./mermaid.js";
+import { themes } from "./markdownTheme.js";
 
 /**
  * The subset of marked's top-level API this module needs, typed against
@@ -162,7 +163,12 @@ export function createMDViewerApi(deps: MDViewerDependencies): MDViewerApi {
             if (link) {
                 link.href = `themes/${themeName}.css`;
             }
-            const isDark = themeName.includes("dark");
+            // The theme registry knows which themes are dark; the name only
+            // happens to say so for two of them. Matching on "dark" (as
+            // mdviewer.js did) left Dracula and Nord with light code colours
+            // and light Mermaid diagrams on a dark page (2026-10-17, found
+            // by the visual contrast audit). Unknown names keep the old rule.
+            const isDark = themes.find((t) => t.cssFileName === themeName)?.isDark ?? themeName.includes("dark");
             document.body.classList.toggle("dark-theme", isDark);
             initializeMermaid(deps.mermaid, isDark);
         },

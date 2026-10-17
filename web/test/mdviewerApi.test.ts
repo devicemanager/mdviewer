@@ -140,15 +140,23 @@ describe("createMDViewerApi().setTheme", () => {
         expect(document.body.classList.contains("dark-theme")).toBe(false);
     });
 
+    it("treats every dark theme as dark, not only names containing 'dark'", () => {
+        const api = createMDViewerApi(deps());
+        for (const name of ["dracula", "nord", "solarized-dark"]) {
+            api.setTheme(name);
+            expect(document.body.classList.contains("dark-theme"), name).toBe(true);
+        }
+        api.setTheme("solarized-light");
+        expect(document.body.classList.contains("dark-theme")).toBe(false);
+    });
+
     it("re-initializes mermaid with the matching theme", () => {
         const mermaid = mockMermaid();
         const api = createMDViewerApi(deps({ mermaid }));
         api.setTheme("github-dark");
-        expect(mermaid.initialize).toHaveBeenCalledWith({
-            startOnLoad: false,
-            theme: "dark",
-            securityLevel: "loose",
-        });
+        expect(mermaid.initialize).toHaveBeenCalledWith(
+            expect.objectContaining({ startOnLoad: false, theme: "dark", securityLevel: "loose" }),
+        );
     });
 });
 

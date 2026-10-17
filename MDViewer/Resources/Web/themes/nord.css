@@ -1,0 +1,37 @@
+/* Nord Theme — 2026-10-17. Same history as the Solarized files: listed for
+   years, never existed (404). Palette: Arctic Ice Studio's Nord
+   (https://www.nordtheme.com/docs/colors-and-palettes). Nord's own comment
+   grey (nord3 #4c566a) is 1.7:1 on nord0, far too faint for text, so muted
+   text is a lightened nord3 at 4.6:1 even on the nord1 code background.
+   Full token contract — see github-light.css. */
+:root {
+    --bg-color: #2e3440;          /* nord0 */
+    --surface-color: #3b4252;     /* nord1 — elevated panels */
+    --text-color: #d8dee9;        /* nord4, 9.3:1 */
+    --muted-color: #a7b0c0;       /* nord3, lightened */
+    --link-color: #88c0d0;        /* nord8, 6.2:1 */
+    --accent-bg: #88c0d0;
+    --accent-fg: #2e3440;
+    --border-color: #434c5e;      /* nord2 */
+    --blockquote-border: #4c566a; /* nord3 */
+    --blockquote-color: #a7b0c0;
+    --table-border: #434c5e;
+    --table-row-alt: #353b49;
+    --code-bg: #3b4252;           /* nord1 */
+    --code-inline-bg: rgba(216, 222, 233, 0.12);
+    --highlight-bg: rgba(235, 203, 139, 0.3); /* nord13 */
+}
+
+body {
+    background-color: var(--bg-color);
+    color: var(--text-color);
+}
+
+code:not(pre code) {
+    background-color: var(--code-inline-bg);
+    color: var(--text-color);
+}
+
+pre {
+    background-color: var(--code-bg);
+}

@@ -34,6 +34,17 @@ made during porting.
 unchanged: `renderer.html`, `mdviewer-base.css`, `vendor/*`, `themes/*`.
 Do not rewrite these, do not "modernise" them, do not swap library versions.
 
+**Exception — themes (2026-10-17, at the user's explicit request after a
+real-device contrast report):** `themes/*` now define a shared token
+contract (`--bg-color`, `--surface-color`, `--text-color`, `--muted-color`,
+`--link-color`, `--accent-bg`/`--accent-fg`, …) that `app.css` reads, with
+every text pair at WCAG 2.2 AA. `solarized-light.css`, `solarized-dark.css`
+and `nord.css` were added: those themes were listed in Swift's
+`MarkdownTheme.swift` but the files never existed (404 in v1.2.1 too).
+`npm run test:visual` (web/) checks all of it in WebKit — run it after any
+CSS or theme change. `mdviewer-base.css` and `renderer.html` are still
+untouched; port-only overrides live in `app.css`.
+
 `mdviewer.js` was the exception (decided 2026-09-06): it was rewritten in
 TypeScript under `web/src`, one concern per change, and now **is**
 `MDViewer/Resources/Web/mdviewer.js` — `web`'s build step
