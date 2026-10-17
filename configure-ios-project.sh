@@ -2,9 +2,20 @@
 #
 # configure-ios-project.sh — Reapply the hand-edits to the generated iOS project.
 #
-# `src-tauri/gen/` is gitignored (it is generated output), but five things in
+# `src-tauri/gen/` is gitignored (it is generated output), but six things in
 # there are NOT reproducible from tracked config, and losing them fails in
 # confusing ways:
+#
+#   0. App Store additions to the project itself, then a regeneration
+#      The privacy manifest (src-tauri/PrivacyInfo.xcprivacy, tracked) has to
+#      be a resource in the Xcode project, and the App Store build is iPhone
+#      only (TARGETED_DEVICE_FAMILY = 1, the user's call 2026-10-17). Tauri
+#      has no config for either, so this copies the manifest into the
+#      generated sources, sets the device family in project.yml, and runs
+#      xcodegen — which rewrites project.pbxproj AND Info.plist, so it runs
+#      first and every section below reapplies its edit afterwards.
+#      (ITSAppUsesNonExemptEncryption doesn't need this: it lives in the
+#      tracked src-tauri/Info.ios.plist, which Tauri merges at build time.)
 #
 #   1. LSSupportsOpeningDocumentsInPlace in Info.plist
 #      Without it the app builds and installs fine but never appears in the
@@ -84,6 +95,40 @@ for f in "$INFO_PLIST" "$PBXPROJ"; do
         exit 1
     fi
 done
+
+# ---- 0. App Store additions + project regeneration -------------------------
+PRIVACY_MANIFEST_SRC="$REPO_ROOT/src-tauri/PrivacyInfo.xcprivacy"
+cp "$PRIVACY_MANIFEST_SRC" "$GEN_APPLE/mdviewer_iOS/PrivacyInfo.xcprivacy"
+echo "PrivacyInfo.xcprivacy: copied into mdviewer_iOS/"
+if grep -Eq '^[[:space:]]*TARGETED_DEVICE_FAMILY:' "$PROJECT_YML"; then
+    sed -i '' -E 's/^([[:space:]]*TARGETED_DEVICE_FAMILY:).*/\1 "1"/' "$PROJECT_YML"
+    echo "project.yml: TARGETED_DEVICE_FAMILY ensured \"1\" (iPhone only)"
+elif grep -Eq '^        ENABLE_BITCODE: false$' "$PROJECT_YML"; then
+    sed -i '' -E 's/^(        ENABLE_BITCODE: false)$/\1\
+        TARGETED_DEVICE_FAMILY: "1"/' "$PROJECT_YML"
+    echo "project.yml: added TARGETED_DEVICE_FAMILY \"1\" (iPhone only)"
+else
+    echo "project.yml: target settings block not found — set TARGETED_DEVICE_FAMILY manually" >&2
+    exit 1
+fi
+command -v xcodegen >/dev/null || { echo "error: xcodegen not found (brew install xcodegen)" >&2; exit 1; }
+# Externals/ holds the Rust build output (libapp.a per arch/config), which
+# the "Build Rust Code" phase recreates every build. Tauri's own xcodegen run
+# at `ios init` saw it empty; generating with built libs inside makes
+# xcodegen add each libapp.a as a bundle *resource* too, and the archive
+# then fails with "Multiple commands produce .../MDViewer.app/libapp.a".
+# So generate with it moved aside, and put it back either way.
+EXTERNALS="$GEN_APPLE/Externals"
+EXTERNALS_ASIDE="$GEN_APPLE/.Externals.configure-aside"
+rm -rf "$EXTERNALS_ASIDE"
+mv "$EXTERNALS" "$EXTERNALS_ASIDE"
+mkdir "$EXTERNALS"
+restore_externals() { rm -rf "$EXTERNALS"; mv "$EXTERNALS_ASIDE" "$EXTERNALS"; }
+trap restore_externals EXIT
+(cd "$GEN_APPLE" && xcodegen generate --quiet)
+restore_externals
+trap - EXIT
+echo "xcodegen: project regenerated from project.yml"
 
 # ---- 1. Info.plist --------------------------------------------------------
 # PlistBuddy's Add fails if the key exists and Set fails if it doesn't, so try

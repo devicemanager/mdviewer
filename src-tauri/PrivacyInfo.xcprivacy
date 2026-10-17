@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- iOS privacy manifest (2026-10-17, first App Store submission).
+	     Tracked here; configure-ios-project.sh copies it into the generated
+	     Xcode project (src-tauri/gen/ is gitignored) and regenerates the
+	     project so it lands in the app bundle's root as a resource.
+
+	     No tracking, no tracking domains, no collected data: the app has no
+	     accounts, analytics or network calls of its own.
+
+	     Required-reason APIs: derived from the *release* binary's imports
+	     (`nm -u`), not guessed. The only category present is file
+	     timestamps — `stat`/`fstat`/`fstatat`/`lstat`, from Rust's std::fs
+	     (metadata/canonicalize/read_dir). The objc2 framework bindings the
+	     debug binary also references (UserDefaults, systemUptime,
+	     activeInputModes) are dead-stripped from release builds; re-check
+	     with `nm -u` + `strings` on the archived binary after dependency
+	     bumps. -->
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryFileTimestamp</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<!-- The app's own state files in its container (granted
+				     folders, last-opened document, remote-content policy). -->
+				<string>C617.1</string>
+				<!-- Documents and folders the user picked or granted
+				     (document picker, Files "Open in", folder grants). -->
+				<string>3B52.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

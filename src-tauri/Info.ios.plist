@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Merged by Tauri into the generated iOS Info.plist at build time
+	     (tauri-utils' IosConfig: it looks for Info.ios.plist next to
+	     tauri.conf.json). Kept here rather than in configure-ios-project.sh
+	     because this file is tracked and the generated one isn't.
+
+	     Export compliance (2026-10-17, first App Store submission): the app
+	     uses no encryption of its own — only the OS's (HTTPS through
+	     WKWebView/system networking for remote images), which is exempt.
+	     Without this key every upload stops at an export-compliance
+	     question in App Store Connect. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
+</dict>
+</plist>

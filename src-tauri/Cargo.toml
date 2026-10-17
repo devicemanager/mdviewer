@@ -1,6 +1,6 @@
 [package]
 name = "mdviewer"
-version = "0.1.0"
+version = "1.0.0"
 description = "MDViewer"
 authors = ["devicemanager"]
 edition = "2021"
