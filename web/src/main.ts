@@ -49,6 +49,7 @@ import { createMDViewerApi, type MarkedLike } from "./mdviewerApi.js";
 import { attachInteractionListeners } from "./interactionListeners.js";
 import { showContent, showWelcome } from "./appShell.js";
 import { wireErrorForwarding } from "./errorForwarding.js";
+import { updateAboutVersion } from "./aboutPanel.js";
 import { closeDrawer, openDrawer, toggleDrawer } from "./drawer.js";
 import { renderToolbar, attachToolbarHandlers } from "./toolbar.js";
 import { wireToolbarAutoHide, type AutoHideSource } from "./toolbarAutoHide.js";
@@ -104,6 +105,9 @@ declare global {
         __TAURI__: {
             core: {
                 invoke(command: string, args?: Record<string, unknown>): Promise<unknown>;
+            };
+            app: {
+                getVersion(): Promise<string>;
             };
         };
         /** Non-standard, deprecated, not in `lib.dom.d.ts` — see search.ts's
@@ -272,6 +276,7 @@ function wirePreferences(renderVM: RenderViewModel): { open: () => void } | unde
     // policy before showing; renderVM's theme/font-size are real from
     // the start, since that state already lives in localStorage.
     renderPreferences(prefsEl, "ask", renderVM.theme.id, renderVM.fontSize);
+    void window.__TAURI__.app.getVersion().then((version) => updateAboutVersion(prefsEl, version));
     attachPreferencesHandlers(prefsEl, {
         onClose: () => hidePreferences(prefsEl),
         onPolicyChange: (policy) => {

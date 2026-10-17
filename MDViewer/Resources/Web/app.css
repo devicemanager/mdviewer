@@ -634,6 +634,26 @@ body {
     color: var(--muted-color, #6a737d);
 }
 
+/* The About tab (aboutPanel.ts, 2026-10-17) — the third-party notices,
+   as plain wrapped text in the same small type Swift's About-panel
+   Credits used (10pt). `pre` for the text's own line breaks and
+   indentation; `pre-wrap` so the long license paragraphs wrap at phone
+   width instead of scrolling sideways. */
+.prefs-about-title {
+    margin: 0 0 12px;
+    font-weight: 600;
+}
+
+.prefs-credits {
+    margin: 0;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+    font-family: inherit;
+    font-size: 0.75em;
+    line-height: 1.45;
+    color: var(--muted-color, #6a737d);
+}
+
 /* File browser (fileBrowser.ts) — 2026-09-12, this app's one drawer since
    2026-09-14/15's TOC removal. Uses the shared `.drawer` class for the
    slide-in shell; these rules are only what goes *inside* it — a

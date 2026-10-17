@@ -466,6 +466,54 @@ ${reason.stack}` : ""}`);
     });
   }
 
+  // src/aboutPanel.ts
+  var ACKNOWLEDGEMENTS = `MDViewer is open source under the MIT License. Originally created by Masanori Sakai (@Masakai); this fork is maintained by @devicemanager, adding a Quick Look preview extension and security hardening.
+
+Third-party libraries
+
+marked 18.0.6 \u2014 MIT
+  Copyright (c) 2018-2026 MarkedJS; (c) 2011-2018 Christopher Jeffrey
+  https://github.com/markedjs/marked
+
+Shiki 4.3.1 \u2014 MIT
+  Copyright (c) 2021 Pine Wu; (c) 2023 Anthony Fu
+  https://github.com/shikijs/shiki
+
+KaTeX 0.17.0 \u2014 MIT (fonts under SIL Open Font License 1.1)
+  Copyright (c) 2013-2020 Khan Academy and other contributors
+  https://github.com/KaTeX/KaTeX
+
+Mermaid 11.17.2 \u2014 MIT
+  Copyright (c) 2014-2024 Knut Sveidqvist and contributors
+  https://github.com/mermaid-js/mermaid
+
+DOMPurify 3.4.15 \u2014 Apache-2.0 OR MPL-2.0
+  Copyright (c) Cure53 and other contributors
+  https://github.com/cure53/DOMPurify
+
+The MIT-licensed components above are provided under the following terms:
+
+Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the "Software"), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+DOMPurify is dual-licensed under Apache-2.0 (https://www.apache.org/licenses/LICENSE-2.0) or MPL-2.0 (https://www.mozilla.org/MPL/2.0/).
+
+Full copyright notices and license texts:
+https://github.com/devicemanager/mdviewer/blob/main/THIRD_PARTY_NOTICES.md`;
+  function aboutPaneHTML() {
+    return `
+        <p class="prefs-about-title">MDViewer <span data-app-version></span></p>
+        <pre class="prefs-credits">${escapeHtml(ACKNOWLEDGEMENTS)}</pre>
+    `;
+  }
+  function updateAboutVersion(root, version) {
+    const el = root.querySelector("[data-app-version]");
+    if (el) el.textContent = version;
+  }
+
   // src/drawer.ts
   function openDrawer(drawer, backdrop) {
     drawer.classList.add("open");
@@ -603,7 +651,10 @@ ${reason.stack}` : ""}`);
   var TABS = [
     { id: "general", label: "General" },
     { id: "appearance", label: "Appearance" },
-    { id: "privacy", label: "Privacy" }
+    { id: "privacy", label: "Privacy" },
+    // 2026-10-17 — the port's home for v1.2.1's About-panel credits; see
+    // aboutPanel.ts.
+    { id: "about", label: "About" }
   ];
   var POLICY_OPTIONS = [
     { id: "ask", label: "Ask each time" },
@@ -660,6 +711,7 @@ ${reason.stack}` : ""}`);
                         </label>
                         <p class="prefs-explanation">${PRIVACY_EXPLANATION}</p>
                     </div>
+                    <div class="prefs-pane${activeTab === "about" ? " active" : ""}" data-pane="about">${aboutPaneHTML()}</div>
                 </div>
             </div>
         </div>
@@ -1147,6 +1199,7 @@ ${reason.stack}` : ""}`);
     const prefsEl = document.getElementById("preferences");
     if (!prefsEl) return void 0;
     renderPreferences(prefsEl, "ask", renderVM.theme.id, renderVM.fontSize);
+    void window.__TAURI__.app.getVersion().then((version) => updateAboutVersion(prefsEl, version));
     attachPreferencesHandlers(prefsEl, {
       onClose: () => hidePreferences(prefsEl),
       onPolicyChange: (policy) => {

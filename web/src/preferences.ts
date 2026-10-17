@@ -54,13 +54,17 @@
 import type { RemoteContentPolicy } from "./remote.js";
 import { escapeHtml } from "./dom.js";
 import { themes, type MarkdownTheme } from "./markdownTheme.js";
+import { aboutPaneHTML } from "./aboutPanel.js";
 
-export type PrefsTab = "general" | "appearance" | "privacy";
+export type PrefsTab = "general" | "appearance" | "privacy" | "about";
 
 const TABS: { id: PrefsTab; label: string }[] = [
     { id: "general", label: "General" },
     { id: "appearance", label: "Appearance" },
     { id: "privacy", label: "Privacy" },
+    // 2026-10-17 — the port's home for v1.2.1's About-panel credits; see
+    // aboutPanel.ts.
+    { id: "about", label: "About" },
 ];
 
 const POLICY_OPTIONS: { id: RemoteContentPolicy; label: string }[] = [
@@ -139,6 +143,7 @@ export function renderPreferences(
                         </label>
                         <p class="prefs-explanation">${PRIVACY_EXPLANATION}</p>
                     </div>
+                    <div class="prefs-pane${activeTab === "about" ? " active" : ""}" data-pane="about">${aboutPaneHTML()}</div>
                 </div>
             </div>
         </div>

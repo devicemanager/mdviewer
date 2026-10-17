@@ -31,10 +31,10 @@ beforeEach(() => {
 });
 
 describe("renderPreferences", () => {
-    it("renders all three tabs, in Swift's order", () => {
+    it("renders Swift's three tabs in Swift's order, then About", () => {
         renderPreferences(root, "ask", "github-light", 16);
         const tabs = root.querySelectorAll<HTMLElement>(".prefs-tab");
-        expect(Array.from(tabs).map((t) => t.dataset.tab)).toEqual(["general", "appearance", "privacy"]);
+        expect(Array.from(tabs).map((t) => t.dataset.tab)).toEqual(["general", "appearance", "privacy", "about"]);
     });
 
     it("defaults to the General tab active, matching Swift's default", () => {
@@ -74,6 +74,16 @@ describe("renderPreferences", () => {
     it("shows the initial font size on the reset button in the Appearance tab", () => {
         renderPreferences(root, "ask", "github-light", 22);
         expect(root.querySelector("[data-font-size]")!.textContent).toBe("22");
+    });
+});
+
+describe("renderPreferences — About tab", () => {
+    it("renders an About tab and pane holding the third-party notices", () => {
+        const root = document.createElement("div");
+        renderPreferences(root, "ask", "github-light", 16, "about");
+        expect(root.querySelector('.prefs-tab.active[data-tab="about"]')).not.toBeNull();
+        const pane = root.querySelector('.prefs-pane.active[data-pane="about"]');
+        expect(pane?.textContent).toContain("Third-party libraries");
     });
 });
 
