@@ -10,7 +10,8 @@
 //   WCAG 2.2 AA (4.5:1, large text 3:1);
 // - every icon against its background, to 3:1 (non-text contrast);
 // - every interface control (toolbar, search, Preferences, file browser,
-//   dialogs) is on screen and not covered by something else.
+//   dialogs) is on screen and not covered by something else;
+// - the document fits the window: nothing runs off the side of the screen.
 //
 // "The pixels actually behind it": each state is screenshotted with all
 // text (and button icons) made transparent, and the background colour of
@@ -77,7 +78,7 @@ interface Measured {
 
 interface ControlProblem {
     label: string;
-    problem: "offscreen" | "covered";
+    problem: "offscreen" | "covered" | "overflow";
     coveredBy?: string;
 }
 
@@ -198,6 +199,23 @@ function measure(): { items: Measured[]; controls: ControlProblem[] } {
         if (cy >= 0 && cy < vh && !visibleAt(el, cx, cy)) {
             const hit = document.elementFromPoint(cx, cy);
             controls.push({ label, problem: "covered", coveredBy: hit ? describeEl(hit) : "nothing" });
+        }
+    }
+    // Text cut off at the screen edge: the reading column must fit the
+    // window, with wide tables and code scrolling inside their own box.
+    // Text measurement above clips to the viewport, so it can't see this
+    // (TestFlight feedback, 2026-10-17: every line ran off a phone screen).
+    const main = document.getElementById("main");
+    if (main && main.scrollWidth > main.clientWidth + 1) {
+        controls.push({ label: `#main scrolls sideways (${main.scrollWidth}px content in ${main.clientWidth}px)`, problem: "overflow" });
+    }
+    const content = document.getElementById("content");
+    if (content && !isHidden(content)) {
+        for (const el of content.children) {
+            const r = el.getBoundingClientRect();
+            if (r.width > 0 && (r.left < -1 || r.right > vw + 1)) {
+                controls.push({ label: `${describeEl(el)} spans ${Math.round(r.left)}–${Math.round(r.right)}px of ${vw}px`, problem: "overflow" });
+            }
         }
     }
     return { items, controls };

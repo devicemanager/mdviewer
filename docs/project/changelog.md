@@ -16,6 +16,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 - **Everything is readable in every theme**: the toolbar, file browser, Preferences, dialogs, code and diagrams now meet the WCAG 2.2 AA contrast minimum (4.5:1 for text, 3:1 for icons) in all six themes, on phone and desktop. Dracula's toolbar icons and file list were nearly invisible, muted text was too faint in dark themes, and white button text on light blue was hard to read.
+- **Documents fit the phone screen**: every line of text ran off the right edge whenever the document had a table, diagram or code block wider than the screen. The text now wraps to the screen width, and wide tables and code scroll sideways inside their own box (reported via TestFlight feedback).
 - **Solarized Light, Solarized Dark and Nord actually work**: these themes were listed but their stylesheets were missing, so choosing one showed an unstyled page. They now have proper, accessible palettes.
 - **Dark themes get dark code highlighting and diagrams** — Dracula and Nord previously showed light-mode code colours and Mermaid diagrams.
 - **Desktop toolbar stays visible while scrolling** instead of scrolling away with the document.

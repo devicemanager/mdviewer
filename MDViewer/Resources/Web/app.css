@@ -501,7 +501,16 @@ body {
 
 /* #content already has its own max-width/margin/padding-top rules from
    mdviewer-base.css (written for renderer.html) — kept as-is here too,
-   so its rendered output stays pixel-identical between the two pages. */
+   so its rendered output stays pixel-identical between the two pages.
+   One addition: here #content is a flex item of #main (a column flexbox),
+   where `margin: 0 auto` turns off stretching, so it sized to its widest
+   child (a table, diagram or code block) instead of the screen, and on a
+   phone every line ran off the right edge (TestFlight feedback,
+   2026-10-17). `width: 100%` restores renderer.html's block behaviour;
+   the max-width still caps it on desktop. */
+#content {
+    width: 100%;
+}
 
 /* Preferences — ported visually from PreferencesView.swift's TabView,
    as an overlay modal rather than a second native window; see
