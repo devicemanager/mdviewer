@@ -251,6 +251,11 @@ fn render_opened_document<R: Runtime>(app: &AppHandle<R>, url_str: &str) {
 /// Returns a plain string (both results) rather than a structured type —
 /// this is a throwaway diagnostic, not permanent API surface, so it isn't
 /// worth a dedicated response shape.
+///
+/// Debug builds only (2026-10-17, ahead of the first App Store submission):
+/// the spike is still unanswered, so it stays for OTA dev builds, but a
+/// diagnostic `invoke` surface has no business in a public release.
+#[cfg(debug_assertions)]
 #[tauri::command]
 fn spike_read_dir_variants<R: Runtime>(app: AppHandle<R>) -> String {
     let Some(current) = app.state::<CurrentDocument>().0.lock().unwrap().clone() else {
@@ -331,6 +336,7 @@ pub fn run() {
             open_document_command,
             get_remote_content_policy,
             set_remote_content_policy,
+            #[cfg(debug_assertions)]
             spike_read_dir_variants,
             list_directory,
             list_granted_folders,
@@ -507,7 +513,7 @@ pub fn run() {
 /// The frontend's half of the out-of-band debug log: `errorForwarding.ts`
 /// sends uncaught JS errors and unhandled rejections here so they land in
 /// the same file as the native breadcrumbs (see `debug_log.rs`). A no-op
-/// wherever that log isn't active, i.e. everywhere but iOS.
+/// wherever that log isn't active, i.e. everywhere but iOS debug builds.
 #[tauri::command]
 fn log_frontend_error(message: String) {
     debug_log::log(&format!("js: {message}"));

@@ -22,13 +22,14 @@
 // logcat`. Everywhere else `init_for_platform` doesn't open anything and
 // `log` is a no-op.
 //
-// Before any App Store build: decide whether this stays. It writes file
-// paths into a user-visible folder — fine for OTA testing, worth a
-// deliberate call before shipping.
+// And debug builds only (the user's call, 2026-10-17, ahead of the first
+// App Store submission): OTA dev builds are debug and keep logging; the
+// App Store build is release and writes nothing, since the log puts file
+// paths into a folder the user can see.
 
-// Off iOS nothing ever calls `init_in`, so everything it reaches is dead
-// code there — expected, not a leftover.
-#![cfg_attr(not(target_os = "ios"), allow(dead_code))]
+// Off iOS, and in release builds, nothing ever calls `init_in`, so
+// everything it reaches is dead code there — expected, not a leftover.
+#![cfg_attr(not(all(target_os = "ios", debug_assertions)), allow(dead_code))]
 
 use std::fs::{File, OpenOptions};
 use std::io::Write;
@@ -78,11 +79,12 @@ impl DebugLog {
 
 /// Starts logging to the platform's out-of-band location — the app's
 /// Documents folder on iOS (`$HOME` is the app's own data container
-/// there) — and installs the panic hook. Does nothing on other platforms.
-/// Called first thing in `run()`, before Tauri itself starts, so even a
-/// crash during `Builder::build` leaves a "session start" line behind.
+/// there) — and installs the panic hook. Does nothing on other platforms
+/// or in release builds. Called first thing in `run()`, before Tauri
+/// itself starts, so even a crash during `Builder::build` leaves a
+/// "session start" line behind.
 pub fn init_for_platform() {
-    #[cfg(target_os = "ios")]
+    #[cfg(all(target_os = "ios", debug_assertions))]
     if let Some(home) = std::env::var_os("HOME") {
         init_in(&PathBuf::from(home).join("Documents"));
     }
