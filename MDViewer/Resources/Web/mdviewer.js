@@ -487,14 +487,27 @@
   function fadeToolbar(toolbarEl) {
     toolbarEl.classList.add("toolbar-faded");
   }
-  function wireToolbarAutoHide(toolbarEl, sources, mobileQuery, fadeDelayMs = DEFAULT_FADE_DELAY_MS) {
+  function wireToolbarAutoHide(toolbarEl, sources, mobileQuery, fadeDelayMs = DEFAULT_FADE_DELAY_MS, canFade = () => true) {
     let fadeTimer;
     function wake() {
       if (!mobileQuery.matches) return;
       showToolbar(toolbarEl);
       if (fadeTimer) clearTimeout(fadeTimer);
-      fadeTimer = setTimeout(() => fadeToolbar(toolbarEl), fadeDelayMs);
+      fadeTimer = setTimeout(() => {
+        if (canFade()) fadeToolbar(toolbarEl);
+      }, fadeDelayMs);
     }
+    toolbarEl.addEventListener(
+      "click",
+      (event) => {
+        if (toolbarEl.classList.contains("toolbar-faded")) {
+          event.preventDefault();
+          event.stopPropagation();
+        }
+        wake();
+      },
+      { capture: true }
+    );
     for (const { target, type } of sources) {
       target.addEventListener(type, wake, { passive: true });
     }
@@ -1166,7 +1179,13 @@
       if (window.visualViewport) {
         autoHideSources.push({ target: window.visualViewport, type: "resize" }, { target: window.visualViewport, type: "scroll" });
       }
-      wireToolbarAutoHide(toolbarEl, autoHideSources, window.matchMedia("(max-width: 768px)"));
+      wireToolbarAutoHide(
+        toolbarEl,
+        autoHideSources,
+        window.matchMedia("(max-width: 768px)"),
+        void 0,
+        () => mainEl.scrollHeight > mainEl.clientHeight
+      );
     }
     attachToolbarHandlers(toolbarEl, {
       onOpen: () => {

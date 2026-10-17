@@ -212,13 +212,14 @@ body {
 
     /* Not `visibility: hidden`/`display: none` — a genuine fade, per the
        user's own wording ("fade, so it doesn't block the view"), not an
-       on/off toggle. `pointer-events: none` while faded so its now-
-       barely-visible hit area doesn't swallow taps meant for the content
-       underneath; `toolbarAutoHide.ts`'s `showToolbar` removes this class
-       (and with it, pointer-events) the moment any scroll/zoom happens. */
+       on/off toggle. Deliberately still hit-testable while faded
+       (2026-10-17): this used to carry `pointer-events: none`, which left
+       scroll/zoom as the only way back — and with nothing to scroll, no
+       way back at all. A tap on the faded strip now wakes it instead;
+       `toolbarAutoHide.ts` swallows that first tap so it can't also fire
+       whichever barely-visible button happened to be under it. */
     #toolbar.toolbar-faded {
         opacity: 0.06;
-        pointer-events: none;
     }
 
     /* #toolbar leaving normal flow (now `position: fixed`) would

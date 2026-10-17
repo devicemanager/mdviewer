@@ -57,12 +57,27 @@ export function fadeToolbar(toolbarEl: HTMLElement): void {
  * fade — the user's own "should come back... then fade away" implies a
  * default-visible starting point a reader can actually see before
  * anything fades, not starting pre-faded.
+ *
+ * Two escape hatches (2026-10-17, the user's call between the options
+ * plan.md's 2026-10-07 entry laid out — they picked both), because
+ * scroll/zoom were otherwise the *only* way back and with nothing to
+ * scroll the toolbar stayed dead for good:
+ * - `canFade` is asked when the countdown expires; `false` skips that
+ *   fade. main.ts passes "is `#main` actually scrollable" — with no
+ *   document, or one that fits on screen, there's no view to make room
+ *   for, so fading only costs the toolbar.
+ * - A tap on the toolbar's own strip wakes it. A tap on a *faded*
+ *   toolbar is swallowed (capture phase, so no button handler sees it)
+ *   — the first tap only reveals, so a barely-visible button can't fire
+ *   by accident. A tap on a visible toolbar passes through as normal
+ *   and just restarts the countdown.
  */
 export function wireToolbarAutoHide(
     toolbarEl: HTMLElement,
     sources: readonly AutoHideSource[],
     mobileQuery: MediaQueryLike,
     fadeDelayMs: number = DEFAULT_FADE_DELAY_MS,
+    canFade: () => boolean = () => true,
 ): void {
     let fadeTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -70,8 +85,22 @@ export function wireToolbarAutoHide(
         if (!mobileQuery.matches) return;
         showToolbar(toolbarEl);
         if (fadeTimer) clearTimeout(fadeTimer);
-        fadeTimer = setTimeout(() => fadeToolbar(toolbarEl), fadeDelayMs);
+        fadeTimer = setTimeout(() => {
+            if (canFade()) fadeToolbar(toolbarEl);
+        }, fadeDelayMs);
     }
+
+    toolbarEl.addEventListener(
+        "click",
+        (event) => {
+            if (toolbarEl.classList.contains("toolbar-faded")) {
+                event.preventDefault();
+                event.stopPropagation();
+            }
+            wake();
+        },
+        { capture: true },
+    );
 
     for (const { target, type } of sources) {
         target.addEventListener(type, wake, { passive: true } as AddEventListenerOptions);

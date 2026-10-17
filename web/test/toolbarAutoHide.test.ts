@@ -123,4 +123,64 @@ describe("wireToolbarAutoHide", () => {
         query.fireChange();
         expect(toolbar.classList.contains("toolbar-faded")).toBe(false);
     });
+
+    it("skips the fade when canFade says no, and fades once it says yes again", () => {
+        let scrollable = false;
+        const source = new EventTarget();
+        wireToolbarAutoHide(toolbar, [{ target: source, type: "scroll" }], fakeMediaQuery(true), 1000, () => scrollable);
+
+        vi.advanceTimersByTime(5000);
+        expect(toolbar.classList.contains("toolbar-faded")).toBe(false); // nothing to make room for
+
+        scrollable = true;
+        source.dispatchEvent(new Event("scroll"));
+        vi.advanceTimersByTime(1000);
+        expect(toolbar.classList.contains("toolbar-faded")).toBe(true);
+    });
+
+    it("a tap on the faded toolbar wakes it and never reaches a button underneath", () => {
+        toolbar.innerHTML = '<button id="open">Open</button>';
+        const button = document.getElementById("open")!;
+        const onOpen = vi.fn();
+        button.addEventListener("click", onOpen);
+        wireToolbarAutoHide(toolbar, [], fakeMediaQuery(true), 1000);
+        vi.advanceTimersByTime(1000);
+        expect(toolbar.classList.contains("toolbar-faded")).toBe(true);
+
+        button.click();
+        expect(onOpen).not.toHaveBeenCalled();
+        expect(toolbar.classList.contains("toolbar-faded")).toBe(false);
+
+        button.click(); // now visible — a normal tap
+        expect(onOpen).toHaveBeenCalledTimes(1);
+    });
+
+    it("a tap on the visible toolbar passes through and restarts the countdown", () => {
+        toolbar.innerHTML = '<button id="open">Open</button>';
+        const button = document.getElementById("open")!;
+        const onOpen = vi.fn();
+        button.addEventListener("click", onOpen);
+        wireToolbarAutoHide(toolbar, [], fakeMediaQuery(true), 1000);
+
+        vi.advanceTimersByTime(600);
+        button.click();
+        expect(onOpen).toHaveBeenCalledTimes(1);
+        vi.advanceTimersByTime(600); // 1200ms since wire-up, 600ms since the tap
+        expect(toolbar.classList.contains("toolbar-faded")).toBe(false);
+        vi.advanceTimersByTime(400);
+        expect(toolbar.classList.contains("toolbar-faded")).toBe(true);
+    });
+
+    it("a tap on the toolbar is inert on desktop — never swallowed, never fades", () => {
+        toolbar.innerHTML = '<button id="open">Open</button>';
+        const button = document.getElementById("open")!;
+        const onOpen = vi.fn();
+        button.addEventListener("click", onOpen);
+        wireToolbarAutoHide(toolbar, [], fakeMediaQuery(false), 1000);
+
+        button.click();
+        vi.advanceTimersByTime(5000);
+        expect(onOpen).toHaveBeenCalledTimes(1);
+        expect(toolbar.classList.contains("toolbar-faded")).toBe(false);
+    });
 });

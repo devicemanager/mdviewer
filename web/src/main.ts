@@ -410,7 +410,13 @@ function wireToolbar(
         if (window.visualViewport) {
             autoHideSources.push({ target: window.visualViewport, type: "resize" }, { target: window.visualViewport, type: "scroll" });
         }
-        wireToolbarAutoHide(toolbarEl, autoHideSources, window.matchMedia("(max-width: 768px)"));
+        wireToolbarAutoHide(
+            toolbarEl,
+            autoHideSources,
+            window.matchMedia("(max-width: 768px)"),
+            undefined,
+            () => mainEl.scrollHeight > mainEl.clientHeight,
+        );
     }
 
     attachToolbarHandlers(toolbarEl, {
