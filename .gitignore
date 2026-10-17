@@ -41,3 +41,6 @@ node_modules/
 /src-tauri/target/
 /src-tauri/gen/
 
+
+# Visual contrast audit output (web/visual/audit.visual.ts)
+web/visual-output/
