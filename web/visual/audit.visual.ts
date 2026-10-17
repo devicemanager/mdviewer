@@ -11,7 +11,10 @@
 // - every icon against its background, to 3:1 (non-text contrast);
 // - every interface control (toolbar, search, Preferences, file browser,
 //   dialogs) is on screen and not covered by something else;
-// - the document fits the window: nothing runs off the side of the screen.
+// - the document fits the window: nothing runs off the side of the screen;
+// - the Mermaid diagrams in docs/ (doc-diagrams state), including the
+//   colours they set themselves — web/test/docDiagrams.test.ts checks
+//   their outline colours, which pixels can't isolate.
 //
 // "The pixels actually behind it": each state is screenshotted with all
 // text (and button icons) made transparent, and the background colour of
@@ -25,8 +28,8 @@
 
 import { describe, it, expect, beforeAll, afterAll } from "vitest";
 import { createServer, type Server } from "node:http";
-import { readFile, mkdir, writeFile } from "node:fs/promises";
-import { resolve, extname } from "node:path";
+import { readFile, readdir, mkdir, writeFile } from "node:fs/promises";
+import { resolve, extname, join } from "node:path";
 import { webkit, type Browser, type Page } from "playwright";
 import { PNG } from "pngjs";
 import { themes, type MarkdownTheme } from "../src/markdownTheme.js";
@@ -35,6 +38,7 @@ import { parseCssColor, composite, contrastRatio, requiredRatio, dominantColor, 
 const WEB_ROOT = resolve(process.cwd(), "../MDViewer/Resources/Web");
 const OUTPUT = resolve(process.cwd(), "visual-output");
 const DOCUMENT = resolve(process.cwd(), "../test-all-elements.md");
+const DOCS = resolve(process.cwd(), "../docs");
 
 const VIEWPORTS = [
     { name: "phone", width: 440, height: 956 }, // iPhone 16 Pro Max, CSS px
@@ -50,7 +54,8 @@ type StateName =
     | "prefs-appearance"
     | "prefs-privacy"
     | "prefs-about"
-    | "file-browser";
+    | "file-browser"
+    | "doc-diagrams";
 
 const STATES: StateName[] = [
     "welcome",
@@ -62,6 +67,7 @@ const STATES: StateName[] = [
     "prefs-privacy",
     "prefs-about",
     "file-browser",
+    "doc-diagrams",
 ];
 
 // ---- Page-side measurement --------------------------------------------------
@@ -83,7 +89,7 @@ interface ControlProblem {
 }
 
 /** Runs in the page. Self-contained: Playwright serializes it. */
-function measure(): { items: Measured[]; controls: ControlProblem[] } {
+function measure(ownContent: boolean): { items: Measured[]; controls: ControlProblem[] } {
     const vw = window.innerWidth;
     const vh = window.innerHeight;
 
@@ -130,7 +136,9 @@ function measure(): { items: Measured[]; controls: ControlProblem[] } {
         if (isHidden(parent) || parent.closest(":disabled")) continue;
         // A colour the document's author chose inline is their content,
         // not the app's styling — not something CSS here should override.
-        if (parent.closest('#content [style*="color"]:not(pre, pre *)')) continue;
+        // Except in our own docs (the doc-diagrams state): those colours
+        // are ours, and must work in every theme.
+        if (!ownContent && parent.closest('#content [style*="color"]:not(pre, pre *)')) continue;
 
         const range = document.createRange();
         range.selectNodeContents(node);
@@ -267,9 +275,9 @@ async function wakeToolbar(page: Page): Promise<void> {
     });
 }
 
-async function auditView(page: Page, state: string, shotName: string): Promise<{ failures: Failure[]; advisory: number; measured: number }> {
+async function auditView(page: Page, state: string, shotName: string, ownContent = false): Promise<{ failures: Failure[]; advisory: number; measured: number }> {
     await wakeToolbar(page);
-    const { items, controls } = await page.evaluate(measure);
+    const { items, controls } = await page.evaluate(measure, ownContent);
     await page.screenshot({ path: resolve(OUTPUT, `${shotName}.png`) });
     await wakeToolbar(page);
     const hide = await page.addStyleTag({ content: HIDE_TEXT_CSS });
@@ -351,6 +359,8 @@ let server: Server;
 let baseUrl: string;
 let browser: Browser;
 let markdown: string;
+/** Every Mermaid diagram in docs/, as one document — our own content, so its colours are audited too. */
+let docDiagrams: string;
 const report: { theme: string; viewport: string; state: string; measured: number; advisory: number; failures: string[] }[] = [];
 
 const MIME: Record<string, string> = {
@@ -369,6 +379,10 @@ const MIME: Record<string, string> = {
 beforeAll(async () => {
     await mkdir(OUTPUT, { recursive: true });
     markdown = await readFile(DOCUMENT, "utf8");
+    const docFiles = (await readdir(DOCS, { recursive: true })).filter((f) => f.endsWith(".md")).sort();
+    const blocks: string[] = [];
+    for (const f of docFiles) blocks.push(...((await readFile(join(DOCS, f), "utf8")).match(/```mermaid\n[\s\S]*?```/g) ?? []));
+    docDiagrams = blocks.join("\n\n");
     server = createServer(async (req, res) => {
         const path = resolve(WEB_ROOT, "." + decodeURIComponent(new URL(req.url ?? "/", "http://x").pathname));
         if (!path.startsWith(WEB_ROOT)) {
@@ -424,11 +438,40 @@ async function openApp(theme: MarkdownTheme, viewport: (typeof VIEWPORTS)[number
     return { page, errors };
 }
 
-async function showDocument(page: Page): Promise<void> {
-    await page.evaluate((md) => (window as unknown as { MDViewer: { setContent(m: string): Promise<unknown> } }).MDViewer.setContent(md), markdown);
+async function showDocument(page: Page, md: string = markdown): Promise<void> {
+    await page.evaluate((m) => (window as unknown as { MDViewer: { setContent(m: string): Promise<unknown> } }).MDViewer.setContent(m), md);
     // Mermaid renders asynchronously after setContent resolves.
-    await page.waitForFunction(() => document.querySelectorAll("#content .mermaid svg").length > 0, undefined, { timeout: 15000 }).catch(() => {});
+    await page
+        .waitForFunction(
+            () => {
+                const blocks = document.querySelectorAll("#content .mermaid");
+                return blocks.length > 0 && [...blocks].every((b) => b.querySelector("svg"));
+            },
+            undefined,
+            { timeout: 15000 },
+        )
+        .catch(() => {});
     await page.waitForTimeout(300);
+}
+
+/** #main is the scroller; audits the whole document a screen at a time. */
+async function walkDocument(page: Page, state: string, shot: string, ownContent = false): Promise<{ failures: Failure[]; advisory: number; measured: number }> {
+    const all = { failures: [] as Failure[], advisory: 0, measured: 0 };
+    for (let step = 0; step < 40; step++) {
+        const r = await auditView(page, state, `${shot}-${String(step).padStart(2, "0")}`, ownContent);
+        all.failures.push(...r.failures);
+        all.advisory += r.advisory;
+        all.measured += r.measured;
+        const moved = await page.evaluate(() => {
+            const main = document.getElementById("main")!;
+            const before = main.scrollTop;
+            main.scrollTop = before + main.clientHeight * 0.8;
+            return main.scrollTop !== before;
+        });
+        if (!moved) break;
+        await page.waitForTimeout(100);
+    }
+    return all;
 }
 
 async function runState(page: Page, state: StateName, shot: string): Promise<{ failures: Failure[]; advisory: number; measured: number }> {
@@ -437,26 +480,12 @@ async function runState(page: Page, state: StateName, shot: string): Promise<{ f
         case "welcome":
         case "first-launch-dialog":
             return auditView(page, state, shot);
-        case "document": {
+        case "document":
             await showDocument(page);
-            // #main is the scroller; walk the whole document a screen at a time.
-            const all = { failures: [] as Failure[], advisory: 0, measured: 0 };
-            for (let step = 0; step < 40; step++) {
-                const r = await auditView(page, state, `${shot}-${String(step).padStart(2, "0")}`);
-                all.failures.push(...r.failures);
-                all.advisory += r.advisory;
-                all.measured += r.measured;
-                const moved = await page.evaluate(() => {
-                    const main = document.getElementById("main")!;
-                    const before = main.scrollTop;
-                    main.scrollTop = before + main.clientHeight * 0.8;
-                    return main.scrollTop !== before;
-                });
-                if (!moved) break;
-                await page.waitForTimeout(100);
-            }
-            return all;
-        }
+            return walkDocument(page, state, shot);
+        case "doc-diagrams":
+            await showDocument(page, docDiagrams);
+            return walkDocument(page, state, shot, true);
         case "search":
             await showDocument(page);
             await click('#toolbar [data-action="find"]');

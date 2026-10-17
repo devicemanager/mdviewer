@@ -73,14 +73,15 @@ Draw diagrams in Mermaid, in the house style used in [Architecture](architecture
 
   | Colour | Hex | Used for |
   |---|---|---|
-  | Blue | `#56a2e8` | web page / UI |
+  | Blue | `#2888e2` | web page / UI |
   | Green | `#63931f` | Rust core / view models |
-  | Red | `#ff8383` | OS and utilities |
-  | Orange | `#b86200` | storage and models |
-  | Purple | `#e498f7` | extensions and debug |
+  | Red | `#ff3030` | OS and utilities |
+  | Orange | `#cb6c00` | storage and models |
+  | Purple | `#ce44f0` | extensions and debug |
 
 - **Group boxes** are outlined only: `style <id> fill:none,stroke:<colour>`.
-- **Before committing**, render the diagram in a light and a dark theme.
+- **Don't set `color:`.** Text follows the theme; no single text colour is readable on all six theme backgrounds.
+- **The palette above is tuned to reach at least 3:1 on every theme's background.** `npm test` (`web/test/docDiagrams.test.ts`) checks every outline, fill and text colour in every diagram under `docs/`, and `npm run test:visual` measures the rendered diagrams' text in every theme.
 
 ## Common tasks
 

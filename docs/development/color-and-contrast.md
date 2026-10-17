@@ -108,6 +108,8 @@ Preferences tabs, file browser). It fails on:
 - any control that's off-screen or covered;
 - any JS error or failed load.
 
+It also renders every Mermaid diagram in `docs/` (the `doc-diagrams` state). There, colours the diagrams set themselves are measured too, because they're our content and must work in every theme. Outline colours can't be isolated from pixels, so `web/test/docDiagrams.test.ts` (part of `npm test`) checks every `stroke`, `fill`, `color` and `box` colour in those diagrams against each theme's `--bg-color` and `--text-color`. The house palette for diagrams is in [Contributing](contributing.md#diagrams).
+
 Screenshots of every state land in `web/visual-output/` for a human look.
 Run it after **any** CSS, theme or Mermaid/Shiki change.
 

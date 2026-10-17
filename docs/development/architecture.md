@@ -58,18 +58,18 @@ flowchart LR
     cmds --> disk
     cmds <--> os
 
-    classDef web fill:#56a2e826,stroke:#56a2e8,stroke-width:2px
+    classDef web fill:#2888e226,stroke:#2888e2,stroke-width:2px
     classDef core fill:#63931f26,stroke:#63931f,stroke-width:2px
-    classDef ext fill:#ff838326,stroke:#ff8383,stroke-width:2px
-    classDef store fill:#b8620026,stroke:#b86200,stroke-width:2px
-    classDef debug fill:#e498f726,stroke:#e498f7,stroke-width:2px
+    classDef ext fill:#ff303026,stroke:#ff3030,stroke-width:2px
+    classDef store fill:#cb6c0026,stroke:#cb6c00,stroke-width:2px
+    classDef debug fill:#ce44f026,stroke:#ce44f0,stroke-width:2px
     class shell,api,pipeline,styles web
     class cmds,scheme,watcher,grants core
     class state,disk store
     class os ext
     class dbg debug
-    style rust fill:none,stroke:#63931f,color:#63931f,stroke-width:2px
-    style page fill:none,stroke:#56a2e8,color:#56a2e8,stroke-width:2px
+    style rust fill:none,stroke:#63931f,stroke-width:2px
+    style page fill:none,stroke:#2888e2,stroke-width:2px
 ```
 
 The whole interface (toolbar, file browser, Preferences, search and the document) is one web page, so the TypeScript modules call `window.MDViewer` as plain functions. Rust only does what needs the OS: files, pickers, folder permissions, file watching and opening links.
@@ -120,14 +120,14 @@ config:
 ---
 sequenceDiagram
     actor User
-    box rgba(86, 162, 232, 0.15) System webview
+    box rgba(40, 136, 226, 0.15) System webview
         participant Page as app.html (toolbar.ts)
         participant API as window.MDViewer
     end
     box rgba(99, 147, 31, 0.15) Rust core
         participant Rust as lib.rs
     end
-    box rgba(255, 131, 131, 0.15) OS
+    box rgba(255, 48, 48, 0.15) OS
         participant OS as OS file picker
     end
 
@@ -216,22 +216,22 @@ flowchart LR
     web -->|"bundle files,<br/>images"| scheme
     ql -.-> web
 
-    classDef web fill:#56a2e826,stroke:#56a2e8,stroke-width:2px
+    classDef web fill:#2888e226,stroke:#2888e2,stroke-width:2px
     classDef core fill:#63931f26,stroke:#63931f,stroke-width:2px
-    classDef ext fill:#ff838326,stroke:#ff8383,stroke-width:2px
-    classDef store fill:#b8620026,stroke:#b86200,stroke-width:2px
-    classDef debug fill:#e498f726,stroke:#e498f7,stroke-width:2px
+    classDef ext fill:#ff303026,stroke:#ff3030,stroke-width:2px
+    classDef store fill:#cb6c0026,stroke:#cb6c00,stroke-width:2px
+    classDef debug fill:#ce44f026,stroke:#ce44f0,stroke-width:2px
     class content,sidebar,toolbar,editor,renderView,prefs,entry web
     class docVM,sideVM,renderVM,exportVM core
     class mdDoc,tocItem,theme,disk store
     class watcher,bookmarks,scheme ext
     class api,pipeline,styles web
     class ql debug
-    style views fill:none,stroke:#56a2e8,color:#56a2e8,stroke-width:2px
-    style vms fill:none,stroke:#63931f,color:#63931f,stroke-width:2px
-    style models fill:none,stroke:#b86200,color:#b86200,stroke-width:2px
-    style utils fill:none,stroke:#ff8383,color:#ff8383,stroke-width:2px
-    style web fill:none,stroke:#56a2e8,color:#56a2e8,stroke-width:2px
+    style views fill:none,stroke:#2888e2,stroke-width:2px
+    style vms fill:none,stroke:#63931f,stroke-width:2px
+    style models fill:none,stroke:#cb6c00,stroke-width:2px
+    style utils fill:none,stroke:#ff3030,stroke-width:2px
+    style web fill:none,stroke:#2888e2,stroke-width:2px
 ```
 
 Thin arrows show which layer uses which. The heavy arrow is the Swift ↔ JavaScript bridge: `RenderViewModel` calls into `window.MDViewer`, and the page answers with script messages that `WebRendererView` receives. The renderer never loads `file://` URLs. Everything, bundled libraries included, comes through `LocalSchemeHandler`, which serves images only from the open document's folder.
