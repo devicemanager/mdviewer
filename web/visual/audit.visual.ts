@@ -55,7 +55,8 @@ type StateName =
     | "prefs-privacy"
     | "prefs-about"
     | "file-browser"
-    | "doc-diagrams";
+    | "doc-diagrams"
+    | "theme-switch";
 
 const STATES: StateName[] = [
     "welcome",
@@ -68,6 +69,7 @@ const STATES: StateName[] = [
     "prefs-about",
     "file-browser",
     "doc-diagrams",
+    "theme-switch",
 ];
 
 // ---- Page-side measurement --------------------------------------------------
@@ -474,7 +476,7 @@ async function walkDocument(page: Page, state: string, shot: string, ownContent 
     return all;
 }
 
-async function runState(page: Page, state: StateName, shot: string): Promise<{ failures: Failure[]; advisory: number; measured: number }> {
+async function runState(page: Page, state: StateName, shot: string, theme: MarkdownTheme): Promise<{ failures: Failure[]; advisory: number; measured: number }> {
     const click = (sel: string) => page.locator(sel).first().click();
     switch (state) {
         case "welcome":
@@ -486,6 +488,21 @@ async function runState(page: Page, state: StateName, shot: string): Promise<{ f
         case "doc-diagrams":
             await showDocument(page, docDiagrams);
             return walkDocument(page, state, shot, true);
+        case "theme-switch": {
+            // Draw the diagrams in the opposite kind of theme, then switch
+            // to this one, as a person does in Preferences: everything on
+            // screen must follow (2026-10-17: diagrams kept the old theme's
+            // colours, white labels on light boxes after dark → light).
+            const setTheme = (css: string) =>
+                page.evaluate((c) => (window as unknown as { MDViewer: { setTheme(t: string): void } }).MDViewer.setTheme(c), css);
+            await setTheme(theme.isDark ? "github-light" : "dracula");
+            await showDocument(page, docDiagrams);
+            await setTheme(theme.cssFileName);
+            await page.waitForTimeout(300); // the redraw starts asynchronously
+            await page.waitForFunction(() => [...document.querySelectorAll("#content .mermaid")].every((b) => b.querySelector("svg")), undefined, { timeout: 15000 });
+            await page.waitForTimeout(300);
+            return walkDocument(page, state, shot, true);
+        }
         case "search":
             await showDocument(page);
             await click('#toolbar [data-action="find"]');
@@ -517,7 +534,7 @@ for (const viewport of VIEWPORTS) {
                     const { page, errors } = await openApp(theme, viewport, state === "first-launch-dialog");
                     try {
                         const shot = `${viewport.name}-${theme.id}-${state}`;
-                        const result = await runState(page, state, shot);
+                        const result = await runState(page, state, shot, theme);
                         const lines = summarize(result.failures);
                         report.push({ theme: theme.id, viewport: viewport.name, state, measured: result.measured, advisory: result.advisory, failures: lines });
                         expect(result.measured, "measured nothing — the state didn't render").toBeGreaterThan(0);
