@@ -19,6 +19,11 @@ The Swift tree (`MDViewer/`) is the reference implementation and is not modified
 ### Overview
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  fontFamily: "Comic Sans MS, Chalkboard SE, Segoe Print, cursive"
+---
 flowchart LR
     subgraph rust["Rust core · src-tauri"]
         direction LR
@@ -52,6 +57,19 @@ flowchart LR
     scheme --> disk
     cmds --> disk
     cmds <--> os
+
+    classDef web fill:#56a2e826,stroke:#56a2e8,stroke-width:2px
+    classDef core fill:#63931f26,stroke:#63931f,stroke-width:2px
+    classDef ext fill:#ff838326,stroke:#ff8383,stroke-width:2px
+    classDef store fill:#b8620026,stroke:#b86200,stroke-width:2px
+    classDef debug fill:#e498f726,stroke:#e498f7,stroke-width:2px
+    class shell,api,pipeline,styles web
+    class cmds,scheme,watcher,grants core
+    class state,disk store
+    class os ext
+    class dbg debug
+    style rust fill:none,stroke:#63931f,color:#63931f,stroke-width:2px
+    style page fill:none,stroke:#56a2e8,color:#56a2e8,stroke-width:2px
 ```
 
 The whole interface (toolbar, file browser, Preferences, search and the document) is one web page, so the TypeScript modules call `window.MDViewer` as plain functions. Rust only does what needs the OS: files, pickers, folder permissions, file watching and opening links.
@@ -95,12 +113,23 @@ The `web/src` modules, grouped:
 ### Opening a document
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  fontFamily: "Comic Sans MS, Chalkboard SE, Segoe Print, cursive"
+---
 sequenceDiagram
     actor User
-    participant Page as app.html (toolbar.ts)
-    participant Rust as lib.rs
-    participant OS as OS file picker
-    participant API as window.MDViewer
+    box rgba(86, 162, 232, 0.15) System webview
+        participant Page as app.html (toolbar.ts)
+        participant API as window.MDViewer
+    end
+    box rgba(99, 147, 31, 0.15) Rust core
+        participant Rust as lib.rs
+    end
+    box rgba(255, 131, 131, 0.15) OS
+        participant OS as OS file picker
+    end
 
     User->>Page: taps Open
     Page->>Rust: invoke("open_document_command")
@@ -130,6 +159,11 @@ Deliberate, or not ported yet. `plan.md` tracks each one.
 ## Swift app (reference implementation)
 
 ```mermaid
+---
+config:
+  look: handDrawn
+  fontFamily: "Comic Sans MS, Chalkboard SE, Segoe Print, cursive"
+---
 flowchart LR
     entry["MDViewerApp<br/>AppDelegate<br/><i>window, menus,<br/>open-file events</i>"]
 
@@ -181,6 +215,23 @@ flowchart LR
     renderVM <==>|"evaluateJavaScript ⇄<br/>script messages"| api
     web -->|"bundle files,<br/>images"| scheme
     ql -.-> web
+
+    classDef web fill:#56a2e826,stroke:#56a2e8,stroke-width:2px
+    classDef core fill:#63931f26,stroke:#63931f,stroke-width:2px
+    classDef ext fill:#ff838326,stroke:#ff8383,stroke-width:2px
+    classDef store fill:#b8620026,stroke:#b86200,stroke-width:2px
+    classDef debug fill:#e498f726,stroke:#e498f7,stroke-width:2px
+    class content,sidebar,toolbar,editor,renderView,prefs,entry web
+    class docVM,sideVM,renderVM,exportVM core
+    class mdDoc,tocItem,theme,disk store
+    class watcher,bookmarks,scheme ext
+    class api,pipeline,styles web
+    class ql debug
+    style views fill:none,stroke:#56a2e8,color:#56a2e8,stroke-width:2px
+    style vms fill:none,stroke:#63931f,color:#63931f,stroke-width:2px
+    style models fill:none,stroke:#b86200,color:#b86200,stroke-width:2px
+    style utils fill:none,stroke:#ff8383,color:#ff8383,stroke-width:2px
+    style web fill:none,stroke:#56a2e8,color:#56a2e8,stroke-width:2px
 ```
 
 Thin arrows show which layer uses which. The heavy arrow is the Swift ↔ JavaScript bridge: `RenderViewModel` calls into `window.MDViewer`, and the page answers with script messages that `WebRendererView` receives. The renderer never loads `file://` URLs. Everything, bundled libraries included, comes through `LocalSchemeHandler`, which serves images only from the open document's folder.

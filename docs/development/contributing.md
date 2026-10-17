@@ -65,6 +65,23 @@ Where things are recorded:
 | `docs/development/*` | How the code works and how to build it; update when structure or setup changes |
 | `docs/user-guide/*` | Features and keyboard shortcuts, for users |
 
+### Diagrams
+
+Draw diagrams in Mermaid, in the house style used in [Architecture](architecture.md):
+- **Header:** start each diagram with `look: handDrawn` and the handwriting `fontFamily`. Don't set `theme`/`themeVariables`, so the diagram follows light and dark mode by itself.
+- **Colours** are outlines with a translucent fill of the same colour (`fill:#RRGGBB26`):
+
+  | Colour | Hex | Used for |
+  |---|---|---|
+  | Blue | `#56a2e8` | web page / UI |
+  | Green | `#63931f` | Rust core / view models |
+  | Red | `#ff8383` | OS and utilities |
+  | Orange | `#b86200` | storage and models |
+  | Purple | `#e498f7` | extensions and debug |
+
+- **Group boxes** are outlined only: `style <id> fill:none,stroke:<colour>`.
+- **Before committing**, render the diagram in a light and a dark theme.
+
 ## Common tasks
 
 ### Adding or changing a theme
