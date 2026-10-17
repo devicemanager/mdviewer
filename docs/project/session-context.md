@@ -44,6 +44,16 @@ processes the build next and may still email ITMS issues.
    About text's `THIRD_PARTY_NOTICES.md` link working, since the local docs
    restructure moved both.
 
+**Contrast pass (later the same day):** after TestFlight feedback that parts
+of the UI were hard to see on the phone, `npm run test:visual` (web/) now
+audits every theme × phone/desktop × UI state in WebKit against WCAG 2.2 AA;
+all failures it found are fixed (108/108), including three theme stylesheets
+that never existed. DOMPurify/KaTeX bumped for new advisories. Build number
+is now 2 (`tauri.conf.json`); **build 2 is not uploaded yet**. Build 1 in App
+Store Connect has the old CSS and libraries. Guidance:
+`docs/development/color-and-contrast.md`. Run the visual audit after any CSS
+change.
+
 **Flagged, not fixed:** remote images never load in the port (static CSP
 vs. Swift's dynamic one), so "Always load" in Preferences → Privacy does
 nothing. Privacy-safe but a parity gap; fixing it relaxes the CSP, so it
