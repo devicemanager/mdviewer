@@ -91,3 +91,28 @@ export function runMermaidDiagrams(mermaid: MermaidLike): void {
         console.warn("Mermaid render error:", e);
     }
 }
+
+/**
+ * Keeps each diagram's source on its element (`data-mermaid-source`) before
+ * Mermaid replaces the text with an SVG, so a theme change can redraw it.
+ * Not in mdviewer.js: there (and in the Swift app) a theme change only
+ * re-initializes Mermaid, so diagrams already on screen kept the old
+ * theme's colours — white labels on light boxes after switching from a
+ * dark theme to a light one (found on the iOS Simulator, 2026-10-17).
+ */
+export function rememberMermaidSources(root: ParentNode): void {
+    for (const el of root.querySelectorAll<HTMLElement>(".mermaid")) {
+        if (el.dataset.mermaidSource === undefined) el.dataset.mermaidSource = el.textContent ?? "";
+    }
+}
+
+/** Redraws the diagrams under `root` with the current `initialize()` settings (see rememberMermaidSources). */
+export function rerenderMermaidDiagrams(mermaid: MermaidLike, root: ParentNode): void {
+    const diagrams = [...root.querySelectorAll<HTMLElement>(".mermaid[data-mermaid-source]")];
+    if (diagrams.length === 0) return;
+    for (const el of diagrams) {
+        el.textContent = el.dataset.mermaidSource ?? "";
+        el.removeAttribute("data-processed"); // Mermaid skips elements it has marked as done
+    }
+    runMermaidDiagrams(mermaid);
+}

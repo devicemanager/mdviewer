@@ -36,7 +36,7 @@ import { sanitizeHtml, type DOMPurifyLike } from "./sanitize.js";
 import { resolveEmoji } from "./emoji.js";
 import { gateRemoteResourcesInHTML, loadRemoteResources as restoreRemoteResources, type RemoteContentPolicy } from "./remote.js";
 import { rewriteLocalResources } from "./localResources.js";
-import { initializeMermaid, runMermaidDiagrams, type MermaidLike } from "./mermaid.js";
+import { initializeMermaid, runMermaidDiagrams, rememberMermaidSources, rerenderMermaidDiagrams, type MermaidLike } from "./mermaid.js";
 import { themes } from "./markdownTheme.js";
 
 /**
@@ -152,6 +152,7 @@ export function createMDViewerApi(deps: MDViewerDependencies): MDViewerApi {
             if (contentEl) {
                 contentEl.innerHTML = gated.html;
                 rewriteLocalResources(contentEl, localBaseURL ?? null);
+                rememberMermaidSources(contentEl);
                 runMermaidDiagrams(deps.mermaid);
             }
 
@@ -171,6 +172,9 @@ export function createMDViewerApi(deps: MDViewerDependencies): MDViewerApi {
             const isDark = themes.find((t) => t.cssFileName === themeName)?.isDark ?? themeName.includes("dark");
             document.body.classList.toggle("dark-theme", isDark);
             initializeMermaid(deps.mermaid, isDark);
+            // Diagrams already on screen were drawn in the old theme's colours.
+            const contentEl = document.getElementById("content");
+            if (contentEl) rerenderMermaidDiagrams(deps.mermaid, contentEl);
         },
 
         setFontSize(size: number): void {

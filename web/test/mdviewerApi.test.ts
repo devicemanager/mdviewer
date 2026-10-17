@@ -150,6 +150,40 @@ describe("createMDViewerApi().setTheme", () => {
         expect(document.body.classList.contains("dark-theme")).toBe(false);
     });
 
+    it("redraws diagrams already on screen, from their source, in the new theme", async () => {
+        // A stand-in for Mermaid: records what each run saw, then replaces
+        // the source with a drawing and marks it done, as the real one does.
+        const seen: string[] = [];
+        const mermaid: MermaidLike = {
+            initialize: vi.fn(),
+            run: vi.fn(() => {
+                for (const el of document.querySelectorAll<HTMLElement>(".mermaid")) {
+                    seen.push(el.textContent ?? "");
+                    el.innerHTML = "<svg>drawn</svg>";
+                    el.setAttribute("data-processed", "true");
+                }
+                return Promise.resolve();
+            }),
+        };
+        const api = createMDViewerApi(deps({ mermaid }));
+        await api.setContent("```mermaid\ngraph LR\n  A --> B\n```");
+        expect(seen).toEqual(["graph LR\n  A --> B"]);
+
+        api.setTheme("solarized-light");
+        expect(mermaid.run).toHaveBeenCalledTimes(2);
+        expect(seen[1]).toBe("graph LR\n  A --> B");
+        expect(document.querySelector(".mermaid")!.hasAttribute("data-processed")).toBe(true);
+        const last = (f: unknown) => Math.max(...(f as ReturnType<typeof vi.fn>).mock.invocationCallOrder);
+        expect(last(mermaid.initialize)).toBeLessThan(last(mermaid.run)); // redrawn with the new settings
+    });
+
+    it("doesn't run mermaid on a theme change when there are no diagrams", () => {
+        const mermaid = mockMermaid();
+        const api = createMDViewerApi(deps({ mermaid }));
+        api.setTheme("dracula");
+        expect(mermaid.run).not.toHaveBeenCalled();
+    });
+
     it("re-initializes mermaid with the matching theme", () => {
         const mermaid = mockMermaid();
         const api = createMDViewerApi(deps({ mermaid }));

@@ -301,6 +301,20 @@
       console.warn("Mermaid render error:", e);
     }
   }
+  function rememberMermaidSources(root) {
+    for (const el of root.querySelectorAll(".mermaid")) {
+      if (el.dataset.mermaidSource === void 0) el.dataset.mermaidSource = el.textContent ?? "";
+    }
+  }
+  function rerenderMermaidDiagrams(mermaid, root) {
+    const diagrams = [...root.querySelectorAll(".mermaid[data-mermaid-source]")];
+    if (diagrams.length === 0) return;
+    for (const el of diagrams) {
+      el.textContent = el.dataset.mermaidSource ?? "";
+      el.removeAttribute("data-processed");
+    }
+    runMermaidDiagrams(mermaid);
+  }
 
   // src/markdownTheme.ts
   var pdfPageSizes = {
@@ -370,6 +384,7 @@
         if (contentEl) {
           contentEl.innerHTML = gated.html;
           rewriteLocalResources(contentEl, localBaseURL ?? null);
+          rememberMermaidSources(contentEl);
           runMermaidDiagrams(deps.mermaid);
         }
         return { headings, blockedRemoteCount: gated.blockedCount };
@@ -382,6 +397,8 @@
         const isDark = themes.find((t) => t.cssFileName === themeName)?.isDark ?? themeName.includes("dark");
         document.body.classList.toggle("dark-theme", isDark);
         initializeMermaid(deps.mermaid, isDark);
+        const contentEl = document.getElementById("content");
+        if (contentEl) rerenderMermaidDiagrams(deps.mermaid, contentEl);
       },
       setFontSize(size) {
         document.documentElement.style.setProperty("--font-size", `${size}px`);

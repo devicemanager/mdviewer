@@ -3075,6 +3075,15 @@ port works everywhere.
     hyphens in anchors; the Swift/JS original can.
   - `resolveEmoji` (`web/src/emoji.ts`) accepts shortcodes starting with
     `+`/`-` (e.g. `:+1:`); the original's regex silently drops them.
+  - `setTheme` (`web/src/mdviewerApi.ts`) redraws Mermaid diagrams already
+    on screen (2026-10-17). The Swift app and the original `mdviewer.js`
+    only re-initialize Mermaid, so after switching from a dark theme to a
+    light one the diagrams kept white labels on light boxes, unreadable.
+    Found on the iOS Simulator after a TestFlight report; covered by
+    `mdviewerApi.test.ts` and the visual audit's `theme-switch` state.
+  - Mermaid's dark theme gets contrast overrides (`DARK_THEME_VARIABLES`
+    in `web/src/mermaid.ts`) and the themes share a token contract — see
+    `docs/development/color-and-contrast.md`.
 - Swift test coverage (`MDViewerTests`) is known to be thin. Likely moot if
   the Swift app is retired once the Tauri port ships everywhere — revisit
   scope when Phase 2 starts rather than backfilling now.
