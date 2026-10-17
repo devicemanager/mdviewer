@@ -14,8 +14,8 @@ replaces, two other files:
 
 ## Where things stand right now
 
-`HEAD` is `5998aa9`, this doc update landing right after. Working tree
-clean. **89 Rust tests, 219 web tests, `tsc --noEmit` clean**, all green.
+`HEAD` is `93acd6b`, this doc update landing right after. Working tree
+clean. **94 Rust tests, 227 web tests, `tsc --noEmit` clean**, all green.
 
 1. **Toolbar-fade dead-tap bug fixed** (`14bff30`). The 2026-10-07 session
    flagged it with two fix options; the user chose both: no fade when
@@ -31,21 +31,29 @@ clean. **89 Rust tests, 219 web tests, `tsc --noEmit` clean**, all green.
    build ran end to end (startup restore, Shiki/KaTeX/Mermaid, browser).
    The export step still needs the zip-the-`Payload` workaround.
 
-3. **Unchanged from last session**: the real-device crash report is still
-   undiagnosed (no crash log ever captured), and the phone was unreachable
-   again (`idevice_id -l` → none).
+3. **USB debugging is not available — confirmed by the user, and they
+   want to keep developing over OTA.** So the app now writes its own log
+   (`4bd5f18`, `93acd6b`): `Documents/mdviewer-debug.log`, visible in
+   Files → On My iPhone → MDViewer, with startup breadcrumbs, Rust panics
+   and forwarded JS errors. Verified on the simulator, including a
+   deliberate panic and JS error (temporary, removed before commit).
+
+4. **A diagnostic OTA build is live** (debug archive at `93acd6b`,
+   md5-verified through the tunnel). Its instructions say to install
+   *over* the existing app, not delete first, so any state that triggers
+   the crash survives. Waiting on the user to install it and send back
+   `mdviewer-debug.log` plus any `MDViewer-*.ips` from Analytics Data.
 
 ## What's next
 
-- **Get the device crash log** (USB + unlock → `idevicecrashreport`, or on
-  the phone: Settings → Privacy & Security → Analytics → Analytics Data →
-  MDViewer). Still the only true blocker on the reported crash.
-- **Decide whether the next OTA build is release.** It now can be — and a
-  release build is a cheap experiment on the crash report (debug vs.
-  release differ in exactly the swift-rs/optimizer area just fixed).
-  Serving it over OTA is outward-facing, so it waits for the user. Delete
-  the app before installing: version is still `0.1.0`, so an upgrade
-  install won't re-show the first-launch prompt.
+- **Read what the user sends back** from the diagnostic build: the last
+  line of `mdviewer-debug.log` before a crash says which startup step it
+  died in; an `.ips` names the faulting thread/frame for native crashes.
+  If the app *doesn't* crash with this build, that's information too
+  (the old one was built before the Tauri 2.12.4 bump).
+- **Release build over OTA** is now possible and a cheap next experiment
+  if debug keeps crashing (debug vs. release differ in exactly the
+  swift-rs/optimizer area just fixed).
 - **Real-device pass of the grant flow** + §2b's `read_dir` spike (code
   kept for it) — needs the phone.
 - **Noticed, pre-existing, not fixed**: the file browser offers

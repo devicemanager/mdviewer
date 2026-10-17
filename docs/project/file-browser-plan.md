@@ -8,9 +8,10 @@ assumes Claude-specific state beyond one pointer noted below.
 why); this file is only *what's left*, plus the context needed to not
 re-learn it the hard way.
 
-**You are here:** `HEAD` is `5998aa9` (2026-10-17) — the toolbar-fade fix
-(`14bff30`) and the Tauri 2.12.4 bump that unblocks iOS release builds, with
-this doc's update landing right after. Everything before
+**You are here:** `HEAD` is `93acd6b` (2026-10-17) — the toolbar-fade fix
+(`14bff30`), the Tauri 2.12.4 bump that unblocks iOS release builds
+(`5998aa9`), and the out-of-band debug log (`4bd5f18`, `93acd6b`), with this
+doc's update landing right after. Everything before
 `822a617` (2026-09-13) predates a `git filter-repo` history rewrite that
 moved the OTA tooling out of this repo — don't compare against hashes
 recorded earlier than that note. Working tree is clean —
@@ -58,7 +59,7 @@ pointer in this document; nothing else here depends on it.
 | Phase 5 (`diffFolderEntries` + skip-render-when-unchanged) | Done, verified on Android emulator |
 | Phase 6 (toolbar reorg, TOC sidebar dropped entirely) | Done, verified on Android emulator at phone and desktop widths |
 
-Test counts: **89** Rust, **219** web. All green (re-run 2026-10-17; web +4 from the toolbar-fade fix). (Web count dropped from
+Test counts: **94** Rust, **227** web. All green (re-run 2026-10-17: +4 web toolbar fade, +5 Rust/+8 web debug log). (Web count dropped from
 224 — Phase 6 deleted `sidebar.ts`'s 12 tests along with the feature; no
 other regressions. The Rust count rose 83 → 89 with the 6
 grant-fallback/ancestor tests that pin the fix below.)
@@ -379,7 +380,7 @@ here" note at the top refers to):
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 cd src-tauri && cargo test --offline   # expect 89 passed
-cd ../web && npx tsc --noEmit && npx vitest run   # expect 219 passed
+cd ../web && npx tsc --noEmit && npx vitest run   # expect 227 passed
 ```
 
 **Build environment**
@@ -431,6 +432,16 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home 
   `tauri ios build` (release) still fails at its *export* step
   (`requires a provisioning profile`); zip the archive's `Payload` as
   above.
+- **Reading device logs without USB** (2026-10-17): every iOS build writes
+  `Documents/mdviewer-debug.log` (see `debug_log.rs`) — on the phone, Files
+  → On My iPhone → MDViewer → mdviewer-debug → Share/AirDrop. On the
+  simulator: `$(xcrun simctl get_app_container <udid>
+  org.devicemanager.mdviewer data)/Documents/mdviewer-debug.log`. Timestamps
+  are UTC. Native crashes: the phone's own `.ips` under Settings → Privacy &
+  Security → Analytics & Improvements → Analytics Data. To exercise a code
+  path that's hard to reach, a temporary env-gated trigger plus
+  `SIMCTL_CHILD_<VAR>=1 xcrun simctl launch …` works; remove it before
+  committing.
 - iOS build sometimes needs stale `gen/apple/build/**/MDViewer.app` removed
   first ("Directory not empty").
 - OTA: Caddy (now outside this repo, see the note near the top of this

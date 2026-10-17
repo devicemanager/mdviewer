@@ -2963,6 +2963,28 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
     zip-the-`Payload` workaround applies unchanged. No release IPA has
     been served over OTA yet; that's an outward-facing step left for
     the user.
+  - **Out-of-band debug log for OTA-only debugging (2026-10-17,
+    `4bd5f18` + `93acd6b`)** — the user confirmed USB debugging isn't
+    available, so crash/console logs need another route. iOS-only
+    `debug_log.rs` writes `Documents/mdviewer-debug.log`: UTC-timestamped
+    startup breadcrumbs fsync'd per line (the last line shows how far a
+    crashing launch got), a panic hook with location + backtrace, and
+    previously discarded startup errors; `errorForwarding.ts` forwards
+    uncaught JS errors/rejections into the same file via a new
+    `log_frontend_error` command. `UIFileSharingEnabled`
+    (configure-ios-project.sh section 5) puts the folder in Files → On My
+    iPhone → MDViewer, so the log is AirDroppable off the phone.
+    **Verified on the simulator** by running it: full startup trace
+    written; folder and file visible in the Files app; a temporary
+    env-triggered Rust panic and a temporary JS error + rejection (built,
+    run, removed from source before committing) all landed in the log.
+    Shipped over OTA the same day (debug archive at `93acd6b`,
+    md5-verified through the tunnel) with "install over, don't delete"
+    instructions so any crash-triggering state survives. The native
+    crash itself still needs iOS's own `.ips` (Settings → Privacy &
+    Security → Analytics & Improvements → Analytics Data → Share) — the
+    log complements it. Decide before any App Store build whether the
+    log stays (it writes file paths into a user-visible folder).
 - [ ] Manual smoke test of the golden path and edge cases on each of the 5
       platforms before calling it done, per the working agreement
 - [ ] Re-verify all security invariants per platform (custom scheme, CSP,
