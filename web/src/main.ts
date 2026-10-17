@@ -454,6 +454,10 @@ function wireToolbar(
  * trailing slash can't produce a second cache entry for one real folder. */
 interface DirListing {
     path: string;
+    /** The parent folder, only when it's browsable too — `null` at the top
+     * of a grant or of an ungranted document's folder, which hides the
+     * "up one level" row instead of offering a dead end (2026-10-17). */
+    parent: string | null;
     entries: { name: string; is_dir: boolean }[];
 }
 
@@ -521,6 +525,10 @@ function wireFileBrowser(): { toggle: () => void; openTo: (path: string | null) 
     // successful listing — which is also the "no document open yet, and no
     // folder granted" "case, since there is nothing to browse from.
     let currentPath: string | undefined;
+    // Where the "up one level" row currently on screen leads — set at every
+    // render that shows one, so tapping it always does what it displays.
+    // `null` when no row is shown (see DirListing.parent).
+    let upTarget: string | null = null;
 
     async function show(path: string | null): Promise<void> {
         // A cached hit renders first so the drawer is never blank while the
@@ -534,10 +542,15 @@ function wireFileBrowser(): { toggle: () => void; openTo: (path: string | null) 
         // blank on its very first open, the one open guaranteed to take
         // this branch. Caught on the emulator: correct data, nothing drawn.
         const cached = path === null ? undefined : loadCachedFolder(path);
+        // Only a guess until Rust answers (string arithmetic can't know
+        // whether the parent is browsable) — compared below so a wrong
+        // guess gets corrected even when the entries are unchanged.
+        const guessedParent = path === null ? null : parentPath(path);
+        upTarget = guessedParent;
         renderFileBrowser(browserEl!, {
             kind: cached ? "loaded" : "loading",
             path: path ?? "",
-            parentPath: path === null ? null : parentPath(path),
+            parentPath: guessedParent,
             ...(cached ? { entries: cached } : {}),
         } as Parameters<typeof renderFileBrowser>[1]);
 
@@ -545,6 +558,7 @@ function wireFileBrowser(): { toggle: () => void; openTo: (path: string | null) 
             const listing = (await window.__TAURI__.core.invoke("list_directory", { path })) as DirListing;
             const entries = toEntries(listing);
             currentPath = listing.path;
+            upTarget = listing.parent;
             storeCachedFolder(listing.path, entries);
             // Phase 5: `cached` (captured above, before this call) is what
             // was already on screen — either from a cache hit, or nothing
@@ -556,11 +570,11 @@ function wireFileBrowser(): { toggle: () => void; openTo: (path: string | null) 
             // ever shown, or the pre-fetch state was "loading"/an error, and
             // either way there's nothing already-correct on screen to leave
             // alone.
-            if (cached === undefined || diffFolderEntries(cached, entries)) {
+            if (cached === undefined || diffFolderEntries(cached, entries) || guessedParent !== listing.parent) {
                 renderFileBrowser(browserEl!, {
                     kind: "loaded",
                     path: listing.path,
-                    parentPath: parentPath(listing.path),
+                    parentPath: listing.parent,
                     entries,
                 });
             }
@@ -580,6 +594,7 @@ function wireFileBrowser(): { toggle: () => void; openTo: (path: string | null) 
                 // where /data/local/tmp is readable by the shell but not by
                 // the app, and the resulting permission_denied was being
                 // shown as the first-run message.
+                upTarget = null;
                 if (message.includes("not_found:")) {
                     renderFileBrowser(browserEl!, { kind: "no-document" });
                 } else {
@@ -591,10 +606,13 @@ function wireFileBrowser(): { toggle: () => void; openTo: (path: string | null) 
                     });
                 }
             } else {
+                // Usually the folder this was navigated from — browsable,
+                // since its listing is how the user got here.
+                upTarget = parentPath(path);
                 renderFileBrowser(browserEl!, {
                     kind: "error",
                     path,
-                    parentPath: parentPath(path),
+                    parentPath: upTarget,
                     message,
                 });
             }
@@ -618,9 +636,7 @@ function wireFileBrowser(): { toggle: () => void; openTo: (path: string | null) 
             void show(joinPath(currentPath, name));
         },
         onUp: () => {
-            if (!currentPath) return;
-            const parent = parentPath(currentPath);
-            if (parent) void show(parent);
+            if (upTarget) void show(upTarget);
         },
     });
 

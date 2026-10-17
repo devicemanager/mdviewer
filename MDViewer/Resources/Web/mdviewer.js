@@ -1320,30 +1320,35 @@ https://github.com/devicemanager/mdviewer/blob/main/THIRD_PARTY_NOTICES.md`;
     const backdropEl = document.getElementById("file-browser-backdrop");
     browserEl.hidden = false;
     let currentPath;
+    let upTarget = null;
     async function show(path) {
       const cached = path === null ? void 0 : loadCachedFolder(path);
+      const guessedParent = path === null ? null : parentPath(path);
+      upTarget = guessedParent;
       renderFileBrowser(browserEl, {
         kind: cached ? "loaded" : "loading",
         path: path ?? "",
-        parentPath: path === null ? null : parentPath(path),
+        parentPath: guessedParent,
         ...cached ? { entries: cached } : {}
       });
       try {
         const listing = await window.__TAURI__.core.invoke("list_directory", { path });
         const entries = toEntries(listing);
         currentPath = listing.path;
+        upTarget = listing.parent;
         storeCachedFolder(listing.path, entries);
-        if (cached === void 0 || diffFolderEntries(cached, entries)) {
+        if (cached === void 0 || diffFolderEntries(cached, entries) || guessedParent !== listing.parent) {
           renderFileBrowser(browserEl, {
             kind: "loaded",
             path: listing.path,
-            parentPath: parentPath(listing.path),
+            parentPath: listing.parent,
             entries
           });
         }
       } catch (e) {
         const message = String(e);
         if (path === null) {
+          upTarget = null;
           if (message.includes("not_found:")) {
             renderFileBrowser(browserEl, { kind: "no-document" });
           } else {
@@ -1355,10 +1360,11 @@ https://github.com/devicemanager/mdviewer/blob/main/THIRD_PARTY_NOTICES.md`;
             });
           }
         } else {
+          upTarget = parentPath(path);
           renderFileBrowser(browserEl, {
             kind: "error",
             path,
-            parentPath: parentPath(path),
+            parentPath: upTarget,
             message
           });
         }
@@ -1377,9 +1383,7 @@ https://github.com/devicemanager/mdviewer/blob/main/THIRD_PARTY_NOTICES.md`;
         void show(joinPath(currentPath, name));
       },
       onUp: () => {
-        if (!currentPath) return;
-        const parent = parentPath(currentPath);
-        if (parent) void show(parent);
+        if (upTarget) void show(upTarget);
       }
     });
     backdropEl?.addEventListener("click", () => {

@@ -1295,9 +1295,20 @@ struct DirEntry {
 /// value, not whatever path string it asked with, so two different-but-
 /// equivalent requests (a symlink, a trailing slash) collapse to one cache
 /// entry rather than silently duplicating it.
+///
+/// `parent` is the listed folder's parent — but only when that parent is
+/// itself browsable (2026-10-17). The frontend used to compute "up one
+/// level" by string arithmetic and always offered it, so at the top of a
+/// grant (or of an ungranted document's folder) the row led straight to
+/// this function's own `access_denied:` error — a dead end the UI invited,
+/// and the raw error text an App Store reviewer would see. This function
+/// is what enforces access, so it's the one place that can say honestly
+/// whether going up will work; `None` serializes as `null` and hides the
+/// row.
 #[derive(Debug, serde::Serialize)]
 struct DirListing {
     path: String,
+    parent: Option<String>,
     entries: Vec<DirEntry>,
 }
 
@@ -1382,8 +1393,14 @@ fn list_directory_at(base_dir: &Path, granted_folders: &[PathBuf], target: &Path
         _ => a.name.to_lowercase().cmp(&b.name.to_lowercase()),
     });
 
+    let parent = canonical
+        .parent()
+        .filter(|p| path_is_accessible(base_dir, granted_folders, p))
+        .map(|p| p.to_string_lossy().to_string());
+
     Ok(DirListing {
         path: canonical.to_string_lossy().to_string(),
+        parent,
         entries,
     })
 }
@@ -2159,6 +2176,44 @@ mod tests {
 
         let names: Vec<&str> = listing.entries.iter().map(|e| e.name.as_str()).collect();
         assert_eq!(names, vec!["note.md"]);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    /// The 2026-10-17 dead-end fix: at the top of what's browsable, there is
+    /// no `parent` to offer — neither above an ungranted document's own
+    /// folder, nor above a granted folder.
+    #[test]
+    fn list_directory_at_reports_no_parent_at_the_top_of_what_is_browsable() {
+        let root = temp_dir_for("browse-parent-top-root");
+        let dir = root.join("doc");
+        let sibling = root.join("other");
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::create_dir_all(&sibling).unwrap();
+
+        let ungranted = list_directory_at(&dir, &[], &dir).unwrap();
+        assert_eq!(ungranted.parent, None);
+
+        let granted = vec![sibling.canonicalize().unwrap()];
+        let at_grant_root = list_directory_at(&dir, &granted, &sibling).unwrap();
+        assert_eq!(at_grant_root.parent, None);
+        std::fs::remove_dir_all(&root).ok();
+    }
+
+    #[test]
+    fn list_directory_at_reports_a_parent_that_is_itself_browsable() {
+        let root = temp_dir_for("browse-parent-ok-root");
+        let dir = root.join("doc");
+        let nested = dir.join("nested");
+        std::fs::create_dir_all(&nested).unwrap();
+
+        // Inside the document's own folder: up leads back to it.
+        let inside = list_directory_at(&dir, &[], &nested).unwrap();
+        assert_eq!(inside.parent.as_deref(), Some(dir.canonicalize().unwrap().to_string_lossy().as_ref()));
+
+        // A granted ancestor makes the document folder's own parent reachable.
+        let granted = vec![root.canonicalize().unwrap()];
+        let under_grant = list_directory_at(&dir, &granted, &dir).unwrap();
+        assert_eq!(under_grant.parent.as_deref(), Some(root.canonicalize().unwrap().to_string_lossy().as_ref()));
         std::fs::remove_dir_all(&root).ok();
     }
 
