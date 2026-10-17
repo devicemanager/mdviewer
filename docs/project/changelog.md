@@ -8,10 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Security
+- DOMPurify 3.4.15 → 3.4.17 and KaTeX 0.17.0 → 0.18.11, closing three low-severity advisories (none reachable in MDViewer's usage, closed anyway).
+
 ### Added
 - **iPhone**: open-source license notices are now shown in the app under **Preferences → About**, together with the app version — the same notices the Mac app shows in its About panel.
 
 ### Fixed
+- **Everything is readable in every theme**: the toolbar, file browser, Preferences, dialogs, code and diagrams now meet the WCAG 2.2 AA contrast minimum (4.5:1 for text, 3:1 for icons) in all six themes, on phone and desktop. Dracula's toolbar icons and file list were nearly invisible, muted text was too faint in dark themes, and white button text on light blue was hard to read.
+- **Solarized Light, Solarized Dark and Nord actually work**: these themes were listed but their stylesheets were missing, so choosing one showed an unstyled page. They now have proper, accessible palettes.
+- **Dark themes get dark code highlighting and diagrams** — Dracula and Nord previously showed light-mode code colours and Mermaid diagrams.
+- **Desktop toolbar stays visible while scrolling** instead of scrolling away with the document.
 - **File browser no longer offers a dead end**: ".. (up one level)" is only shown when the folder above can actually be opened. Previously it also appeared at the top of a granted folder, and tapping it showed an "access denied" error.
 - **No more shadow along the left screen edge**: the closed file browser no longer casts a faint grey strip onto the page.
 - **The toolbar on phones can always be brought back**: it fades after a few seconds of reading, but previously it could only return by scrolling or zooming — with no document open, or one short enough not to scroll, the toolbar stayed hidden and unresponsive. It now doesn't fade when there's nothing to scroll, and tapping the faded toolbar brings it back (that first tap only reveals it, so you can't hit a button you can't see).

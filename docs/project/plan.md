@@ -3023,6 +3023,27 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
     build bundles its own DOMPurify 3.4.12 — the advisory needs
     `IN_PLACE` mode, which Mermaid never uses (`sanitize(string)` only),
     so not exploitable as shipped.
+  - **Contrast & visibility pass (2026-10-17, after the user's
+    TestFlight feedback that parts of the UI were hard to see on the
+    phone)** — the user asked for tests that check what's visible per
+    stylesheet, plus research on colour/contrast guidance. `f8dacb6`
+    adds `npm run test:visual`: Playwright WebKit drives every theme ×
+    phone/desktop × UI state and measures each text run/icon against the
+    real rendered background (WCAG 2.2 AA), control reachability and JS
+    errors. First run: 40/108 states failing. Root causes fixed in
+    `85742fc`: no shared theme token contract (Dracula's interface was
+    white-on-white, `--muted-color` defined nowhere), Solarized ×2 and
+    Nord stylesheets missing (404 — also in Swift v1.2.1), no element
+    carrying `markdown-body` (all of dracula.css's content rules dead —
+    also in Swift), dark detection by theme *name*, Mermaid/Shiki
+    palette pairs under 4.5:1, a `position: relative` overriding the
+    desktop toolbar's sticky. Now 108/108, 7,488 elements measured; real
+    iOS WKWebView spot-checked on the simulator (GitHub Dark via system
+    dark mode, Dracula via the native picker). Research write-up with
+    sources: `docs/development/color-and-contrast.md`. Same session,
+    `cda4b6b`: DOMPurify 3.4.17 / KaTeX 0.18.11 for new advisories that
+    `npm audit` surfaced (build 1, already uploaded, contains the old
+    versions). Build number bumped to 2; not uploaded yet.
 - [ ] Manual smoke test of the golden path and edge cases on each of the 5
       platforms before calling it done, per the working agreement
 - [ ] Re-verify all security invariants per platform (custom scheme, CSP,
