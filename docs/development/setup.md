@@ -1,207 +1,151 @@
-# MDViewer Development Setup Guide
+# Development Setup
 
-This guide walks through setting up your development environment to contribute to MDViewer.
+How to build, run and test both MDViewer implementations: the **Tauri port** (current development, five platforms) and the **Swift app** (shipped macOS reference). [Architecture](architecture.md) explains how they relate.
 
 ## Prerequisites
 
-- **macOS 13+** (Ventura or later)
-- **Xcode 15+** (latest from App Store)
-- **Apple Silicon** (M1 or later)
-- Git
+| For | You need |
+|---|---|
+| Everything | macOS on Apple Silicon, Git, Node 22 or later |
+| Tauri port | Rust via **rustup** (Homebrew's `cargo` breaks the mobile builds), the Tauri CLI (installed by `npm install`) |
+| iOS builds | Xcode 27 with an Apple Developer team, signed in or with an App Store Connect API key (see below) |
+| Android builds | Android command-line tools, OpenJDK 17 |
+| Swift app | Xcode (deployment target macOS 14) |
+| Visual audit | Playwright's WebKit: `cd web && npx playwright install webkit` (once) |
 
-## Getting Started
+For mobile builds, put these in your shell:
 
-### 1. Clone the Repository
+```bash
+export PATH="$HOME/.cargo/bin:$PATH"     # rustup's cargo first
+export ANDROID_HOME=/opt/homebrew/share/android-commandlinetools
+export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home
+```
+
+## Getting started
 
 ```bash
 git clone https://github.com/devicemanager/mdviewer.git
 cd mdviewer
+npm install                 # Tauri CLI
+cd web && npm install       # TypeScript, esbuild, vitest, Playwright
+npm run build               # web/src → MDViewer/Resources/Web/mdviewer.js
+cd ..
 ```
 
-### 2. Open in Xcode
+`npm run build` in `web/` is not run automatically by Tauri. Run it after every change in `web/src`, or the app keeps serving the previous `mdviewer.js`.
+
+## Tauri port
+
+### Desktop
 
 ```bash
-open MDViewer.xcodeproj
+npm run tauri dev           # opens the app; Rust changes rebuild automatically
+npm run tauri build         # release bundle for the current OS
 ```
 
-### 3. Build and Run
+The frontend is served directly from `MDViewer/Resources/Web` (`frontendDist` in `src-tauri/tauri.conf.json`). There is no dev server. To start with a document already open, set `MDVIEWER_TEST_DOCUMENT_PATH=/path/to/file.md`.
 
-Press **⌘R** in Xcode or use:
+### iOS
+
+The generated Xcode project in `src-tauri/gen/apple` is not tracked by git. After any `tauri ios init`, run `./configure-ios-project.sh`. It reapplies what Tauri doesn't generate, and is safe to run repeatedly:
+- open-in-place support;
+- manual signing;
+- the deployment target;
+- the privacy manifest;
+- iPhone-only.
+
+**Development builds (over the air, no cable).**
+1. Build a debug archive:
+   ```bash
+   npm run tauri ios build -- --debug --target aarch64 --archive-only
+   ```
+2. Zip the archive's `Payload` into an `.ipa`.
+3. Put it on the OTA server, a separate `mdviewer-ota` folder linked as `ota/` and not tracked by git.
+
+`docs/project/file-browser-plan.md` §5 has the details.
+
+Debug builds write `Documents/mdviewer-debug.log`. On the phone it's in Files → On My iPhone → MDViewer; for native crashes, look under Settings → Privacy & Security → Analytics Data.
+
+**App Store / TestFlight builds.**
+1. Raise `bundle.iOS.bundleVersion` in `src-tauri/tauri.conf.json`. App Store Connect rejects a build number it has seen before.
+2. Run:
+   ```bash
+   ./build-appstore-ios.sh            # archive + checks + export an .ipa
+   ./build-appstore-ios.sh --upload   # …and upload to App Store Connect
+   ```
+
+Uploading authenticates with an App Store Connect API key if one is set up. Otherwise it uses the Apple ID signed into Xcode, and that sign-in expires after a few idle hours with "Failed to Use Accounts". To set up a key once per machine:
+- Put the key file at `~/.appstoreconnect/private_keys/AuthKey_<KEY_ID>.p8`.
+- Create `~/.appstoreconnect/asc.env` containing:
+  ```
+  ASC_KEY_ID=<KEY_ID>
+  ASC_ISSUER_ID=<issuer id from App Store Connect → Users and Access → Integrations>
+  ```
+
+The script never submits for review; that stays a manual step in App Store Connect. The listing text lives in `docs/appstore/listing-ios.md`.
+
+### Android
 
 ```bash
+npm run tauri android build -- --debug --apk
+```
+
+The app has been verified on the emulator. Choosing a folder doesn't work on Android yet: there's no Storage Access Framework support.
+
+### Windows and Linux
+
+Not built or verified yet; that's Milestone F in `docs/project/plan.md`.
+
+## Swift app
+
+```bash
+open MDViewer.xcodeproj     # then ⌘R
 xcodebuild -scheme MDViewer -configuration Debug build
 ```
 
-The app should launch immediately.
+The Swift tree is the reference implementation and is not changed during the port; see `docs/project/porting-brief.md`. Release scripts:
 
-## Project Structure
+| Script | Produces |
+|---|---|
+| `./build-notarize.sh` | Developer ID build, notarized, `build/MDViewer.zip` |
+| `./package-dmg.sh` | Notarized DMG |
+| `./build-appstore.sh` | Mac App Store package |
 
-```
-MDViewer/
-├── MDViewer.xcodeproj/        ← Xcode project file
-├── MDViewer/
-│   ├── App/                   ← Application entry point
-│   ├── Models/                ← Data models
-│   ├── ViewModels/            ← View logic
-│   ├── Views/                 ← SwiftUI views
-│   ├── Utilities/             ← Helper functions
-│   └── Resources/
-│       └── Web/               ← JS, CSS, HTML for rendering
-├── MDViewerTests/             ← Unit tests
-├── docs/                      ← Documentation (this folder)
-├── web/                       ← Web testing (cross-platform)
-└── build/                     ← Build artifacts
-```
-
-## Technology Stack
-
-| Component | Technology | Version |
-|-----------|-----------|---------|
-| UI Framework | SwiftUI + AppKit | - |
-| Rendering Engine | WKWebView | macOS 14+ |
-| Markdown Parser | [marked](https://github.com/markedjs/marked) | 18.0.6 |
-| Syntax Highlighting | [Shiki](https://github.com/shikijs/shiki) | 4.3.1 (40 languages) |
-| Math Rendering | [KaTeX](https://github.com/KaTeX/KaTeX) | 0.17.0 |
-| Diagrams | [Mermaid.js](https://github.com/mermaid-js/mermaid) | 11.16.0 |
-| HTML Sanitization | [DOMPurify](https://github.com/cure53/DOMPurify) | 3.4.12 |
-
-## Key Dependencies
-
-All JavaScript libraries are bundled locally in `MDViewer/Resources/Web/vendor/`:
-
-- **marked.js** — Markdown → HTML conversion
-- **Shiki** — Syntax highlighting
-- **KaTeX** — LaTeX math rendering
-- **Mermaid.js** — Flowcharts and diagrams
-
-No external package managers (SPM, CocoaPods) are required for these.
-
-## Building for Distribution
-
-### Developer ID (Notarized Distribution)
-
-For direct distribution outside the App Store:
-
-```bash
-export APPLE_ID="your-email@example.com"
-export TEAM_ID="ABC123DEF"
-./build-notarize.sh
-```
-
-This produces `build/MDViewer.zip` (ready for GitHub Releases).
-
-**Prerequisites:**
-- Apple Developer account
-- Developer ID certificate installed locally
-- Notarization credentials stored in Keychain:
-  ```bash
-  xcrun notarytool store-credentials "notarytool" \
-    --apple-id "$APPLE_ID" --team-id "$TEAM_ID"
-  ```
-
-### Mac App Store
-
-```bash
-./build-appstore.sh
-```
-
-Requires:
-- Bundle ID registration in Apple Developer account
-- App record in App Store Connect
-- Xcode login configured
+Notarization uses a Keychain profile, created once with `xcrun notarytool store-credentials`. See the header of each script.
 
 ## Testing
 
-### Unit Tests
+| Suite | Command | What it covers |
+|---|---|---|
+| Web unit tests | `cd web && npm test` | Renderer, view models, UI modules (vitest + jsdom) |
+| Type check | `cd web && npm run typecheck` | `tsc --noEmit`, strict |
+| Visual audit | `cd web && npm run test:visual` | Every theme × phone/desktop × UI state in real WebKit: text contrast (WCAG 2.2 AA), controls on screen, nothing running off the screen. About 3 minutes; screenshots land in `web/visual-output/`. |
+| Rust tests | `cd src-tauri && cargo test --offline` | Commands, path checks, link handling, file watching, state files (headless, via `tauri::test`) |
+| iOS UI flows | `maestro --device <udid> test tests/maestro/<flow>.yaml` | Scripted simulator runs (needs `JAVA_HOME` to point at OpenJDK 17) |
+| Swift tests | `xcodebuild -scheme MDViewer test` | The reference app's XCTest suite |
 
-```bash
-xcodebuild -scheme MDViewer -configuration Debug test
-```
-
-Or press **⌘U** in Xcode.
-
-### Manual Testing
-
-1. Open a `.md` file
-2. Verify rendering with various features (math, diagrams, code highlighting)
-3. Test editor mode with live preview
-4. Try exporting to PDF/HTML
-5. Test all keyboard shortcuts
-
-## Common Development Tasks
-
-### Add a New Theme
-
-1. Create `MDViewer/Resources/Web/themes/my-theme.css`
-2. Update `MarkdownTheme.swift` to include the new theme
-3. Reference the CSS file in the HTML template
-
-### Modify the Markdown Renderer
-
-The renderer logic is in:
-- `MDViewer/Resources/Web/mdviewer.js` — JavaScript bridge
-- `MDViewer/Resources/Web/mdviewer-base.css` — Layout CSS
-
-Changes to JavaScript require refreshing the WebView in Xcode.
-
-### Add Keyboard Shortcuts
-
-Edit `Views/ContentView.swift` and add `.keyboardShortcut()` modifiers.
+Run the visual audit after any change to CSS, a theme, or the Mermaid/Shiki colours. [Colour & contrast](color-and-contrast.md) explains the thresholds.
 
 ## Debugging
 
-### Enable WebView Debugging
+- **Desktop:** right-click → Inspect in a `tauri dev` window opens the web inspector.
+- **iOS Simulator:** Safari → Develop → Simulator → MDViewer.
+- **Device:** the debug log described above. Script errors are forwarded there too (`errorForwarding.ts`).
+- **Android emulator:** `chrome://inspect` in Chrome. When a screenshot and the page disagree, trust what you read from the page; `adb` screenshots can be stale.
 
-In Xcode: Product → Scheme → Edit Scheme → Run (Debug) → Arguments
-- Add environment variable: `WEB_INSPECTOR_ENABLED = 1`
+## Common issues
 
-### View Console Output
-
-- **Swift logs**: Xcode Console (⌘Shift+C)
-- **JavaScript logs**: Safari Web Inspector (when debugging is enabled)
-
-### Common Issues
-
-**Build fails with Swift Markdown error**
-- Run `xcodebuild -resolvePackageDependencies`
-
-**WKWebView not rendering**
-- Check that bundle resources are included in `Copy Bundle Resources` build phase
-
-**Keyboard shortcuts not working**
-- Verify `.keyboardShortcut()` modifiers are correctly attached to Views
-
-## Code Style
-
-- Follow Apple's Swift API Design Guidelines
-- Use meaningful variable names
-- Add comments for complex logic
-- Prefer SwiftUI over AppKit when possible
-
-## Contributing
-
-See [Contributing Guide](contributing.md) for:
-- How to submit pull requests
-- Code review process
-- Feature request guidelines
-- Bug report templates
+| Symptom | Fix |
+|---|---|
+| iOS/Android build fails with linker or target errors | `which cargo` must be `~/.cargo/bin/cargo`, not Homebrew's |
+| Changes in `web/src` don't show up | Run `npm run build` in `web/` |
+| App missing from the Files app's "Open in" menu | Re-run `./configure-ios-project.sh` (`LSSupportsOpeningDocumentsInPlace`) |
+| `xcodebuild -exportArchive`: "archive not found" right after archiving | Retry once |
+| iOS build: "Directory not empty" | Remove stale `src-tauri/gen/apple/build/**/MDViewer.app` |
+| Upload: "Failed to Use Accounts" | Sign in again in Xcode → Settings → Accounts, or set up the API key |
+| Visual audit: browser not found | `npx playwright install webkit` |
 
 ## Resources
 
-- [SwiftUI Documentation](https://developer.apple.com/documentation/swiftui/)
-- [WKWebView Guide](https://developer.apple.com/documentation/webkit/wkwebview)
-- [marked.js Docs](https://marked.js.org/)
-- [Shiki Docs](https://shiki.style/)
-- [KaTeX Docs](https://katex.org/)
-- [Mermaid Docs](https://mermaid.js.org/)
-
-## Support
-
-For questions or issues:
-- Check [existing GitHub issues](https://github.com/devicemanager/mdviewer/issues)
-- Read the [Design Plan](design-plan.md)
-- Ask in GitHub Discussions
-
----
-
-**Happy coding!** 🚀
+- [Tauri 2](https://v2.tauri.app/) · [marked](https://marked.js.org/) · [Shiki](https://shiki.style/) · [KaTeX](https://katex.org/) · [Mermaid](https://mermaid.js.org/) · [DOMPurify](https://github.com/cure53/DOMPurify)
+- [SwiftUI](https://developer.apple.com/documentation/swiftui/) · [WKWebView](https://developer.apple.com/documentation/webkit/wkwebview)

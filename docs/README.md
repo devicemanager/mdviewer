@@ -10,10 +10,11 @@ Welcome to the MDViewer documentation hub. This folder contains all project docu
 - **[Keyboard Shortcuts](user-guide/keyboard-shortcuts.md)** — All available keyboard shortcuts
 
 ### For Developers
-- **[Design Plan](development/design-plan.md)** — Architecture and design decisions
-- **[Architecture](development/architecture.md)** — Technical architecture and component structure
-- **[Setup Guide](development/setup.md)** — Development environment setup
-- **[Contributing](development/contributing.md)** — How to contribute to MDViewer
+- **[Architecture](development/architecture.md)** — The Tauri port and the Swift reference app, with diagrams
+- **[Setup Guide](development/setup.md)** — Building, running and testing on every platform
+- **[Contributing](development/contributing.md)** — Rules during the port, conventions, common tasks
+- **[Colour & Contrast](development/color-and-contrast.md)** — Theme rules and the visual audit
+- **[Design Plan](development/design-plan.md)** — The original 2026-05 Swift design plan (historical)
 
 ### Project Information
 - **[Changelog](project/changelog.md)** — Version history and release notes

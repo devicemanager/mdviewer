@@ -1,236 +1,114 @@
 # Contributing to MDViewer
 
-Thank you for your interest in contributing to MDViewer! This guide explains how to get involved.
+Thank you for your interest in contributing. This guide covers how changes are made in this repository while the Swift app is being ported to Tauri. [Setup](setup.md) gets your environment running; [Architecture](architecture.md) explains the code.
 
-## Getting Started
+## Ground rules during the port
 
-1. Fork the repository on GitHub
-2. Clone your fork locally
-3. Create a new branch for your feature or fix
-4. Follow the [Setup Guide](setup.md) to get your environment ready
-5. Make your changes
-6. Push to your fork and open a pull request
+Until the Tauri port works on all five platforms (macOS, Windows, Linux, Android, iOS), these rules apply. The full version is `docs/project/porting-brief.md`.
 
-## Before You Start
+- **The Swift tree is the reference. Don't modify it.** That covers `MDViewer/**/*.swift` and `MDViewerTests/`. If the Swift code looks wrong, say so in the PR or `plan.md` rather than fixing it silently.
+- **Parity first, improvements later.** New features and redesigns wait for Phase 2 in `docs/project/plan.md`. Deviations found along the way get flagged, not blocked on.
+- **`mdviewer.js` is generated.** The source is `web/src/*.ts`; `npm run build` in `web/` overwrites `MDViewer/Resources/Web/mdviewer.js`, so edits made directly to it are lost.
+- **Vendored libraries and `mdviewer-base.css` / `renderer.html` stay as they are.** Port-only styling goes in `app.css`. The exception is security fixes, which follow the procedure below. Themes are another: they follow the token contract in [Colour & contrast](color-and-contrast.md).
+- **Security invariants are not relaxed.** These are listed under Security in [Architecture](architecture.md): custom scheme, CSP, DOMPurify, link restrictions, remote-image policy and per-folder file access.
 
-Check the [existing issues](https://github.com/devicemanager/mdviewer/issues) to see if someone is already working on what you want to do. Feel free to comment on an issue to discuss your approach.
+## Reporting bugs and requesting features
 
-## Types of Contributions
+Open a [GitHub issue](https://github.com/devicemanager/mdviewer/issues).
 
-### Bug Reports
+- **Bugs:** include the steps to reproduce, the expected and actual behaviour, and the platform and app version (Swift app or which Tauri build). Attach a sample `.md` file or a screenshot if you can. iPhone testers can send feedback with a screenshot straight from TestFlight.
+- **Feature requests:** describe the problem, your proposed solution, and the alternatives. During the port, new features are collected for Phase 2 rather than built.
 
-Found a bug? Great! Please open an issue with:
-- **Steps to reproduce**: Clear, minimal steps to reproduce the issue
-- **Expected behavior**: What should happen
-- **Actual behavior**: What actually happens
-- **Environment**: macOS version, MDViewer version, Xcode version
-- **Attachments**: Screenshot or sample `.md` file if helpful
+## Code conventions
 
-### Feature Requests
+**TypeScript (`web/`):**
+- Strict mode, ESM, Node 22.
+- Use `T | undefined` for optional values, never `null`.
+- Swift structs become interfaces and plain objects, not classes.
+- One Swift file maps to one module of the same name in camelCase (`RenderViewModel.swift` → `renderViewModel.ts`). A module with no Swift source says so in its header comment.
+- Vendor libraries (`marked`, `shiki`, `katex`, `mermaid`, `DOMPurify`) are globals loaded by the page. Don't import or bundle them.
 
-Have an idea? Open an issue describing:
-- **Problem statement**: What problem does this solve?
-- **Proposed solution**: How would you implement it?
-- **Alternatives**: Are there other ways to solve this?
-- **Use cases**: Who benefits and how?
+**Rust (`src-tauri/`):**
+- Keep Rust to what needs the OS: files, pickers, permissions, watching, links.
+- Commands that block (dialogs, pickers) must be `async` with `spawn_blocking`. Otherwise they deadlock on iOS's main thread.
 
-### Code Contributions
+**Comments:** explain *why*, especially workarounds for real platform bugs. Several oddities are deliberate; the header comments and `file-browser-plan.md` §5 record them.
 
-Want to fix a bug or add a feature?
+## Making a change
 
-1. **Small changes** (typos, minor fixes):
-   - Create a branch directly and submit a PR
-
-2. **Larger features**:
-   - Open an issue first to discuss the approach
-   - Get feedback before investing time
-   - Reference the issue in your PR
-
-## Code Style
-
-- Follow [Apple's Swift API Design Guidelines](https://swift.org/documentation/api-design-guidelines/)
-- Use meaningful variable and function names
-- Keep functions small and focused
-- Add comments for complex logic (not for obvious code)
-- Use SwiftUI when possible, AppKit when necessary
-
-### Example
-
-```swift
-// Good: Clear, concise, follows conventions
-func loadMarkdown(from url: URL) throws -> String {
-    let content = try String(contentsOf: url, encoding: .utf8)
-    return content
-}
-
-// Avoid: Unclear names, over-commented
-func load(u: URL) throws -> String { // load from URL
-    let x = try String(contentsOf: u, encoding: .utf8)  // read file
-    return x  // return content
-}
-```
-
-## Testing
-
-### Run Tests
-
-```bash
-xcodebuild -scheme MDViewer test
-```
-
-Or press **⌘U** in Xcode.
-
-### Write Tests
-
-For bug fixes, add a test that fails before your fix and passes after. For features, add tests for the main use cases.
-
-### Manual Testing
-
-Always manually test in the app:
-1. Open various `.md` files
-2. Test the feature you changed
-3. Check that existing features still work
-4. Try on different window sizes
-5. Test with different themes and font sizes
-
-## Pull Request Process
-
-1. **Branch naming**: Use descriptive names like `fix/search-highlight` or `feature/dark-mode`
-2. **Commit messages**: Write clear, concise messages
+1. **One concern per commit**, and one file per change where practical. Don't port a whole directory in one pass.
+2. **Write tests alongside the code:**
+   - web modules get vitest tests in `web/test/`;
+   - Rust commands get `cargo test` cases using `tauri::test`;
+   - when porting a Swift file, port its `MDViewerTests` cases with it.
+3. **Run the checks** that apply:
+   ```bash
+   cd web && npm run typecheck && npm test && npm run build
+   cd web && npm run test:visual          # after any CSS, theme or diagram-colour change
+   cd src-tauri && cargo test --offline   # after Rust changes
    ```
-   ✓ Good:     Fix search highlight not working with code blocks
-   ✗ Avoid:    fix bug, update code, etc.
-   ```
-3. **PR description**: Include:
-   - What problem this solves
-   - How you solved it
-   - Related issue(s) (use `#123` to link)
-   - Testing done
-   - Screenshots if applicable
-
-4. **Code review**: Be open to feedback and discussion
-   - We're building this together
-   - Comments on code aren't personal
-   - Ask questions if anything is unclear
-
-5. **Updates**: If changes are requested:
-   - Make updates in new commits (don't rebase)
-   - Push to your branch
-   - Comment when ready for re-review
+4. **Check it in the app**, not only in tests: desktop (`npm run tauri dev`), and the iOS Simulator or an OTA build for anything touching mobile layout. Screenshots of real devices have caught bugs that every test missed.
+5. **Commit messages** say what changed and why: "Fit the document to the phone screen", not "fix css".
 
 ## Documentation
 
-Documentation is as important as code. If your change affects how users interact with MDViewer:
+**Documentation comes before the change it describes, not after.** When a change has a paper trail (a version bump, a recorded hash, a provenance table), write the doc update first or in the same commit, stating the target state. Then make the code or asset change match it. A doc that still describes the old state, even briefly, can't be trusted at a glance. This applies especially to `docs/project/supply-chain.md`, which is a security-relevant provenance record.
 
-1. Update relevant docs in `docs/`
-2. Update `README.md` if the summary changes
-3. Add keyboard shortcuts to `docs/user-guide/keyboard-shortcuts.md`
-4. Update `docs/user-guide/features.md` if adding features
+Where things are recorded:
 
-For code changes that affect developers:
-- Update comments in code
-- Update `docs/development/architecture.md` if structure changes
-- Update `docs/development/setup.md` if setup process changes
+| File | What goes in it |
+|---|---|
+| `docs/project/changelog.md` | User-visible changes, under `[Unreleased]` |
+| `docs/project/plan.md` | Port progress, open questions, deferred work |
+| `docs/project/porting-brief.md` | Rules for the port (the target of `CLAUDE.md`) |
+| `docs/project/supply-chain.md` | Vendored library versions and hashes |
+| `docs/development/*` | How the code works and how to build it; update when structure or setup changes |
+| `docs/user-guide/*` | Features and keyboard shortcuts, for users |
 
-**Documentation comes before the change it describes, not after.** When a
-change has a paper trail — a version bump, a recorded hash, a provenance
-table — write the doc update first (or in the same commit), stating the
-target state, then make the code/asset change match it. Don't make the
-change and reconcile the docs afterward as cleanup; a doc that's still
-describing the old state even briefly is a doc that can't be trusted at a
-glance. This applies especially to `docs/project/supply-chain.md`: it's a
-security-relevant provenance record, and treating it as an afterthought
-defeats its purpose.
+## Common tasks
 
-## Repository Structure
+### Adding or changing a theme
 
-```
-mdviewer/
-├── MDViewer/                    ← App source code
-├── MDViewerTests/               ← Unit tests
-├── docs/                        ← User & developer documentation
-├── web/                         ← Web/cross-platform testing
-├── build/                       ← Build artifacts (generated)
-├── build-notarize.sh            ← Distribution build script
-├── build-appstore.sh            ← App Store build script
-├── package-dmg.sh               ← DMG packaging script
-├── README.md                    ← User-facing README
-└── LICENSE                      ← MIT License
-```
+1. Create or edit `MDViewer/Resources/Web/themes/<name>.css`. Define **every** token in the contract (`--bg-color`, `--surface-color`, `--text-color`, `--muted-color`, `--link-color`, `--accent-bg`/`--accent-fg`, `--border-color`, and the content tokens). A missing token silently falls back to a light value.
+2. Register it in `web/src/markdownTheme.ts`, including its `isDark` flag.
+3. Run `npm run test:visual` until it passes, and look at the screenshots in `web/visual-output/`.
 
-## Common Tasks
+### Fixing a rendering issue
 
-### Adding a New Theme
+- **Markdown output** (parsing, code, math, diagrams, sanitizing): `web/src/`. Start from `mdviewerApi.ts` and add a test in `web/test/`.
+- **Document styling:** `app.css` for the port. `mdviewer-base.css` and the themes are shared with the Swift app.
+- **Interface** (toolbar, drawer, Preferences): the matching `web/src` module and `app.css`.
+- **Files, links, permissions:** `src-tauri/src/lib.rs`.
 
-1. Create `MDViewer/Resources/Web/themes/my-theme.css`
-2. Add theme colors and styles
-3. Reference in `Models/MarkdownTheme.swift`
-4. Test by selecting in Preferences
+### Updating a vendored web dependency
 
-### Adding a Keyboard Shortcut
+Docs first, per the rule above: the provenance record states the target before the vendored file changes to match it.
 
-1. Find the appropriate `@main` view or command location
-2. Add `.keyboardShortcut("key", modifiers: .command)` modifier
-3. Document in `docs/user-guide/keyboard-shortcuts.md`
+1. Confirm the target version and, if this is a security fix, exactly which advisories it resolves.
+2. Update to the target state:
+   - `docs/project/supply-chain.md`: version, and SHA-256 of the official artifact;
+   - `docs/project/third-party-notices.md`: version, and any version-pinned license URL;
+   - the pinned versions in `porting-brief.md`.
+3. Only then replace the file under `MDViewer/Resources/Web/vendor/`. Check that it's byte-identical to the npm/CDN artifact (the hash from step 2), and bump the matching exact-version devDependency in `web/package.json`.
+4. Update the credits in `web/src/aboutPanel.ts`. A test pins them to the vendored versions. The Swift About panel (`MDViewerApp.swift`) is Swift source and stays untouched during the port; that mismatch is recorded as a known follow-up.
+5. Run the unit tests and the visual audit, and check rendering in the app before committing.
 
-### Fixing a Rendering Issue
+## Before opening a pull request
 
-1. Identify if it's a Swift issue (view logic) or JS issue (HTML/CSS)
-2. For Swift: Edit `Views/Renderer/MarkdownRenderView.swift`
-3. For JS/CSS: Edit `MDViewer/Resources/Web/mdviewer.js` or theme CSS
-
-### Updating a Vendored Web Dependency
-
-Docs first, per the rule above — the provenance record states the target
-before the vendored file changes to match it, not after.
-
-1. Confirm the target version and, if this is a security fix, exactly
-   which advisories it resolves.
-2. Update `docs/project/supply-chain.md`'s table (version + SHA-256 of the
-   official artifact) and `docs/project/third-party-notices.md` (version,
-   and any version-pinned license URL) to the target state.
-3. Only then replace the file under `MDViewer/Resources/Web/vendor/`.
-   Verify it's byte-identical to the official CDN/npm artifact (the hash
-   from step 2 should match) before relying on it.
-4. Sync the About panel's Credits text in `MDViewer/App/MDViewerApp.swift`
-   (the version strings there are hand-maintained, not generated).
-5. Rebuild and manually verify the render pipeline still works before
-   committing.
-4. Test with various Markdown samples
-
-## Code Review Checklist
-
-Before submitting a PR, make sure:
-
-- [ ] Code builds without warnings
-- [ ] Tests pass (`xcodebuild test`)
-- [ ] Manual testing completed
-- [ ] No hardcoded values or debug code left
-- [ ] Comments are clear and helpful
-- [ ] Code follows style guide
-- [ ] Documentation is updated
-- [ ] Commit messages are clear
-- [ ] No unrelated changes in the PR
+- [ ] Builds without warnings; `typecheck`, `npm test` and `cargo test` pass
+- [ ] `npm run test:visual` passes if CSS or themes changed
+- [ ] `npm run build` run, so `mdviewer.js` matches `web/src`
+- [ ] Checked in the running app on the affected platform(s)
+- [ ] No Swift source modified; no debug-only code or test hooks left behind
+- [ ] Changelog and docs updated (before or with the change)
+- [ ] One concern per commit, clear messages, no unrelated changes
 
 ## Communication
 
-- **Issues**: Use GitHub Issues for bugs and features
-- **Discussions**: Use GitHub Discussions for questions
-- **Pull Requests**: Keep discussion focused on the code change
+- **Issues:** bugs and feature requests.
+- **Discussions:** questions and ideas.
+- **Pull requests:** keep discussion focused on the change. Be open to feedback; review comments are about the code, not the person.
 
-Be respectful and constructive. This is a community project.
+## Code of conduct
 
-## Code of Conduct
-
-Be kind. Treat everyone with respect. Discrimination, harassment, or toxicity has no place here.
-
-## Questions?
-
-- Read the [Setup Guide](setup.md)
-- Read the [Architecture docs](architecture.md)
-- Check [existing issues](https://github.com/devicemanager/mdviewer/issues)
-- Open a discussion in [GitHub Discussions](https://github.com/devicemanager/mdviewer/discussions)
-
----
-
-**Thank you for contributing!** 🎉
+Be kind. Treat everyone with respect. Discrimination, harassment and toxicity have no place here.

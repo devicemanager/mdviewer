@@ -5,12 +5,16 @@
 **Language**: Swift 5.9 / SwiftUI
 **Architecture pattern**: MVVM
 
-> **Note**: This is the original design plan (created May 4, 2026). The actual implementation differs from this document in several areas:
-> - Actual deployment target: macOS 14.0 (Sonoma)
-> - Library versions have evolved (marked v18, not v12)
-> - Only 3 themes implemented (GitHub Light/Dark, Dracula), not 6
-> - Uses Shiki instead of highlight.js for syntax highlighting
-> This document provides valuable architectural context but should not be treated as current specification.
+> **Historical document.** This is the original design plan for the Swift macOS app, written 2026-05-04 before it was built. It is kept for the reasoning behind early decisions; it is **not** a description of the current code. For that, see [Architecture](architecture.md) and [Setup](setup.md).
+>
+> How the shipped Swift app (v1.2.x) differs from this plan:
+> - **Platform:** macOS 14 (Sonoma), not 13. Bundle ID `org.devicemanager.mdviewer`, not `com.mdviewer.app`. The app is sandboxed (`MDViewer.entitlements`).
+> - **Libraries:** marked 18, **Shiki** instead of highlight.js, KaTeX, Mermaid 11, and **DOMPurify** added for sanitizing (current versions in `docs/project/supply-chain.md`).
+> - **Themes:** six were listed, but only three stylesheets shipped (GitHub Light/Dark, Dracula); the other three were 404s. The Tauri port added Solarized Light/Dark and Nord on 2026-10-17.
+> - **Scenes:** `WindowGroup`, not `DocumentGroup`. Search uses `WKWebView.find`, not `WKFindInteraction`.
+> - **PDF export** goes through `NSPrintOperation` (save as PDF from the print system), not `createPDF`. This works around real `createPDF` issues.
+> - **Added after this plan:** an editor mode (`MarkdownEditorView`), a Quick Look extension (`MDViewerQL`), and the 1.2.0 security hardening (CSP, DOMPurify, link restrictions, the remote-image policy, per-folder image access).
+> - **What came next:** since 2026-09 the app is being ported to Tauri 2 for macOS, Windows, Linux, Android and iOS (`docs/project/plan.md`). The port dropped the table-of-contents sidebar in favour of a file browser.
 
 ---
 
