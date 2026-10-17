@@ -522,7 +522,7 @@ Shiki 4.3.1 \u2014 MIT
   Copyright (c) 2021 Pine Wu; (c) 2023 Anthony Fu
   https://github.com/shikijs/shiki
 
-KaTeX 0.17.0 \u2014 MIT (fonts under SIL Open Font License 1.1)
+KaTeX 0.18.11 \u2014 MIT (fonts under SIL Open Font License 1.1)
   Copyright (c) 2013-2020 Khan Academy and other contributors
   https://github.com/KaTeX/KaTeX
 
@@ -530,7 +530,7 @@ Mermaid 11.17.2 \u2014 MIT
   Copyright (c) 2014-2024 Knut Sveidqvist and contributors
   https://github.com/mermaid-js/mermaid
 
-DOMPurify 3.4.15 \u2014 Apache-2.0 OR MPL-2.0
+DOMPurify 3.4.17 \u2014 Apache-2.0 OR MPL-2.0
   Copyright (c) Cure53 and other contributors
   https://github.com/cure53/DOMPurify
 

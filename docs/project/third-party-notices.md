@@ -72,7 +72,7 @@ SOFTWARE.
 
 ## KaTeX
 
-**Version:** 0.17.0  
+**Version:** 0.18.11  
 **License:** MIT  
 **Source:** https://github.com/KaTeX/KaTeX
 
@@ -141,7 +141,7 @@ SOFTWARE.
 
 ## DOMPurify
 
-**Version:** 3.4.15  
+**Version:** 3.4.17  
 **License:** Apache-2.0 OR MPL-2.0 (dual-licensed)  
 **Source:** https://github.com/cure53/DOMPurify
 
@@ -158,6 +158,6 @@ DOMPurify is dual-licensed. You may use it under the terms of EITHER:
   - the Mozilla Public License, Version 2.0
     https://www.mozilla.org/MPL/2.0/
 
-The complete license texts for version 3.4.15 are published at:
-https://github.com/cure53/DOMPurify/blob/3.4.15/LICENSE
+The complete license texts for version 3.4.17 are published at:
+https://github.com/cure53/DOMPurify/blob/3.4.17/LICENSE
 ```

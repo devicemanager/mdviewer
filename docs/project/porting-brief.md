@@ -57,12 +57,12 @@ Vendor libraries stay pinned globals loaded by `renderer.html` — the
 TypeScript calls `marked`/`shiki`/`katex`/`mermaid`/`DOMPurify` as globals,
 it does not reimplement or bundle them.
 
-Pinned: marked 18.0.6, Shiki 4.3.1, KaTeX 0.17.0, Mermaid 11.17.2,
-DOMPurify 3.4.15. Version bumps are otherwise a separate task — the two
-above were bumped 2026-09-07 specifically to close known vulnerabilities
-(below), at the user's explicit request; marked and KaTeX were checked
-against their pinned versions and have no known advisories, so they're
-untouched.
+Pinned: marked 18.0.6, Shiki 4.3.1, KaTeX 0.18.11, Mermaid 11.17.2,
+DOMPurify 3.4.17. Version bumps are otherwise a separate task — Mermaid
+and DOMPurify were bumped 2026-09-07 specifically to close known
+vulnerabilities (below), at the user's explicit request; DOMPurify and
+KaTeX again 2026-10-17 when `npm audit` reported new advisories (below),
+under the same standing "don't distribute CVEs" instruction.
 
 **Security fixes applied (2026-09-07):**
 
@@ -97,9 +97,32 @@ untouched.
   `mermaid-state-diagram.png`). The Mermaid version bump is fully
   verified across diagram types now, not just the one.
 
+**Security fixes applied (2026-10-17):** `npm audit` in `web/` reported new
+advisories against two shipped libraries; bumped under the same standing
+instruction, verified byte-identical against both the npm tarball and the
+jsDelivr CDN, hashes in `supply-chain.md`.
+
+- **DOMPurify 3.4.15 → 3.4.17** — GHSA-p98j-92pf-mc4p and
+  GHSA-6688-9rhm-gjv2, both low and both in `IN_PLACE` mode only, which
+  `sanitize.ts` never uses (it sanitizes strings) — not exploitable here,
+  bumped anyway. Note Mermaid's stock build bundles its *own* DOMPurify
+  (3.4.12); Mermaid only calls `sanitize(string)`, so the `IN_PLACE`
+  advisories don't reach it either.
+- **KaTeX 0.17.0 → 0.18.11** — GHSA-238p-pmpm-9mq7 (low; needs a
+  pre-existing prototype pollution to bypass `trust`). `katex.min.js` and
+  `katex.min.css` swapped; the 20 vendored fonts are byte-identical across
+  the two versions, so unchanged. Verified by the unit suite and the visual
+  audit (KaTeX inline + block render in every theme).
+- `source-map-js` (high) is a build-time dependency of the test tooling,
+  never shipped; left to a routine `npm audit fix`.
+
 **Known follow-up, not done:** `MDViewer/App/MDViewerApp.swift`'s About
-panel Credits text hardcodes `Mermaid 11.16.0` and `DOMPurify 3.4.12` — now
-stale. Left alone deliberately: that's Swift source, not a vendored asset,
+panel Credits text hardcodes library versions. It was evidently updated after
+the 2026-09-07 bumps (it reads Mermaid 11.17.2 / DOMPurify 3.4.15 as of
+2026-10-17, contrary to this note's earlier wording), but the 2026-10-17
+bumps leave it stale again: it still says KaTeX 0.17.0 and DOMPurify 3.4.15.
+The TypeScript port's `aboutPanel.ts` is current and test-pinned to the
+vendored versions. Left alone deliberately: that's Swift source, not a vendored asset,
 and the version-bump authorization was about the libraries themselves, not
 license-text UI. `docs/project/third-party-notices.md` and
 `supply-chain.md` are already updated to the new versions.

@@ -2,7 +2,7 @@
   "name": "mdviewer-web",
   "private": true,
   "version": "0.0.0",
-  "description": "MDViewer WebView renderer framework (TypeScript). Bundles directly to MDViewer/Resources/Web/mdviewer.js \u2014 the compiled TypeScript port reached parity 2026-09-09 and replaced the hand-written file.",
+  "description": "MDViewer WebView renderer framework (TypeScript). Bundles directly to MDViewer/Resources/Web/mdviewer.js — the compiled TypeScript port reached parity 2026-09-09 and replaced the hand-written file.",
   "type": "module",
   "scripts": {
     "build": "esbuild src/main.ts --bundle --format=iife --outfile=../MDViewer/Resources/Web/mdviewer.js",
@@ -14,10 +14,10 @@
   "devDependencies": {
     "@types/node": "^26.4.1",
     "@types/pngjs": "6.0.5",
-    "dompurify": "3.4.15",
+    "dompurify": "3.4.17",
     "esbuild": "^0.28.2",
     "jsdom": "^30.0.1",
-    "katex": "0.17.0",
+    "katex": "0.18.11",
     "marked": "18.0.6",
     "playwright": "1.64.1",
     "pngjs": "7.0.0",

@@ -10,8 +10,10 @@
 // Preferences modal's "About" tab (preferences.ts) — the one settings
 // surface this port has, on every platform.
 //
-// `ACKNOWLEDGEMENTS` is Swift's string verbatim. Its version numbers are
-// pinned by a test against the vendored libraries
+// `ACKNOWLEDGEMENTS` is Swift's string verbatim except for the version
+// numbers, which track the vendored libraries (KaTeX and DOMPurify moved
+// on 2026-10-17; the Swift copy didn't). They're pinned by a test against
+// the vendored libraries
 // (test/aboutPanel.test.ts) — the Swift copy went stale exactly this way
 // once (porting-brief.md's "Known follow-up"), so the port checks instead
 // of trusting.
@@ -30,7 +32,7 @@ Shiki 4.3.1 — MIT
   Copyright (c) 2021 Pine Wu; (c) 2023 Anthony Fu
   https://github.com/shikijs/shiki
 
-KaTeX 0.17.0 — MIT (fonts under SIL Open Font License 1.1)
+KaTeX 0.18.11 — MIT (fonts under SIL Open Font License 1.1)
   Copyright (c) 2013-2020 Khan Academy and other contributors
   https://github.com/KaTeX/KaTeX
 
@@ -38,7 +40,7 @@ Mermaid 11.17.2 — MIT
   Copyright (c) 2014-2024 Knut Sveidqvist and contributors
   https://github.com/mermaid-js/mermaid
 
-DOMPurify 3.4.15 — Apache-2.0 OR MPL-2.0
+DOMPurify 3.4.17 — Apache-2.0 OR MPL-2.0
   Copyright (c) Cure53 and other contributors
   https://github.com/cure53/DOMPurify
 
