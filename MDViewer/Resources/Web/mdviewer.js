@@ -281,8 +281,10 @@
     primaryTextColor: "#e6e6e6",
     // flowchart node and edge labels: 5.7:1 on #585858
     textColor: "#e6e6e6",
-    gitBranchLabel0: "#111111"
+    gitBranchLabel0: "#111111",
     // "main" label on its #797d7d swatch: 4.9:1
+    noteTextColor: "#e6e6e6"
+    // sequence-diagram notes: #b8b6b6 on #474949 was 4.49:1, now 7.3:1
   };
   function initializeMermaid(mermaid, isDark) {
     mermaid.initialize({
