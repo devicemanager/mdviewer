@@ -7,6 +7,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
+mod debug_log;
 mod scoped_bookmarks;
 
 /// The native iOS folder picker — the only way to grant access to a folder
@@ -179,10 +180,23 @@ fn take_and_render_pending<R: Runtime>(app: &AppHandle<R>) -> bool {
 /// URL) is a completely different mechanism, tracked separately in
 /// `AndroidManifest.xml`'s own comment on this same feature.
 fn render_opened_document<R: Runtime>(app: &AppHandle<R>, url_str: &str) {
+    debug_log::log(&format!("render_opened_document: {url_str}"));
     #[cfg(any(target_os = "macos", target_os = "ios"))]
-    let _scope = scoped_bookmarks::access_url(url_str).ok();
-    let Ok(url) = url::Url::parse(url_str) else { return };
-    let Ok(path) = url.to_file_path() else { return };
+    let _scope = match scoped_bookmarks::access_url(url_str) {
+        Ok(scope) => Some(scope),
+        Err(e) => {
+            debug_log::log(&format!("render_opened_document: no security scope: {e}"));
+            None
+        }
+    };
+    let Ok(url) = url::Url::parse(url_str) else {
+        debug_log::log("render_opened_document: unparseable URL");
+        return;
+    };
+    let Ok(path) = url.to_file_path() else {
+        debug_log::log("render_opened_document: not a file:// URL");
+        return;
+    };
 
     // TEMPORARY — 2026-09-12 file-browser plan's Phase 0 spike, remove once
     // answered (see docs/project/plan.md and the mobile file-browser plan).
@@ -212,7 +226,9 @@ fn render_opened_document<R: Runtime>(app: &AppHandle<R>, url_str: &str) {
         }
     }
 
-    let _ = render_file(app, &path);
+    if let Err(e) = render_file(app, &path) {
+        debug_log::log(&format!("render_opened_document: render failed: {e}"));
+    }
 }
 
 /// TEMPORARY — 2026-09-12 file-browser plan's Phase 0 spike, remove once
@@ -282,6 +298,11 @@ fn spike_read_dir_variants<R: Runtime>(app: AppHandle<R>) -> String {
 // now). One concern at a time, per the working agreement.
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    // First, before Tauri itself starts, so a crash anywhere after this
+    // still leaves a "session start" line behind — see debug_log.rs.
+    debug_log::init_for_platform();
+    debug_log::log("run: building app");
+
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -298,7 +319,9 @@ pub fn run() {
             // own comment documents, and doesn't need to wait for a page
             // load at all. Runs as early as possible so a document opened
             // moments later can already see any folder this restores.
+            debug_log::log("setup: restoring granted folders");
             restore_granted_folders(app.handle());
+            debug_log::log("setup: done");
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -374,6 +397,7 @@ pub fn run() {
         if payload.event() == tauri::webview::PageLoadEvent::Finished
             && !INITIAL_LOAD_COMPLETE.swap(true, Ordering::SeqCst)
         {
+            debug_log::log(&format!("page load finished: {}", payload.url()));
             let app = webview.app_handle().clone();
             // Deferred via spawn, not called inline: this callback fires
             // on Android's UI thread (confirmed 2026-09-09 debugging a
@@ -397,70 +421,86 @@ pub fn run() {
                 #[cfg(debug_assertions)]
                 load_test_document_if_configured(&app);
                 if app.state::<CurrentDocument>().0.lock().unwrap().is_none() {
+                    debug_log::log("startup: checking for an OS-opened document");
                     take_and_render_pending(&app);
                 }
                 if app.state::<CurrentDocument>().0.lock().unwrap().is_none() {
+                    debug_log::log("startup: restoring last-opened document");
                     restore_last_opened_document(&app);
                 }
+                debug_log::log("startup: complete");
             });
         }
     });
 
-    builder
+    let app = builder
         .build(tauri::generate_context!())
-        .expect("error while building tauri application")
-        .run(|app_handle, event| {
-            // The user's own request (2026-09-11), after their first real
-            // OTA install: register the .md file extension so tapping one
-            // in iOS's Files app (or Android's "Open with", or double-
-            // clicking one in Finder) opens it here. The actual
-            // extension/UTI/intent-filter registration is platform config
-            // (iOS: gen/apple/mdviewer_iOS/Info.plist's
-            // CFBundleDocumentTypes; Android:
-            // gen/android/.../AndroidManifest.xml's intent-filters; desktop:
-            // this file's own tauri.conf.json `bundle.fileAssociations`) —
-            // this is the other half, actually receiving the file once the
-            // OS hands it over. `RunEvent::Opened` is Tauri's own
-            // unified surface for that hand-off across exactly macOS/iOS/
-            // Android (confirmed in the vendored `tauri` crate's `app.rs` —
-            // the variant is `cfg`-gated to those three targets, not
-            // invented per platform here), covering both a cold launch
-            // (tapping a file when the app isn't running) and a warm one
-            // (tapping a second file while it already is).
-            if let tauri::RunEvent::Opened { urls } = event {
-                // Only the first URL — matches Swift's own single-document
-                // model (`DocumentViewModel` has no concept of multiple
-                // simultaneously "opened" files, and neither does anything
-                // else in this port yet). Kept as its string form here
-                // (not converted to a `PathBuf` yet) — `render_opened_document`
-                // needs that string to re-acquire security-scoped access on
-                // iOS (see its own doc comment); converting early, the way
-                // an earlier version of this handler did, throws that away
-                // before it can ever be used.
-                if let Some(url) = urls.first() {
-                    let url_str = url.to_string();
-                    use std::sync::atomic::Ordering;
-                    if INITIAL_LOAD_COMPLETE.load(Ordering::SeqCst) {
-                        // Warm open — the window's already showing a real
-                        // page, so render directly rather than buffering
-                        // for a page-load event that isn't coming again.
-                        // Spawned for the same UI-thread/eval-deadlock
-                        // reason `on_page_load`'s own callback is above —
-                        // this closure runs on the platform's main/UI
-                        // thread too, not a plain async context.
-                        let app = app_handle.clone();
-                        tauri::async_runtime::spawn(async move {
-                            render_opened_document(&app, &url_str);
-                        });
-                    } else {
-                        // Cold launch, racing the first page load — buffer
-                        // it for on_page_load's own priority chain (above)
-                        // to pick up once the page genuinely exists.
-                        *app_handle.state::<PendingOpenedDocument>().0.lock().unwrap() = Some(url_str);
-                    }
+        .expect("error while building tauri application");
+    debug_log::log("run: app built, entering event loop");
+    app.run(|app_handle, event| {
+        // Lifecycle events only — not every event, `MainEventsCleared`
+        // and friends fire on every loop iteration and would bury the
+        // log.
+        match &event {
+            tauri::RunEvent::Ready => debug_log::log("event: Ready"),
+            tauri::RunEvent::Resumed => debug_log::log("event: Resumed"),
+            tauri::RunEvent::ExitRequested { .. } => debug_log::log("event: ExitRequested"),
+            tauri::RunEvent::Exit => debug_log::log("event: Exit"),
+            _ => {}
+        }
+
+        // The user's own request (2026-09-11), after their first real
+        // OTA install: register the .md file extension so tapping one
+        // in iOS's Files app (or Android's "Open with", or double-
+        // clicking one in Finder) opens it here. The actual
+        // extension/UTI/intent-filter registration is platform config
+        // (iOS: gen/apple/mdviewer_iOS/Info.plist's
+        // CFBundleDocumentTypes; Android:
+        // gen/android/.../AndroidManifest.xml's intent-filters; desktop:
+        // this file's own tauri.conf.json `bundle.fileAssociations`) —
+        // this is the other half, actually receiving the file once the
+        // OS hands it over. `RunEvent::Opened` is Tauri's own
+        // unified surface for that hand-off across exactly macOS/iOS/
+        // Android (confirmed in the vendored `tauri` crate's `app.rs` —
+        // the variant is `cfg`-gated to those three targets, not
+        // invented per platform here), covering both a cold launch
+        // (tapping a file when the app isn't running) and a warm one
+        // (tapping a second file while it already is).
+        if let tauri::RunEvent::Opened { urls } = event {
+            // Only the first URL — matches Swift's own single-document
+            // model (`DocumentViewModel` has no concept of multiple
+            // simultaneously "opened" files, and neither does anything
+            // else in this port yet). Kept as its string form here
+            // (not converted to a `PathBuf` yet) — `render_opened_document`
+            // needs that string to re-acquire security-scoped access on
+            // iOS (see its own doc comment); converting early, the way
+            // an earlier version of this handler did, throws that away
+            // before it can ever be used.
+            if let Some(url) = urls.first() {
+                let url_str = url.to_string();
+                debug_log::log(&format!("event: Opened {url_str}"));
+                use std::sync::atomic::Ordering;
+                if INITIAL_LOAD_COMPLETE.load(Ordering::SeqCst) {
+                    // Warm open — the window's already showing a real
+                    // page, so render directly rather than buffering
+                    // for a page-load event that isn't coming again.
+                    // Spawned for the same UI-thread/eval-deadlock
+                    // reason `on_page_load`'s own callback is above —
+                    // this closure runs on the platform's main/UI
+                    // thread too, not a plain async context.
+                    let app = app_handle.clone();
+                    tauri::async_runtime::spawn(async move {
+                        render_opened_document(&app, &url_str);
+                    });
+                } else {
+                    // Cold launch, racing the first page load — buffer
+                    // it for on_page_load's own priority chain (above)
+                    // to pick up once the page genuinely exists.
+                    *app_handle.state::<PendingOpenedDocument>().0.lock().unwrap() = Some(url_str);
                 }
             }
-        });
+        }
+    });
 }
 
 /// Test-only, mirrors `ContentView.swift`'s `MDVIEWER_TEST_DOCUMENT_PATH`
@@ -787,14 +827,26 @@ fn bookmark_granted_folder<R: Runtime>(app: &AppHandle<R>, canonical: &Path) {
 fn restore_granted_folders<R: Runtime>(app: &AppHandle<R>) {
     let Ok(store_path) = granted_folder_bookmarks_path(app) else { return };
     let mut stored = read_granted_folder_bookmarks_from(&store_path);
+    debug_log::log(&format!("restore_granted_folders: {} stored", stored.len()));
     if stored.is_empty() {
         return;
     }
 
     let mut changed = false;
     for (id, bytes) in stored.clone() {
-        let Ok(access) = scoped_bookmarks::Bookmark::from_bytes(bytes).resolve() else { continue };
+        let access = match scoped_bookmarks::Bookmark::from_bytes(bytes).resolve() {
+            Ok(access) => access,
+            Err(e) => {
+                debug_log::log(&format!("restore_granted_folders: {id} failed to resolve: {e}"));
+                continue;
+            }
+        };
         let resolved_path = access.path().to_path_buf();
+        debug_log::log(&format!(
+            "restore_granted_folders: {id} -> {}{}",
+            resolved_path.display(),
+            if access.is_stale() { " (stale)" } else { "" }
+        ));
 
         if access.is_stale() {
             if let Ok(fresh) = scoped_bookmarks::Bookmark::create(&resolved_path) {
@@ -1507,8 +1559,14 @@ fn record_last_opened_document<R: Runtime>(app: &AppHandle<R>, path: &Path) {
 /// this file.
 fn restore_last_opened_document<R: Runtime>(app: &AppHandle<R>) {
     let Ok(state_file) = last_opened_document_path(app) else { return };
-    let Some(path) = read_last_opened_document_from(&state_file) else { return };
-    let _ = render_file(app, &path);
+    let Some(path) = read_last_opened_document_from(&state_file) else {
+        debug_log::log("restore_last_opened_document: nothing recorded");
+        return;
+    };
+    debug_log::log(&format!("restore_last_opened_document: {}", path.display()));
+    if let Err(e) = render_file(app, &path) {
+        debug_log::log(&format!("restore_last_opened_document: render failed: {e}"));
+    }
 }
 
 #[cfg(test)]

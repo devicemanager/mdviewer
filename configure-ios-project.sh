@@ -2,7 +2,7 @@
 #
 # configure-ios-project.sh — Reapply the hand-edits to the generated iOS project.
 #
-# `src-tauri/gen/` is gitignored (it is generated output), but three things in
+# `src-tauri/gen/` is gitignored (it is generated output), but five things in
 # there are NOT reproducible from tracked config, and losing them fails in
 # confusing ways:
 #
@@ -30,6 +30,14 @@
 #      three places the minimum version is declared (project.yml, which
 #      xcodegen regenerates the .xcodeproj from; the .pbxproj itself; and
 #      the Podfile's `platform :ios` line, when one exists).
+#
+#   5. UIFileSharingEnabled in Info.plist
+#      Together with (1), this is what makes the app's own Documents folder
+#      show up in the Files app under On My iPhone → MDViewer. It exists for
+#      the out-of-band debug log (src-tauri/src/debug_log.rs): OTA installs
+#      have no USB/Xcode console, so the log is written there and shared off
+#      the phone from Files. Without this key the log is still written, just
+#      unreachable.
 #
 # Run this once after `tauri ios init`, and again any time the generated
 # project is recreated. Idempotent — safe to re-run at any point.
@@ -184,6 +192,16 @@ if [[ -f "$PODFILE" ]]; then
         echo "Podfile: no platform :ios line found — leaving as is (CocoaPods default)"
     fi
 fi
+
+# ---- 5. Debug-log visibility in Files --------------------------------------
+# Same Set-then-Add idempotency as section 1.
+if /usr/libexec/PlistBuddy -c "Set :UIFileSharingEnabled true" "$INFO_PLIST" 2>/dev/null; then
+    echo "Info.plist: UIFileSharingEnabled already present, ensured true"
+else
+    /usr/libexec/PlistBuddy -c "Add :UIFileSharingEnabled bool true" "$INFO_PLIST"
+    echo "Info.plist: added UIFileSharingEnabled"
+fi
+plutil -lint "$INFO_PLIST" >/dev/null
 
 echo
 echo "iOS project configured. Build an ad-hoc IPA with:"
