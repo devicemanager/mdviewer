@@ -28,9 +28,15 @@ export-compliance key, iPhone-only family and in-app license notices.
 export (or `--upload`). Listing text and four 6.9" screenshots are in
 `docs/appstore/`.
 
-**Blocked on the user:**
-1. Signing/upload credentials: no Apple ID in Xcode and no App Store
-   Connect API key here. The export stops at "No Accounts".
+**Uploaded (2026-10-17, 09:04 CEST):** after the user signed into Xcode,
+`./build-appstore-ios.sh --upload` uploaded 1.0.0 (build 1) to App Store
+Connect ("Upload succeeded", no warnings returned). Xcode created an "iOS
+Team Store Provisioning Profile" for the bundle ID automatically. Apple
+processes the build next and may still email ITMS issues.
+
+**Left for the user:**
+1. Wait for processing (the build appears under TestFlight), and watch
+   for an Apple email about the build.
 2. App Store Connect: add iOS to the `org.devicemanager.mdviewer` record
    (or create it), fill in the metadata from `listing-ios.md`, and submit.
    The submit is theirs.

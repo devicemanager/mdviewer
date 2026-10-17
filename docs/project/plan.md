@@ -3008,7 +3008,10 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
     policy wording for iPhone. **Blocked on the user**: no Apple ID in
     Xcode and no ASC API key on this machine, so the App Store export
     stops at "No Accounts"; App Store Connect record/metadata and the
-    final submit are theirs. **Flagged, not fixed**: (1) remote images
+    final submit are theirs. **Update, same day:** the user signed into
+    Xcode; `./build-appstore-ios.sh --upload` uploaded 1.0.0 (1) —
+    "Upload succeeded", no warnings returned, Xcode auto-created the App
+    Store profile. Submitting for review remains the user's step. **Flagged, not fixed**: (1) remote images
     never load in the port — Swift serves a dynamic CSP that allows
     `https:` images unless the policy is Never, the port's static
     `tauri.conf.json` CSP never does, so "Always load" does nothing
