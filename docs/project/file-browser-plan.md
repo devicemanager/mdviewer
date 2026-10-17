@@ -8,9 +8,9 @@ assumes Claude-specific state beyond one pointer noted below.
 why); this file is only *what's left*, plus the context needed to not
 re-learn it the hard way.
 
-**You are here:** `HEAD` is `4f4f811` (2026-10-07) — the grant-fallback fix
-(`6f14d51`) plus the deployment-target script absorb, with this doc's update
-landing right after. Everything before
+**You are here:** `HEAD` is `5998aa9` (2026-10-17) — the toolbar-fade fix
+(`14bff30`) and the Tauri 2.12.4 bump that unblocks iOS release builds, with
+this doc's update landing right after. Everything before
 `822a617` (2026-09-13) predates a `git filter-repo` history rewrite that
 moved the OTA tooling out of this repo — don't compare against hashes
 recorded earlier than that note. Working tree is clean —
@@ -58,7 +58,7 @@ pointer in this document; nothing else here depends on it.
 | Phase 5 (`diffFolderEntries` + skip-render-when-unchanged) | Done, verified on Android emulator |
 | Phase 6 (toolbar reorg, TOC sidebar dropped entirely) | Done, verified on Android emulator at phone and desktop widths |
 
-Test counts: **89** Rust, **215** web. All green (re-run 2026-10-07). (Web count dropped from
+Test counts: **89** Rust, **219** web. All green (re-run 2026-10-17; web +4 from the toolbar-fade fix). (Web count dropped from
 224 — Phase 6 deleted `sidebar.ts`'s 12 tests along with the feature; no
 other regressions. The Rust count rose 83 → 89 with the 6
 grant-fallback/ancestor tests that pin the fix below.)
@@ -379,7 +379,7 @@ here" note at the top refers to):
 ```bash
 export PATH="$HOME/.cargo/bin:$PATH"
 cd src-tauri && cargo test --offline   # expect 89 passed
-cd ../web && npx tsc --noEmit && npx vitest run   # expect 215 passed
+cd ../web && npx tsc --noEmit && npx vitest run   # expect 219 passed
 ```
 
 **Build environment**
@@ -420,10 +420,17 @@ export JAVA_HOME=/opt/homebrew/opt/openjdk@17/libexec/openjdk.jdk/Contents/Home 
   `errSecInternalComponent` on this machine even from a good archive — the
   shipped IPA is instead zipped directly from the `.xcarchive`'s `Payload`
   (signature survives; audit before serving).
-- **Release builds don't link** (2026-10-07): Tauri 2.11.5 / swift-rs 1.0.8
-  emit local (`t`) Rust symbols that Xcode 27 / Swift 6.1's link step
-  rejects. Every OTA build so far was `--debug`, which is unaffected — the
-  release IPA path is simply unproven, decision open (see plan.md).
+- **Release builds link since 2026-10-17** (`5998aa9`, Tauri 2.11.5 →
+  2.12.4). The old failure was swift-rs's Swift `@_cdecl` exports being
+  `internal` up to its 1.0.7 tag — Xcode 27's optimized build makes those
+  local — with tauri 2.11.5's shipped `Package.resolved` pinning that tag.
+  If `_retain_object`/`_release_object` undefined ever comes back, check
+  which swift-rs tag SwiftPM resolved
+  (`target/<triple>/release/build/tauri-*/out/swift-rs/Tauri/workspace-state.json`)
+  before touching the crate version — the crate isn't what SwiftPM builds.
+  `tauri ios build` (release) still fails at its *export* step
+  (`requires a provisioning profile`); zip the archive's `Payload` as
+  above.
 - iOS build sometimes needs stale `gen/apple/build/**/MDViewer.app` removed
   first ("Directory not empty").
 - OTA: Caddy (now outside this repo, see the note near the top of this

@@ -2930,6 +2930,39 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
       `idevicecrashreport`, or Settings → Privacy & Security →
       Analytics on the phone itself); the phone was unreachable all
       session (`idevice_id -l` → none).
+
+  - **iOS release builds unblocked (2026-10-17, `5998aa9`)** — the
+    user chose "try upgrading" from the options above. Root cause was
+    narrower than "swift-rs emits local symbols": swift-rs's *Swift*
+    side (fetched by SwiftPM from git, not from the crate) declared its
+    `@_cdecl` exports (`retain_object`, `release_object`,
+    `string_from_bytes`, …) as **internal** functions up to its 1.0.7
+    tag, and Xcode 27's optimized whole-module build gives internal
+    symbols local linkage (`nm`: `t` in release `libTauri.a`, `T` in
+    debug — why debug always linked). Upstream made them `public` in
+    the 1.0.8/1.0.9 tags, but **tauri 2.11.5 ships a `Package.resolved`
+    pinning SwiftPM to 1.0.7**, and the swift-rs *crate* 1.0.9 is
+    byte-identical to 1.0.8 apart from its version — so no crate-only
+    bump could fix it. tauri 2.12.4 drops that `Package.resolved` and
+    requires `from: "1.0.9"`. Applied as a targeted
+    `cargo update -p tauri --precise 2.12.4` (tauri/tao/wry family +
+    transitive deps; plugins untouched — tauri-plugin-opener 2.5.5 still
+    ships a stale 1.0.6 pin, harmless since it resolves through Tauri's
+    API package). `@tauri-apps/cli` stays 2.11.4; the CLI's own
+    version-mismatch check raised nothing. **Verified**: 89 Rust tests
+    green; the release *device* archive builds (Apple Distribution +
+    ad-hoc profile, same signing as the debug OTA builds); a release
+    *simulator* build launched on the device-matched sim, restored the
+    last-opened document at startup (security-scoped bookmark → read →
+    render), and screenshots confirmed Shiki, KaTeX (inline + block),
+    Mermaid (sequence + class), tables, and the file browser and toolbar
+    fade behaving as on debug. **Still open**: `tauri ios build`'s export
+    step fails with `exportArchive "MDViewer.app" requires a
+    provisioning profile` (the generated `ExportOptions.plist` is
+    `method: debugging` with no profile mapping) — the established
+    zip-the-`Payload` workaround applies unchanged. No release IPA has
+    been served over OTA yet; that's an outward-facing step left for
+    the user.
 - [ ] Manual smoke test of the golden path and edge cases on each of the 5
       platforms before calling it done, per the working agreement
 - [ ] Re-verify all security invariants per platform (custom scheme, CSP,
