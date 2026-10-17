@@ -71,13 +71,19 @@ body {
     background: color-mix(in srgb, var(--bg-color, #fff) 90%, transparent);
     backdrop-filter: blur(16px);
     -webkit-backdrop-filter: blur(16px);
-    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.25);
+    /* Shadow only while open (2026-10-17): a closed drawer at
+       translateX(-100%) still cast its 24px blur ~26px *into* the
+       viewport, a grey strip down the left edge of every screen —
+       caught in the first App Store screenshots. Transitioned with the
+       slide so closing doesn't snap it off mid-animation. */
+    box-shadow: none;
     transform: translateX(-100%);
-    transition: transform 0.2s ease-out;
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
 }
 
 .drawer.open {
     transform: translateX(0);
+    box-shadow: 2px 0 24px rgba(0, 0, 0, 0.25);
 }
 
 /* Tap-outside-to-close scrim. Not part of #app's flex layout — an
