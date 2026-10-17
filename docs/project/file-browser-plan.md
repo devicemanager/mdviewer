@@ -306,18 +306,18 @@ their own phase.
 - **`renderer.html` CSP** has the same missing `ipc:` in `connect-src` that
   `app.html` needed. Left deliberately unfixed — CLAUDE.md lists
   `renderer.html` as a file that "moves across unchanged". Needs a decision.
-- **The auto-fading toolbar is permanently untappable whenever nothing
-  scrolls (found 2026-10-07, flagged, not fixed).** After 2.5s idle the
-  toolbar gets `opacity: 0.06; pointer-events: none`, and the only wake
-  sources are `#main`'s `scroll` and `visualViewport`'s resize/scroll —
-  with no open document (or any document short enough not to overflow),
-  neither ever fires, so Open/Find/Preferences/Browse files go dead while
-  nearly invisible until a pinch-zoom or a rotation past 768px. This
-  specifically makes the "grant → drawer closes → tap Browse → nothing"
-  shape *look* like the grant fix above isn't working on a phone. Fix
-  options need a design call (wake on any tap/pointerdown, or skip the
-  fade when `#main` isn't scrollable) — full writeup in plan.md's
-  2026-10-07 entries.
+- ~~**The auto-fading toolbar is permanently untappable whenever nothing
+  scrolls**~~ — **fixed 2026-10-17 (`14bff30`)**. Found 2026-10-07: after
+  2.5s idle the toolbar got `opacity: 0.06; pointer-events: none` and only
+  scroll/zoom woke it, so with no document (or a short one) Open/Find/
+  Preferences/Browse files went dead. The user picked both fix options:
+  the fade is skipped when `#main` can't scroll, and the faded strip stays
+  hit-testable — a tap wakes it, that first tap swallowed so a near-
+  invisible button can't fire by accident. Verified on the simulator
+  (plan.md's 2026-10-17 entry). Trade-off worth knowing: a touch that
+  starts on the faded strip no longer reaches the content underneath
+  (the old `pointer-events: none` rationale) — it's one toolbar-height
+  band at the top of the screen.
 
 ---
 
@@ -442,10 +442,16 @@ verification claim):
   UI state. `xcrun simctl io <udid> screenshot` returns **stale frames** once
   the display sleeps — images came back with status-bar clocks running
   backwards; same lesson as `adb exec-out screencap` above.
-- Any tap on a toolbar button races the auto-fade (section 4's open issue):
-  it must land within ~2.5s of launch, or it falls through the faded
-  toolbar and does nothing — "COMPLETED" from Maestro means the coordinates
-  were touched, not that a handler ran.
+- A tap on a **faded** toolbar (scrollable document, 2.5s idle) only
+  reveals it — the tap is swallowed by design since 2026-10-17 — so a flow
+  that means to press a toolbar button on a long document needs two taps
+  in the *same* `maestro test` run (separate runs take seconds to start,
+  long enough for it to fade again in between). "COMPLETED" from Maestro
+  still only means the coordinates were touched, not that a handler ran.
+- While a drawer is open it covers the toolbar, so `tapOn: "Browse files"`
+  then lands on the drawer's top row (`.. (up one level)`) instead, and the
+  a11y tree reports the drawer's rows at the same bounds open or closed —
+  judge drawer state from a (clock-checked) screenshot, not from bounds.
 - App data root: `xcrun simctl get_app_container <udid>
   org.devicemanager.mdviewer data`; the grant store and state files live
   under `Library/Application Support/org.devicemanager.mdviewer/` —

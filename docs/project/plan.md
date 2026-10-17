@@ -2879,6 +2879,26 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
     has read the computed style back off a live iOS webview, since that
     needs the Safari GUI.
 
+  - **Toolbar-fade dead-tap bug fixed (2026-10-17, `14bff30`)** — the
+    2026-10-07 entry above flagged it with two fix options; the user
+    chose both. `wireToolbarAutoHide` gained a `canFade` predicate
+    (main.ts passes `#main.scrollHeight > #main.clientHeight`), so with
+    nothing to scroll the toolbar simply never fades; and `.toolbar-faded`
+    lost its `pointer-events: none`, with a capture-phase click listener
+    on the toolbar that wakes it and swallows the tap while faded (the
+    first tap only reveals, so a 6%-opacity button can't fire blind).
+    4 new tests, 219 total. **Verified on the iPhone 16 Pro Max / iOS
+    18.5 simulator via Maestro**: no document open, Browse files opened
+    the drawer minutes after launch (a11y-tree diff showed the listing
+    appear); with the long `test-all-elements.md` opened and scrolled,
+    clock-checked screenshots showed tap 1 bringing the toolbar back
+    with the drawer still closed, and tap 2 opening the drawer.
+    Deliberate trade-off: a touch that starts on the faded strip no
+    longer reaches content underneath. **Also noticed, pre-existing, not
+    fixed**: the drawer offers `.. (up one level)` at a grant's root,
+    and following it lands on `access_denied: outside the document's
+    folder and no folder has been granted` — a dead end the UI invites.
+
   - **iOS release/OTA tooling, 2026-10-07 (debug IPA only; release
     blocked, decision open)** — accumulated while chasing the same
     device report:
