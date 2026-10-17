@@ -40,9 +40,9 @@ processes the build next and may still email ITMS issues.
 2. App Store Connect: add iOS to the `org.devicemanager.mdviewer` record
    (or create it), fill in the metadata from `listing-ios.md`, and submit.
    The submit is theirs.
-3. Before pushing: keep `docs/privacy.html` (live privacy URL) and the
-   About text's `THIRD_PARTY_NOTICES.md` link working, since the local docs
-   restructure moved both.
+3. ~~Before pushing: keep `docs/privacy.html` and `THIRD_PARTY_NOTICES.md`
+   working.~~ Resolved 2026-10-17: the published site files and the notices
+   are back at their live paths, so pushing is safe.
 
 **Contrast pass (later the same day):** after TestFlight feedback that parts
 of the UI were hard to see on the phone, `npm run test:visual` (web/) now

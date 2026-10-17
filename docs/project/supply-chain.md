@@ -37,7 +37,7 @@ vendored file is swapped to match it, not as after-the-fact cleanup.
    (or, for a security fix, the version the advisory says fixes it).
 2. Compute the SHA-256 of the official CDN/npm artifact for that version
    and record it in the table above, along with the version number.
-   Update `docs/project/third-party-notices.md` (version, and any
+   Update `THIRD_PARTY_NOTICES.md` (version, and any
    version-pinned license URL) too.
 3. Only then replace the file under `MDViewer/Resources/Web/vendor/` and
    confirm its local hash matches what you just recorded.

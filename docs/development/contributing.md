@@ -105,7 +105,7 @@ Docs first, per the rule above: the provenance record states the target before t
 1. Confirm the target version and, if this is a security fix, exactly which advisories it resolves.
 2. Update to the target state:
    - `docs/project/supply-chain.md`: version, and SHA-256 of the official artifact;
-   - `docs/project/third-party-notices.md`: version, and any version-pinned license URL;
+   - `THIRD_PARTY_NOTICES.md`: version, and any version-pinned license URL;
    - the pinned versions in `porting-brief.md`.
 3. Only then replace the file under `MDViewer/Resources/Web/vendor/`. Check that it's byte-identical to the npm/CDN artifact (the hash from step 2), and bump the matching exact-version devDependency in `web/package.json`.
 4. Update the credits in `web/src/aboutPanel.ts`. A test pins them to the vendored versions. The Swift About panel (`MDViewerApp.swift`) is Swift source and stays untouched during the port; that mismatch is recorded as a known follow-up.

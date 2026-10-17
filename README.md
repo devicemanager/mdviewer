@@ -2,7 +2,7 @@
 
 A lightweight, native macOS Markdown viewer built for developers.
 
-![Screenshot](docs/appstore/screenshot.png)
+![Screenshot](docs/screenshot.png)
 
 ## Overview
 
@@ -119,7 +119,7 @@ brew install create-dmg
 
 ## Open source libraries
 
-All bundled libraries are permissively licensed (MIT, except DOMPurify which is Apache-2.0 / MPL-2.0). See [THIRD_PARTY_NOTICES.md](docs/project/third-party-notices.md) for full license texts.
+All bundled libraries are permissively licensed (MIT, except DOMPurify which is Apache-2.0 / MPL-2.0). See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) for full license texts.
 
 | Library | Version | License |
 |---------|---------|---------|

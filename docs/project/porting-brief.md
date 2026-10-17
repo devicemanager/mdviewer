@@ -124,7 +124,7 @@ bumps leave it stale again: it still says KaTeX 0.17.0 and DOMPurify 3.4.15.
 The TypeScript port's `aboutPanel.ts` is current and test-pinned to the
 vendored versions. Left alone deliberately: that's Swift source, not a vendored asset,
 and the version-bump authorization was about the libraries themselves, not
-license-text UI. `docs/project/third-party-notices.md` and
+license-text UI. `THIRD_PARTY_NOTICES.md` and
 `supply-chain.md` are already updated to the new versions.
 
 ## Out of scope

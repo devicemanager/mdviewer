@@ -125,14 +125,12 @@ are in the app under Preferences → About.
 1. **Signing/upload access** — App Store distribution needs either an Apple
    ID signed into Xcode (Settings → Accounts) or an App Store Connect API
    key; see `build-appstore-ios.sh`.
-2. **Privacy policy URL** — live today at
-   `https://devicemanager.github.io/mdviewer/privacy.html` (GitHub Pages,
-   `main:/docs` on origin). Locally the file moved to
-   `docs/appstore/privacy.html`, so the next push turns that URL into a 404
-   unless a copy (or redirect) is kept at `docs/privacy.html`. The local
-   file is updated for iPhone (2026-10-17); it goes live only on push.
+2. **Privacy policy URL** — `https://devicemanager.github.io/mdviewer/privacy.html`
+   (GitHub Pages, `main:/docs`). The published site lives at the paths
+   GitHub Pages serves: `docs/index.html` (the App Store marketing URL),
+   `docs/privacy.html`, `docs/ja/index.html`, `docs/icon.png`,
+   `docs/screenshot.png`. Don't move them; the App Store listings link to
+   them. Pushing publishes the iPhone wording of the privacy policy.
 3. **About text link** — the acknowledgements end with
-   `.../blob/main/THIRD_PARTY_NOTICES.md` (verbatim from the Swift app).
-   That file exists on origin today but not in the local tree
-   (`docs/project/third-party-notices.md` now), so it breaks on the same
-   push.
+   `.../blob/main/THIRD_PARTY_NOTICES.md` (verbatim from the Swift app), so
+   that file stays at the repository root.

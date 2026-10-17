@@ -19,7 +19,7 @@ Welcome to the MDViewer documentation hub. This folder contains all project docu
 ### Project Information
 - **[Changelog](project/changelog.md)** — Version history and release notes
 - **[Supply Chain](project/supply-chain.md)** — Dependencies and supply chain information
-- **[Third-Party Notices](project/third-party-notices.md)** — Licenses and attributions
+- **[Third-Party Notices](../THIRD_PARTY_NOTICES.md)** — Licenses and attributions
 - **[Claude Context](project/claude-context.md)** — AI assistant context guidelines
 
 ### Internationalization (日本語)
