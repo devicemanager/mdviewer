@@ -3044,6 +3044,35 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
     `cda4b6b`: DOMPurify 3.4.17 / KaTeX 0.18.11 for new advisories that
     `npm audit` surfaced (build 1, already uploaded, contains the old
     versions). Build number bumped to 2; not uploaded yet.
+  - **iOS 1.0.0 submitted for review (2026-10-17).** Builds 2–5 were
+    uploaded with the App Store Connect API key that
+    `build-appstore-ios.sh` now reads from `~/.appstoreconnect/asc.env`.
+    Build 5 is attached. The listing, screenshots and review notes were
+    filled in through the API, and the user submitted it; it releases
+    automatically after approval. Status: `docs/appstore/listing-ios.md`.
+    Flagged item (2) above is resolved: `011210d` moved the published
+    site and `THIRD_PARTY_NOTICES.md` back to their live paths before the
+    push.
+  - **Google Play release on hold (2026-10-18, the user's decision).**
+    Android stays a port target and keeps building, but it won't be
+    published yet. Reasons:
+    - the Mac app has about 36 downloads, with little growth;
+    - a new personal Play account needs a closed test with 12 testers
+      for 14 days before it can publish;
+    - testing needs a physical Android phone;
+    - a phone-based developer workflow (e.g. a cmux integration) would
+      mean hardening the homelab and VPN first.
+
+    Revisit once it's clear how the iPhone version is adopted. Still
+    needed for a release:
+    - Storage Access Framework file opening: `content://` URIs,
+      "Open with…" for `.md`, and the folder picker;
+    - an AAB release build with an upload keystore (`release` has no
+      `signingConfig` yet; see the Android packaging note above);
+    - a `versionCode` and Play's current target-SDK minimum;
+    - a Play Developer API service account (the counterpart of the ASC
+      key);
+    - the store listing, feature graphic and Data safety form.
 - [ ] Manual smoke test of the golden path and edge cases on each of the 5
       platforms before calling it done, per the working agreement
 - [ ] Re-verify all security invariants per platform (custom scheme, CSP,
