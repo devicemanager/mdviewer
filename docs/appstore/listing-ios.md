@@ -7,11 +7,11 @@ with iOS added as a second platform (universal purchase; the user's call,
 `version` / `bundle.iOS.bundleVersion`; bump the build number for every
 upload). iPhone only.
 
-**Status (2026-10-17):** the iOS version 1.0.0 exists in App Store Connect,
+**Status (2026-10-18):** the iOS version 1.0.0 exists in App Store Connect,
 created through the API, with build 5 attached. The en-US texts below, the
 four screenshots (6.9") and the App Review notes are filled in; release is
-"automatically after approval", as for the Mac app. Not done: Submit for
-Review (the user's step), and the optional subtitle change.
+"automatically after approval", as for the Mac app. Submitted for review
+2026-10-17 (Waiting for Review). Not done: the optional subtitle change.
 
 > Only claim what the iPhone app does. Unlike the Mac app it has **no**
 > editor, **no** PDF/HTML export and **no** Quick Look — App Review checks
