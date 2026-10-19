@@ -29,6 +29,14 @@ url = "2.5.8"
 # reasoning as tauri-plugin-opener/url above.
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
+# `remote_image` module: fetches a remote image once the user has allowed
+# it, so the page's CSP never has to allow http:/https: (2026-10-19). ureq
+# with rustls + ring + bundled webpki-roots, not reqwest: reqwest 0.13's
+# rustls always uses rustls-platform-verifier, which on Android needs a
+# JNI/Kotlin component; this builds the same way on all five platforms.
+# No gzip, no cookies, no platform proxy config — nothing beyond the GET.
+ureq = { version = "3.4.2", default-features = false, features = ["rustls"] }
+base64 = "0.22.1"
 
 # `scoped_bookmarks` module: vendored, audited security-scoped-bookmark FFI
 # (see that module's own doc comment + docs/project/plan.md's Milestone B

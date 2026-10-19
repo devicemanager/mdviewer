@@ -8,6 +8,7 @@ use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
 mod debug_log;
+mod remote_image;
 mod scoped_bookmarks;
 
 /// The native iOS folder picker — the only way to grant access to a folder
@@ -336,6 +337,7 @@ pub fn run() {
             open_document_command,
             get_remote_content_policy,
             set_remote_content_policy,
+            fetch_remote_image,
             #[cfg(debug_assertions)]
             spike_read_dir_variants,
             list_directory,
@@ -1526,6 +1528,21 @@ fn get_remote_content_policy<R: Runtime>(app: AppHandle<R>) -> String {
 #[tauri::command]
 fn set_remote_content_policy<R: Runtime>(app: AppHandle<R>, policy: String) -> Result<(), String> {
     write_remote_content_policy_to(&remote_content_policy_path(&app)?, &policy)
+}
+
+/// The page's "Load" / "Always Allow" (and every render under Always) →
+/// this, once per gated `<img>`; see `remote_image.rs` for why the webview
+/// doesn't load remote images itself. Refuses under Never whatever the
+/// page asks, so the stored setting is the last word. `spawn_blocking`:
+/// a slow image server mustn't hold up the command thread.
+#[tauri::command]
+async fn fetch_remote_image<R: Runtime>(app: AppHandle<R>, url: String) -> Result<String, String> {
+    if read_remote_content_policy(&app) == "never" {
+        return Err("remote content is set to Never".to_string());
+    }
+    tauri::async_runtime::spawn_blocking(move || remote_image::fetch_as_data_url(&url))
+        .await
+        .map_err(|e| e.to_string())?
 }
 
 /// Ported from `DocumentViewModel.restoreLastOpened()`/
