@@ -120,6 +120,7 @@ Notarization uses a Keychain profile, created once with `xcrun notarytool store-
 | Web unit tests | `cd web && npm test` | Renderer, view models, UI modules (vitest + jsdom) |
 | Type check | `cd web && npm run typecheck` | `tsc --noEmit`, strict |
 | Visual audit | `cd web && npm run test:visual` | Every theme × phone/desktop × UI state in real WebKit: text contrast (WCAG 2.2 AA), controls on screen, nothing running off the screen. About 3 minutes; screenshots land in `web/visual-output/`. |
+| Privacy end to end | `cd web && npm run test:e2e` | The remote-image setting (Ask / Always / Never) in real WebKit with the real CSP: whether an image's server is contacted and the image shows, for a plain document and a GitHub-style README. Known gaps are `it.fails` ("expected fail"); one turning red means it's been fixed. About 30 seconds. |
 | Rust tests | `cd src-tauri && cargo test --offline` | Commands, path checks, link handling, file watching, state files (headless, via `tauri::test`) |
 | iOS UI flows | `maestro --device <udid> test tests/maestro/<flow>.yaml` | Scripted simulator runs (needs `JAVA_HOME` to point at OpenJDK 17) |
 | Swift tests | `xcodebuild -scheme MDViewer test` | The reference app's XCTest suite |

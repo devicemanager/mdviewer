@@ -9,7 +9,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "test:visual": "vitest run --config vitest.visual.config.ts"
+    "test:visual": "vitest run --config vitest.visual.config.ts",
+    "test:e2e": "vitest run --config vitest.e2e.config.ts"
   },
   "devDependencies": {
     "@types/node": "^26.4.1",
