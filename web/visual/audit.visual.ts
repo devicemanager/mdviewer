@@ -55,6 +55,7 @@ type StateName =
     | "prefs-privacy"
     | "prefs-about"
     | "file-browser"
+    | "remote-prompt"
     | "doc-diagrams"
     | "theme-switch";
 
@@ -68,6 +69,7 @@ const STATES: StateName[] = [
     "prefs-privacy",
     "prefs-about",
     "file-browser",
+    "remote-prompt",
     "doc-diagrams",
     "theme-switch",
 ];
@@ -188,7 +190,7 @@ function measure(ownContent: boolean): { items: Measured[]; controls: ControlPro
         return el && !el.closest("[hidden]") ? el : null;
     };
     const layer =
-        open("#permissions") ?? open("#preferences") ?? (document.querySelector("#file-browser.open") ? "#file-browser" : null);
+        open("#remote-prompt") ?? open("#permissions") ?? open("#preferences") ?? (document.querySelector("#file-browser.open") ? "#file-browser" : null);
     const chrome = layer ? `#${typeof layer === "string" ? "file-browser" : layer.id}` : "#toolbar, #search, #welcome";
     const controls: ControlProblem[] = [];
     for (const el of document.querySelectorAll(`:is(${chrome}) :is(button, select, input, a[href])`)) {
@@ -522,6 +524,12 @@ async function runState(page: Page, state: StateName, shot: string, theme: Markd
             await click('#toolbar [data-action="file-browser-toggle"]');
             await page.locator("#file-browser .file-browser-item").first().waitFor();
             await page.waitForTimeout(300); // the 0.2s slide-in
+            return auditView(page, state, shot);
+        case "remote-prompt":
+            // "Load remote content?" over a document (remotePrompt.ts). The
+            // image is the project's own icon; under Ask it's never fetched.
+            await showDocument(page, markdown + "\n\n![MDViewer icon](https://raw.githubusercontent.com/devicemanager/mdviewer/main/docs/icon.png)\n");
+            await page.locator("#remote-prompt [role=alertdialog]").waitFor();
             return auditView(page, state, shot);
     }
 }

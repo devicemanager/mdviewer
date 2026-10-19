@@ -1,6 +1,6 @@
 // Remote-image privacy settings, end to end — 2026-10-19, the user's request
 // after a review found that each piece of the Ask / Always / Never chain is
-// unit-tested but nothing checks what the app actually does with them.
+// unit-tested but nothing checked what the app actually does with them.
 //
 // Runs the real app page (MDViewer/Resources/Web/app.html, the real
 // mdviewer.js bundle, the real vendored libraries) in Playwright's WebKit,
@@ -9,25 +9,29 @@
 // render_file does it in src-tauri/src/lib.rs:
 // `window.MDViewer.setRemoteContentPolicy('<policy>')`, then `setContent`.
 //
-// "Remote" is a second local HTTP server on another port — a different
-// origin, so the CSP treats it like any server on the internet. What's
-// measured is what matters for privacy: whether that server receives a
-// request (it learns your IP address and that you opened the document),
-// and whether the image actually shows.
+// The images are the project's own, on GitHub
+// (github.com/devicemanager/mdviewer, its raw files and its Pages site), so
+// the documents look like the ones people will actually open. Nothing
+// reaches GitHub during the run, though: every request the page makes to
+// another origin is answered inside the browser (context.route) and
+// recorded, and so is every image the host is asked to fetch. "Contacted"
+// below means either — any way a server would learn you opened the file.
 //
-// The expected behaviour is Swift v1.2.1's (WebRendererView.swift):
-// - Never: no request, no prompt.
-// - Ask: no request until you agree; you're asked ("Load remote
-//   content?" — Load / Don't Load / Always Allow); Load calls
-//   MDViewer.loadRemoteResources() and the images load.
+// The host side is emulated: `fetch_remote_image` (src-tauri/src/
+// remote_image.rs, which has its own tests, including one against the real
+// GitHub) is stood in for by `hostFetch` below, which records the URL,
+// refuses under Never like the Rust does, and returns a 1×1 PNG.
+//
+// Expected behaviour, Swift v1.2.1's (WebRendererView.swift) except where
+// noted:
+// - Never: nothing contacted, no prompt.
+// - Ask: nothing contacted until you agree; "Load remote content?" —
+//   Load / Don't Load / Always Allow.
 // - Always: images load, no prompt.
-// The CSP there allows remote images unless the policy is Never
-// (`cspAllowsRemote`); the port's CSP is static and never does.
-//
-// Known gaps are `it.fails`: they pass while the gap exists and turn red
-// the moment it's fixed — then change them to `it`. As of 2026-10-19:
-// - the CSP blocks every remote image, so Always and Ask's Load do nothing;
-// - there's no Ask prompt at all (plan.md: "not built yet").
+// - Deviation, all policies: only `<img>` images ever load. CSS url(),
+//   video posters, SVG <image> etc. stay blocked by the CSP even under
+//   Always — Swift's CSP let those through under Ask *before* consent
+//   (see remote_image.rs).
 //
 // Not part of `npm test` (it launches a browser): `npm run test:e2e`.
 
@@ -56,28 +60,60 @@ const MIME: Record<string, string> = {
 };
 
 // A 1×1 PNG.
-const PIXEL = Buffer.from(
-    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYPj/HwADAgH/eL9GtQAAAABJRU5ErkJggg==",
-    "base64",
-);
+const PIXEL_BASE64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR4nGNgYPj/HwADAgH/eL9GtQAAAABJRU5ErkJggg==";
+const PIXEL = Buffer.from(PIXEL_BASE64, "base64");
+
+const RAW = "https://raw.githubusercontent.com/devicemanager/mdviewer/main/docs";
+const REPO_RAW = "https://github.com/devicemanager/mdviewer/raw/main/docs"; // redirects to RAW
+const PAGES = "https://devicemanager.github.io/mdviewer";
+
+/** One remote image, the simplest document there is. */
+const SIMPLE = `# Remote image\n\n![MDViewer icon](${RAW}/icon.png)\n`;
+
+/**
+ * A README the way GitHub projects write them: Markdown images, a
+ * github.com/…/raw/… link, raw <img> tags, and <picture>/srcset for
+ * light/dark variants.
+ */
+const README = `# MDViewer
+
+![Icon](${RAW}/icon.png)
+
+![Screenshot](${REPO_RAW}/screenshot.png)
+
+<img src="${PAGES}/icon.png" width="64" alt="site icon">
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="${RAW}/icon.png?variant=dark">
+  <img alt="logo" src="${RAW}/screenshot.png?variant=light">
+</picture>
+
+<img alt="hero" srcset="${RAW}/icon.png?variant=srcset 2x">
+`;
+/** The `<img src>`s above — the only things that should ever load. */
+const README_IMAGES = [`${RAW}/icon.png`, `${REPO_RAW}/screenshot.png`, `${PAGES}/icon.png`, `${RAW}/screenshot.png?variant=light`];
+
+/**
+ * Every other way a document can make a webview request an image, found
+ * 2026-10-19: none goes through the `<img src>` gate, so only the CSP keeps
+ * them from loading. Each has its own `via=` so a leak names itself.
+ */
+const VECTORS = [
+    `<p style="background:url(${RAW}/icon.png?via=style-attr)">a</p>`,
+    `<style>#content{background:url(${RAW}/icon.png?via=style-tag)}</style>`,
+    `<video poster="${RAW}/icon.png?via=video-poster" src="${RAW}/icon.png?via=video-src"></video>`,
+    `<audio src="${RAW}/icon.png?via=audio-src" autoplay></audio>`,
+    `<video><source src="${RAW}/icon.png?via=source-src"></video>`,
+    `<input type="image" src="${RAW}/icon.png?via=input-image">`,
+    `<svg><image href="${RAW}/icon.png?via=svg-image" width="10" height="10"/></svg>`,
+    `<svg><image xlink:href="${RAW}/icon.png?via=svg-xlink" width="10" height="10"/></svg>`,
+    `<table background="${RAW}/icon.png?via=table-bg"><tr><td>x</td></tr></table>`,
+].join("\n\n");
 
 let appServer: Server;
-let remoteServer: Server;
 let appUrl: string;
-let remoteUrl: string;
 let browser: Browser;
 let csp: string;
-/** Paths the "remote" server was asked for, in order. */
-let remoteRequests: string[] = [];
-
-function listen(server: Server): Promise<string> {
-    return new Promise((done) =>
-        server.listen(0, "127.0.0.1", () => {
-            const address = server.address();
-            done(`http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}`);
-        }),
-    );
-}
 
 beforeAll(async () => {
     csp = JSON.parse(await readFile(TAURI_CONF, "utf8")).app.security.csp;
@@ -96,43 +132,63 @@ beforeAll(async () => {
             res.writeHead(404).end();
         }
     });
-    remoteServer = createServer((req, res) => {
-        remoteRequests.push(req.url ?? "");
-        res.writeHead(200, { "content-type": "image/png", "cache-control": "no-store" }).end(PIXEL);
-    });
-    appUrl = await listen(appServer);
-    remoteUrl = await listen(remoteServer);
+    await new Promise<void>((done) => appServer.listen(0, "127.0.0.1", done));
+    const address = appServer.address();
+    appUrl = `http://127.0.0.1:${typeof address === "object" && address ? address.port : 0}`;
     browser = await webkit.launch();
 });
 
 afterAll(async () => {
     await browser?.close();
     await new Promise<void>((done) => appServer?.close(() => done()));
-    await new Promise<void>((done) => remoteServer?.close(() => done()));
 });
 
-interface Opened {
+interface App {
     page: Page;
-    /** Every `invoke` the page made, by command name. */
-    invokes: () => Promise<string[]>;
+    /** Every remote URL contacted so far, by the page or through the host. */
+    contacted: string[];
+    /** The policy as the (stubbed) Rust side has it stored right now. */
+    storedPolicy: () => Promise<Policy>;
+    close: () => Promise<void>;
 }
 
-async function openApp(policy: Policy, options: { bypassCSP?: boolean } = {}): Promise<Opened> {
-    remoteRequests = [];
+async function openApp(policy: Policy, options: { bypassCSP?: boolean } = {}): Promise<App> {
     const context = await browser.newContext({ bypassCSP: options.bypassCSP ?? false });
-    await context.addInitScript((stored: Policy) => {
+    const contacted: string[] = [];
+    await context.route(
+        (url) => url.origin !== appUrl,
+        (route) => {
+            contacted.push(route.request().url());
+            return route.fulfill({ status: 200, contentType: "image/png", body: PIXEL });
+        },
+    );
+    await context.exposeFunction("__hostFetch", (url: string, stored: Policy) => {
+        if (stored === "never") throw new Error("remote content is set to Never");
+        if (!/^https?:\/\//.test(url)) throw new Error("refusing a non-http(s) URL");
+        contacted.push(url);
+        return `data:image/png;base64,${PIXEL_BASE64}`;
+    });
+    await context.addInitScript((initial: Policy) => {
         // The first-launch dialog explains remote content too; it's not
         // what's under test here, and its text would look like a prompt.
         localStorage.setItem("mdviewer.permissionsPromptSeen", "true");
-        const calls: string[] = [];
-        (window as unknown as { __invokes: string[] }).__invokes = calls;
-        (window as unknown as { __TAURI__: unknown }).__TAURI__ = {
+        let stored = initial;
+        const w = window as unknown as Record<string, unknown>;
+        w.__storedPolicy = () => stored;
+        w.__TAURI__ = {
             core: {
-                invoke: async (cmd: string) => {
-                    calls.push(cmd);
+                invoke: async (cmd: string, args?: Record<string, unknown>) => {
                     switch (cmd) {
                         case "get_remote_content_policy":
                             return stored;
+                        case "set_remote_content_policy":
+                            stored = args!.policy as typeof stored;
+                            return null;
+                        case "set_remote_content_policy_always":
+                            stored = "always";
+                            return null;
+                        case "fetch_remote_image":
+                            return (w.__hostFetch as (u: string, p: string) => Promise<string>)(args!.url as string, stored);
                         case "list_granted_folders":
                             return [];
                         default:
@@ -146,13 +202,18 @@ async function openApp(policy: Policy, options: { bypassCSP?: boolean } = {}): P
     const page = await context.newPage();
     await page.goto(`${appUrl}/app.html`);
     await page.waitForFunction(() => !!(window as unknown as { MDViewer?: unknown }).MDViewer);
-    return { page, invokes: () => page.evaluate(() => [...(window as unknown as { __invokes: string[] }).__invokes]) };
+    return {
+        page,
+        contacted,
+        storedPolicy: () => page.evaluate(() => (window as unknown as { __storedPolicy: () => Policy }).__storedPolicy()),
+        close: () => context.close(),
+    };
 }
 
 /** What render_file does: push the stored policy, then the document. */
-async function showDocument(page: Page, policy: Policy): Promise<void> {
-    const markdown = `# Remote image\n\n![remote](${remoteUrl}/pixel.png?doc=1)\n`;
-    await page.evaluate(
+async function render(app: App, markdown: string): Promise<void> {
+    const policy = await app.storedPolicy();
+    await app.page.evaluate(
         async ({ p, md }) => {
             const viewer = (window as unknown as {
                 MDViewer: { setRemoteContentPolicy(p: string): void; setContent(md: string): Promise<unknown> };
@@ -162,198 +223,188 @@ async function showDocument(page: Page, policy: Policy): Promise<void> {
         },
         { p: policy, md: markdown },
     );
-    await settle(page);
+    await settle(app.page);
 }
 
-/** Gives a load (or a prompt) time to happen; a blocked one never will. */
+/** Gives loads (or a prompt) time to happen; a blocked one never will. */
 async function settle(page: Page): Promise<void> {
     await page
-        .waitForFunction(() => {
-            const img = document.querySelector<HTMLImageElement>("#content img");
-            return !!img && img.complete && img.naturalWidth > 0;
-        }, undefined, { timeout: 1500 })
+        .waitForFunction(() => [...document.querySelectorAll<HTMLImageElement>("#content img[src]")].some((i) => i.complete && i.naturalWidth > 0), undefined, {
+            timeout: 1500,
+        })
         .catch(() => {});
     await page.waitForTimeout(300);
 }
 
-async function imageShown(page: Page): Promise<boolean> {
+/** How many `<img>`s in the document are actually showing a picture. */
+async function imagesShown(page: Page): Promise<number> {
+    return page.evaluate(() => [...document.querySelectorAll<HTMLImageElement>("#content img")].filter((i) => i.complete && i.naturalWidth > 0).length);
+}
+
+/** The prompt's text if it's on screen, otherwise undefined. */
+async function promptShown(page: Page): Promise<string | undefined> {
     return page.evaluate(() => {
-        const img = document.querySelector<HTMLImageElement>("#content img");
-        return !!img && img.complete && img.naturalWidth > 0;
+        const el = document.getElementById("remote-prompt");
+        return el && !el.hidden && el.checkVisibility() ? (el.textContent ?? "").replace(/\s+/g, " ").trim() : undefined;
     });
 }
 
-/**
- * Whether the app asked: a native dialog (any `plugin:dialog|…` invoke, the
- * Tauri counterpart of Swift's NSAlert) or anything visible on the page that
- * asks about remote content. Settings panels are hidden, so their own
- * explanation text doesn't count.
- */
-async function wasAsked(opened: Opened): Promise<boolean> {
-    if ((await opened.invokes()).some((cmd) => cmd.startsWith("plugin:dialog"))) return true;
-    return opened.page.evaluate(() => {
-        const walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
-        for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-            const el = node.parentElement;
-            if (!el || el.closest("#content, [hidden], script, style")) continue;
-            if (!el.checkVisibility()) continue;
-            if (/remote content|load (remote )?images/i.test(node.textContent ?? "")) return true;
-        }
-        return false;
-    });
+async function press(page: Page, label: string): Promise<void> {
+    await page.locator("#remote-prompt").getByRole("button", { name: label, exact: true }).click();
+    await settle(page);
+}
+
+/** Path + query of each URL, sorted: what was asked for, independent of order. */
+function asked(urls: string[]): string[] {
+    return urls.map((u) => new URL(u).href).sort();
 }
 
 describe("the test harness itself", () => {
-    it("sees a remote image load when nothing blocks it", async () => {
-        // Same page, CSP switched off: proves the "remote" server is
-        // reachable and a load is detected, so the "no request" results
-        // below mean blocked, not broken.
-        const opened = await openApp("always", { bypassCSP: true });
-        await showDocument(opened.page, "always");
-        expect(remoteRequests).toHaveLength(1);
-        expect(await imageShown(opened.page)).toBe(true);
-        await opened.page.context().close();
+    it("sees the page contact a server when the CSP doesn't stop it", async () => {
+        // Same page, CSP switched off: the leak vectors go straight out.
+        // Proves the interception sees real browser requests, so "nothing
+        // contacted" below means blocked, not unobserved.
+        const app = await openApp("always", { bypassCSP: true });
+        await render(app, VECTORS);
+        expect(app.contacted.length).toBeGreaterThan(0);
+        await app.close();
     });
 });
 
 describe("Never", () => {
-    it("never contacts the image's server", async () => {
-        const opened = await openApp("never");
-        await showDocument(opened.page, "never");
-        expect(remoteRequests).toEqual([]);
-        expect(await imageShown(opened.page)).toBe(false);
-        await opened.page.context().close();
+    it("contacts nothing and shows no images", async () => {
+        const app = await openApp("never");
+        await render(app, README);
+        expect(app.contacted).toEqual([]);
+        expect(await imagesShown(app.page)).toBe(0);
+        await app.close();
     });
 
     it("doesn't ask", async () => {
-        const opened = await openApp("never");
-        await showDocument(opened.page, "never");
-        expect(await wasAsked(opened)).toBe(false);
-        await opened.page.context().close();
+        const app = await openApp("never");
+        await render(app, README);
+        expect(await promptShown(app.page)).toBeUndefined();
+        await app.close();
+    });
+
+    it("refuses on the host side too, even if the page asks", async () => {
+        const app = await openApp("never");
+        await render(app, SIMPLE);
+        await app.page.evaluate(() => (window as unknown as { MDViewer: { loadRemoteResources(): Promise<void> } }).MDViewer.loadRemoteResources());
+        await settle(app.page);
+        expect(app.contacted).toEqual([]);
+        await app.close();
     });
 });
 
 describe("Ask", () => {
-    it("doesn't contact the image's server before you agree", async () => {
-        const opened = await openApp("ask");
-        await showDocument(opened.page, "ask");
-        expect(remoteRequests).toEqual([]);
-        expect(await imageShown(opened.page)).toBe(false);
-        await opened.page.context().close();
+    it("contacts nothing before you answer", async () => {
+        const app = await openApp("ask");
+        await render(app, README);
+        expect(app.contacted).toEqual([]);
+        expect(await imagesShown(app.page)).toBe(0);
+        await app.close();
     });
 
-    // Known gap: no prompt exists yet.
-    it.fails("asks whether to load the remote images", async () => {
-        const opened = await openApp("ask");
-        await showDocument(opened.page, "ask");
-        expect(await wasAsked(opened)).toBe(true);
-        await opened.page.context().close();
+    it("asks, with Swift's wording and the number of images", async () => {
+        const app = await openApp("ask");
+        await render(app, README);
+        const text = await promptShown(app.page);
+        expect(text).toContain("Load remote content?");
+        expect(text).toContain("This document references 4 images hosted on the internet.");
+        expect(text).toContain("Load");
+        expect(text).toContain("Don’t Load");
+        expect(text).toContain("Always Allow");
+        await app.close();
     });
 
-    // Known gap: the CSP blocks the load even after you agree. Calls what
-    // Swift's "Load" button calls, since there's no button to press yet.
-    it.fails("loads the images once you agree", async () => {
-        const opened = await openApp("ask");
-        await showDocument(opened.page, "ask");
-        await opened.page.evaluate(() => (window as unknown as { MDViewer: { loadRemoteResources(): void } }).MDViewer.loadRemoteResources());
-        await settle(opened.page);
-        try {
-            expect(remoteRequests).toHaveLength(1);
-            expect(await imageShown(opened.page)).toBe(true);
-        } finally {
-            await opened.page.context().close();
-        }
-    });
-});
-
-// A README the way GitHub projects write them: https badges, images in the
-// repo addressed via raw.githubusercontent.com, uploaded attachments, raw
-// <img> tags, and <picture>/srcset for light/dark logos. Requests to these
-// hosts are answered inside the browser (context.route), so nothing reaches
-// the internet; a route hit means the page tried to contact that server.
-const GITHUB_README = `# widget
-
-[![CI](https://github.com/acme/widget/actions/workflows/ci.yml/badge.svg)](https://github.com/acme/widget/actions)
-![npm](https://img.shields.io/npm/v/widget.svg)
-
-![Screenshot](https://raw.githubusercontent.com/acme/widget/main/docs/screenshot.png)
-
-<img src="https://github.com/user-attachments/assets/0f1e2d3c" width="400" alt="demo">
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/acme/widget/main/logo-dark.png">
-  <img alt="logo" src="https://raw.githubusercontent.com/acme/widget/main/logo.png">
-</picture>
-
-<img alt="hero" srcset="https://raw.githubusercontent.com/acme/widget/main/hero@2x.png 2x">
-`;
-
-async function openReadme(policy: Policy, options: { bypassCSP?: boolean } = {}): Promise<{ opened: Opened; contacted: string[] }> {
-    const opened = await openApp(policy, options);
-    const contacted: string[] = [];
-    await opened.page.context().route(/^https:\/\//, (route) => {
-        contacted.push(route.request().url());
-        return route.fulfill({ status: 200, contentType: "image/png", body: PIXEL });
-    });
-    await opened.page.evaluate(
-        async ({ p, md }) => {
-            const viewer = (window as unknown as {
-                MDViewer: { setRemoteContentPolicy(p: string): void; setContent(md: string): Promise<unknown> };
-            }).MDViewer;
-            viewer.setRemoteContentPolicy(p);
-            await viewer.setContent(md);
-        },
-        { p: policy, md: GITHUB_README },
-    );
-    await opened.page.waitForTimeout(1500);
-    return { opened, contacted };
-}
-
-describe("a GitHub project's README", () => {
-    it("can be seen loading when nothing blocks it", async () => {
-        // Control, as above: every image in it reaches the (fake) server.
-        const { opened, contacted } = await openReadme("always", { bypassCSP: true });
-        expect(new Set(contacted.map((u) => new URL(u).host))).toEqual(
-            new Set(["github.com", "img.shields.io", "raw.githubusercontent.com"]),
-        );
-        await opened.page.context().close();
+    it("says “1 image” for one", async () => {
+        const app = await openApp("ask");
+        await render(app, SIMPLE);
+        expect(await promptShown(app.page)).toContain("references 1 image hosted");
+        await app.close();
     });
 
-    for (const policy of ["never", "ask"] as const) {
-        it(`contacts no server under ${policy === "never" ? "Never" : "Ask"}`, async () => {
-            const { opened, contacted } = await openReadme(policy);
-            expect(contacted).toEqual([]);
-            await opened.page.context().close();
-        });
+    it("doesn't ask when there's nothing remote", async () => {
+        const app = await openApp("ask");
+        await render(app, "# Local only\n\nNo images at all.");
+        expect(await promptShown(app.page)).toBeUndefined();
+        await app.close();
+    });
 
-        // The setting itself has to block them, not only the CSP: Swift's
-        // CSP allows remote images under Ask, so there the setting is the
-        // only thing standing between a document and the network.
-        it(`contacts no server under ${policy === "never" ? "Never" : "Ask"} even without the CSP`, async () => {
-            const { opened, contacted } = await openReadme(policy, { bypassCSP: true });
-            expect(contacted).toEqual([]);
-            await opened.page.context().close();
-        });
-    }
+    it("Don’t Load: closes the prompt and contacts nothing", async () => {
+        const app = await openApp("ask");
+        await render(app, README);
+        await press(app.page, "Don’t Load");
+        expect(await promptShown(app.page)).toBeUndefined();
+        expect(app.contacted).toEqual([]);
+        expect(await imagesShown(app.page)).toBe(0);
+        expect(await app.storedPolicy()).toBe("ask");
+        await app.close();
+    });
+
+    it("Load: loads this document's images, and only its <img> images", async () => {
+        const app = await openApp("ask");
+        await render(app, README + "\n\n" + VECTORS);
+        await press(app.page, "Load");
+        expect(await promptShown(app.page)).toBeUndefined();
+        expect(asked(app.contacted)).toEqual(asked(README_IMAGES));
+        expect(await imagesShown(app.page)).toBe(README_IMAGES.length);
+        expect(await app.storedPolicy()).toBe("ask");
+        await app.close();
+    });
+
+    it("Load: asks again for the next document", async () => {
+        const app = await openApp("ask");
+        await render(app, README);
+        await press(app.page, "Load");
+        await render(app, SIMPLE);
+        expect(await promptShown(app.page)).toContain("references 1 image");
+        await app.close();
+    });
+
+    it("Always Allow: stores Always, loads, and doesn't ask again", async () => {
+        const app = await openApp("ask");
+        await render(app, README);
+        await press(app.page, "Always Allow");
+        expect(await app.storedPolicy()).toBe("always");
+        expect(await imagesShown(app.page)).toBe(README_IMAGES.length);
+
+        await render(app, SIMPLE);
+        expect(await promptShown(app.page)).toBeUndefined();
+        expect(await imagesShown(app.page)).toBe(1);
+        await app.close();
+    });
 });
 
 describe("Always", () => {
-    // Known gap: the CSP's img-src has no http:/https:, so nothing loads.
-    it.fails("loads remote images", async () => {
-        const opened = await openApp("always");
-        await showDocument(opened.page, "always");
-        try {
-            expect(remoteRequests).toHaveLength(1);
-            expect(await imageShown(opened.page)).toBe(true);
-        } finally {
-            await opened.page.context().close();
-        }
+    it("loads every <img> image, srcset excepted (the sanitizer removes it)", async () => {
+        const app = await openApp("always");
+        await render(app, README);
+        expect(asked(app.contacted)).toEqual(asked(README_IMAGES));
+        expect(await imagesShown(app.page)).toBe(README_IMAGES.length);
+        await app.close();
     });
 
     it("doesn't ask", async () => {
-        const opened = await openApp("always");
-        await showDocument(opened.page, "always");
-        expect(await wasAsked(opened)).toBe(false);
-        await opened.page.context().close();
+        const app = await openApp("always");
+        await render(app, README);
+        expect(await promptShown(app.page)).toBeUndefined();
+        await app.close();
     });
+});
+
+describe("images outside <img>", () => {
+    // The CSP is the only barrier for these, and it holds under every
+    // policy: the page itself never loads anything remote.
+    for (const policy of ["never", "ask", "always"] as const) {
+        it(`never load under ${policy}`, async () => {
+            const app = await openApp(policy);
+            await render(app, VECTORS);
+            // No <img> in there, so Ask has nothing to ask about.
+            expect(await promptShown(app.page)).toBeUndefined();
+            expect(app.contacted).toEqual([]);
+            await app.close();
+        });
+    }
 });

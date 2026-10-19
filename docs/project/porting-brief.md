@@ -163,7 +163,13 @@ These were added deliberately in 1.2.0. Carry each one across:
   doesn't).
 - All rendered Markdown passes through DOMPurify before insertion.
 - Links restricted to `http`, `https`, `mailto`, and local `.md`.
-- Remote images gated by the Ask / Always / Never policy.
+- Remote images gated by the Ask / Always / Never policy. Since
+  2026-10-19 the page never loads a remote image itself: an allowed `<img>`
+  is fetched by Rust (`fetch_remote_image`, `src-tauri/src/remote_image.rs`)
+  and handed over as a `data:` URL, so `img-src` stays local-only under
+  every policy. Do not add `http:`/`https:` to the CSP to "fix" remote
+  images — Swift's CSP does, and that lets CSS `url()`, video posters, SVG
+  `<image>` etc. load under Ask before consent (`npm run test:e2e` checks).
 - Local image access is per-folder and explicit, never whole-disk.
 
 **Known gap (2026-09-08):** the last two aren't actually enforced in the

@@ -3011,7 +3011,8 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
     final submit are theirs. **Update, same day:** the user signed into
     Xcode; `./build-appstore-ios.sh --upload` uploaded 1.0.0 (1) —
     "Upload succeeded", no warnings returned, Xcode auto-created the App
-    Store profile. Submitting for review remains the user's step. **Flagged, not fixed**: (1) remote images
+    Store profile. Submitting for review remains the user's step. **Flagged, not fixed**: (1) *(fixed 2026-10-19 — see
+    "Parity deviations" below)* remote images
     never load in the port — Swift serves a dynamic CSP that allows
     `https:` images unless the policy is Never, the port's static
     `tauri.conf.json` CSP never does, so "Always load" does nothing
@@ -3113,6 +3114,17 @@ port works everywhere.
   - Mermaid's dark theme gets contrast overrides (`DARK_THEME_VARIABLES`
     in `web/src/mermaid.ts`) and the themes share a token contract — see
     `docs/development/color-and-contrast.md`.
+  - Remote images (2026-10-19, the user's "fix both"): fetched by Rust
+    (`fetch_remote_image`) and shown as `data:` URLs instead of loaded by
+    the webview, so the CSP's `img-src` stays local-only. Swift's dynamic
+    CSP allows `https:` images unless the policy is Never, which under Ask
+    lets CSS `url()`, `<video poster>`, SVG `<image>`, `<table
+    background>` and `<input type=image>` load before the user answers —
+    a privacy leak in v1.2.1 itself. Consequence: only `<img>` images
+    load, even under Always. The "Load remote content?" prompt is an
+    in-page dialog (`remotePrompt.ts`) with Swift's wording and buttons,
+    not an NSAlert. Like Swift it asks again on every render under Ask,
+    live reloads included. Covered by `web/e2e/remoteImages.e2e.ts`.
 - Swift test coverage (`MDViewerTests`) is known to be thin. Likely moot if
   the Swift app is retired once the Tauri port ships everywhere — revisit
   scope when Phase 2 starts rather than backfilling now.
