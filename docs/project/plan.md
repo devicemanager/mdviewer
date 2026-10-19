@@ -3086,6 +3086,26 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
 Per the phased-improvement agreement: parity now, improvements once the TS
 port works everywhere.
 
+- **The Mac App Store app moves to the TypeScript build** (the user's
+  decision, 2026-10-19). The shipped Mac app is still the Swift one; at
+  some stage it is replaced by the Tauri/TypeScript build rather than
+  repaired. Until then its bugs are recorded here, not fixed — the Swift
+  source stays untouched.
+  - **Known bug, v1.2.2: remote images never load.** Under Ask the app
+    asks "Load remote content?", but Load and Always Allow show nothing,
+    and Always shows nothing either. `LocalSchemeHandler.allowsRemoteContent`
+    is set from the policy but never read, so `renderer.html`'s static CSP
+    blocks every remote image. No privacy leak. Verified 2026-10-19 against
+    the installed app's own `renderer.html`/`mdviewer.js` with
+    `test-remote-images.md`. Fixed in the TypeScript build (iOS 1.0.0
+    build 6), not in Swift.
+  - **`main` can't build a working Swift app any more.** Since the
+    2026-09-09 flip (Milestone D), `MDViewer/Resources/Web/mdviewer.js` is
+    the compiled TypeScript, which has no `webkit.messageHandlers` bridge
+    — only Tauri calls. A Swift build from `main` would lose the TOC, link
+    clicks, the remote-content prompt and scroll tracking. A Swift
+    hotfix release would have to start from the v1.2.2 tag's
+    `mdviewer.js`, not from `main`.
 - Candidates from comparing against https://mdviewer.org — add specifics
   here as they're identified; nothing itemized yet.
 - **Single-window, multi-document tabs** (observed 2026-09-06: opening 3
