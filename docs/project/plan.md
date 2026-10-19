@@ -3104,8 +3104,12 @@ port works everywhere.
     the compiled TypeScript, which has no `webkit.messageHandlers` bridge
     — only Tauri calls. A Swift build from `main` would lose the TOC, link
     clicks, the remote-content prompt and scroll tracking. A Swift
-    hotfix release would have to start from the v1.2.2 tag's
-    `mdviewer.js`, not from `main`.
+    hotfix release would have to restore the last hand-written
+    `mdviewer.js`, at `fd39e73` (2026-09-04) — not the v1.2.2 tag's, which
+    predates the emoji support the shipped build has. The installed
+    1.2.2 (12) matches no commit exactly: it's slightly older than
+    `fd39e73` (no URL check in `loadRemoteResources`, a looser TOC-title
+    tag strip).
 - Candidates from comparing against https://mdviewer.org — add specifics
   here as they're identified; nothing itemized yet.
 - **Single-window, multi-document tabs** (observed 2026-09-06: opening 3
