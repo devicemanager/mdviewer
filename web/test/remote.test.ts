@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { gateRemoteResourcesInHTML, loadRemoteResources } from "../src/remote.js";
 
 describe("gateRemoteResourcesInHTML", () => {
@@ -58,5 +58,35 @@ describe("loadRemoteResources", () => {
         const img = root.querySelector("img")!;
         expect(img.hasAttribute("src")).toBe(false);
         expect(img.hasAttribute("data-mdv-remote")).toBe(false);
+    });
+
+    it("restores through a fetcher when one is given", async () => {
+        const root = document.createElement("div");
+        root.innerHTML = `<img data-mdv-remote="https://example.com/a.png"><img data-mdv-remote="https://example.com/b.png">`;
+        const fetchImage = vi.fn(async (url: string) => `data:image/png;base64,${url.endsWith("a.png") ? "QQ==" : "Qg=="}`);
+        await loadRemoteResources(root, "https://example.com/", fetchImage);
+        const [a, b] = root.querySelectorAll("img");
+        expect(a.getAttribute("src")).toBe("data:image/png;base64,QQ==");
+        expect(b.getAttribute("src")).toBe("data:image/png;base64,Qg==");
+        expect(root.querySelector("[data-mdv-remote]")).toBeNull();
+    });
+
+    it("leaves an image unloaded when the fetcher fails", async () => {
+        const root = document.createElement("div");
+        root.innerHTML = `<img data-mdv-remote="https://example.com/a.png">`;
+        await loadRemoteResources(root, "https://example.com/", async () => {
+            throw new Error("not an image");
+        });
+        const img = root.querySelector("img")!;
+        expect(img.hasAttribute("src")).toBe(false);
+        expect(img.hasAttribute("data-mdv-remote")).toBe(false);
+    });
+
+    it("never hands a non-http(s) URL to the fetcher", async () => {
+        const root = document.createElement("div");
+        root.innerHTML = `<img data-mdv-remote="javascript:alert(1)"><img data-mdv-remote="file:///etc/passwd">`;
+        const fetchImage = vi.fn(async () => "data:,");
+        await loadRemoteResources(root, "https://example.com/", fetchImage);
+        expect(fetchImage).not.toHaveBeenCalled();
     });
 });

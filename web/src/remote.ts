@@ -32,22 +32,43 @@ export function gateRemoteResourcesInHTML(
 }
 
 /**
- * Restore the src of images previously gated by gateRemoteResourcesInHTML.
- * Only http/https URLs are restored.
+ * Fetches one remote image on the host's side and returns something the
+ * page's CSP allows as an `<img src>` (Tauri: a `data:` URL from
+ * src-tauri's `fetch_remote_image`, so the CSP never has to allow
+ * http:/https: — see src-tauri/src/remote_image.rs for why).
  */
-export function loadRemoteResources(root: ParentNode, baseURI: string): void {
+export type RemoteImageFetcher = (url: string) => Promise<string>;
+
+/**
+ * Restore the src of images previously gated by gateRemoteResourcesInHTML.
+ * Only http/https URLs are restored. Without a `fetchImage`, the URL itself
+ * becomes the src (the Swift host's CSP allows remote images); with one,
+ * the src is whatever it returns, and an image it fails on stays unloaded.
+ */
+export async function loadRemoteResources(root: ParentNode, baseURI: string, fetchImage?: RemoteImageFetcher): Promise<void> {
+    const pending: Promise<void>[] = [];
     root.querySelectorAll("img[data-mdv-remote]").forEach(function (img) {
         const remoteSrc = img.getAttribute("data-mdv-remote");
-        if (remoteSrc) {
-            try {
-                const parsed = new URL(remoteSrc, baseURI);
-                if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-                    img.setAttribute("src", parsed.href);
-                }
-            } catch {
-                // Ignore invalid URLs.
-            }
-        }
         img.removeAttribute("data-mdv-remote");
+        if (!remoteSrc) return;
+        let href: string;
+        try {
+            const parsed = new URL(remoteSrc, baseURI);
+            if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
+            href = parsed.href;
+        } catch {
+            return; // Ignore invalid URLs.
+        }
+        if (!fetchImage) {
+            img.setAttribute("src", href);
+            return;
+        }
+        pending.push(
+            fetchImage(href).then(
+                (src) => img.setAttribute("src", src),
+                () => {}, // Unreachable or not an image: stays unloaded, like a broken <img>.
+            ),
+        );
     });
+    await Promise.all(pending);
 }

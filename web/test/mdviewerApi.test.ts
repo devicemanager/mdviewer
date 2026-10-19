@@ -92,6 +92,43 @@ describe("createMDViewerApi().setContent", () => {
         expect(result.blockedRemoteCount).toBe(0);
     });
 
+    it("with a host fetcher, gates remote images under 'always' too and loads them through it", async () => {
+        const fetchRemoteImage = vi.fn(async () => "data:image/png;base64,AA==");
+        const api = createMDViewerApi(deps({ fetchRemoteImage }));
+        api.setRemoteContentPolicy("always");
+        const result = await api.setContent("![alt](https://example.com/pic.png)");
+        await vi.waitFor(() => expect(document.querySelector("img")!.getAttribute("src")).toBe("data:image/png;base64,AA=="));
+        expect(fetchRemoteImage).toHaveBeenCalledWith("https://example.com/pic.png");
+        expect(result.blockedRemoteCount).toBe(0);
+    });
+
+    it("with a host fetcher, never fetches under 'ask' or 'never' on its own", async () => {
+        const fetchRemoteImage = vi.fn(async () => "data:image/png;base64,AA==");
+        const api = createMDViewerApi(deps({ fetchRemoteImage }));
+        for (const policy of ["ask", "never"]) {
+            api.setRemoteContentPolicy(policy);
+            await api.setContent("![alt](https://example.com/pic.png)");
+            expect(document.querySelector("img")!.hasAttribute("src")).toBe(false);
+        }
+        expect(fetchRemoteImage).not.toHaveBeenCalled();
+    });
+
+    it("reports blocked remote content under 'ask' only", async () => {
+        const onRemoteContentBlocked = vi.fn();
+        const api = createMDViewerApi(deps({ onRemoteContentBlocked, fetchRemoteImage: async () => "" }));
+        await api.setContent("![a](https://example.com/a.png) ![b](https://example.com/b.png)");
+        expect(onRemoteContentBlocked).toHaveBeenCalledWith(2);
+
+        onRemoteContentBlocked.mockClear();
+        for (const policy of ["never", "always"]) {
+            api.setRemoteContentPolicy(policy);
+            await api.setContent("![a](https://example.com/a.png)");
+        }
+        api.setRemoteContentPolicy("ask");
+        await api.setContent("No remote images here.");
+        expect(onRemoteContentBlocked).not.toHaveBeenCalled();
+    });
+
     it("rewrites relative image paths against a base URL set before setContent", async () => {
         const api = createMDViewerApi(deps());
         api.setBaseURL("mdviewer-local://localhost/");
@@ -213,5 +250,16 @@ describe("createMDViewerApi().loadRemoteResources", () => {
         const img = document.querySelector("img")!;
         expect(img.getAttribute("src")).toBe("https://example.com/pic.png");
         expect(img.hasAttribute("data-mdv-remote")).toBe(false);
+    });
+
+    it("goes through the host fetcher when there is one", async () => {
+        const fetchRemoteImage = vi.fn(async () => "data:image/png;base64,AA==");
+        const api = createMDViewerApi(deps({ fetchRemoteImage }));
+        await api.setContent("![alt](https://example.com/pic.png)");
+
+        await api.loadRemoteResources();
+
+        expect(fetchRemoteImage).toHaveBeenCalledWith("https://example.com/pic.png");
+        expect(document.querySelector("img")!.getAttribute("src")).toBe("data:image/png;base64,AA==");
     });
 });

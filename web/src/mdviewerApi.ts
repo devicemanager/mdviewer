@@ -34,7 +34,12 @@ import { protectMath, restoreMath, type KatexLike } from "./math.js";
 import { highlightCode, type ShikiHighlighterLike } from "./highlightCode.js";
 import { sanitizeHtml, type DOMPurifyLike } from "./sanitize.js";
 import { resolveEmoji } from "./emoji.js";
-import { gateRemoteResourcesInHTML, loadRemoteResources as restoreRemoteResources, type RemoteContentPolicy } from "./remote.js";
+import {
+    gateRemoteResourcesInHTML,
+    loadRemoteResources as restoreRemoteResources,
+    type RemoteContentPolicy,
+    type RemoteImageFetcher,
+} from "./remote.js";
 import { rewriteLocalResources } from "./localResources.js";
 import { initializeMermaid, runMermaidDiagrams, rememberMermaidSources, rerenderMermaidDiagrams, type MermaidLike } from "./mermaid.js";
 import { themes } from "./markdownTheme.js";
@@ -79,6 +84,20 @@ export interface MDViewerDependencies {
     mermaid: MermaidLike;
     /** Mirrors `window.__shikiReady` — resolves once, same as mdviewer.js's module-level `shikiHighlighter`. */
     shikiReady?: Promise<ShikiHighlighterLike>;
+    /**
+     * Tauri only (main.ts → `fetch_remote_image`): remote images are fetched
+     * by the host, never by the page — its CSP stays local-only. With this
+     * set, remote `<img>`s are gated under every policy, Always included,
+     * and restored through it. Without it (the Swift host), Always passes
+     * them through to a CSP that allows them, as mdviewer.js did.
+     */
+    fetchRemoteImage?: RemoteImageFetcher;
+    /**
+     * mdviewer.js's `remoteContentBlocked` message to Swift, which prompts
+     * ("Load remote content?"): called after a render under Ask that gated
+     * at least one remote image.
+     */
+    onRemoteContentBlocked?: (count: number) => void;
 }
 
 export interface SetContentResult {
@@ -101,7 +120,7 @@ export interface MDViewerApi {
     findText(text: string): void;
     setBaseURL(url: string): void;
     setRemoteContentPolicy(policy: string): void;
-    loadRemoteResources(): void;
+    loadRemoteResources(): Promise<void>;
 }
 
 /** Builds the `window.MDViewer` object. */
@@ -146,7 +165,11 @@ export function createMDViewerApi(deps: MDViewerDependencies): MDViewerApi {
             html = restoreMath(html, blocks, deps.katex);
             html = resolveEmoji(html);
 
-            const gated = gateRemoteResourcesInHTML(html, remoteContentPolicy);
+            // With a host fetcher every remote <img> is gated, Always too:
+            // the page itself never requests one (Always restores them
+            // through the host right after insertion, below).
+            const hostFetches = !!deps.fetchRemoteImage;
+            const gated = gateRemoteResourcesInHTML(html, hostFetches ? "ask" : remoteContentPolicy);
 
             const contentEl = document.getElementById("content");
             if (contentEl) {
@@ -154,9 +177,14 @@ export function createMDViewerApi(deps: MDViewerDependencies): MDViewerApi {
                 rewriteLocalResources(contentEl, localBaseURL ?? null);
                 rememberMermaidSources(contentEl);
                 runMermaidDiagrams(deps.mermaid);
+                if (hostFetches && remoteContentPolicy === "always") {
+                    void restoreRemoteResources(contentEl, document.baseURI, deps.fetchRemoteImage);
+                }
             }
 
-            return { headings, blockedRemoteCount: gated.blockedCount };
+            const blockedRemoteCount = remoteContentPolicy === "always" ? 0 : gated.blockedCount;
+            if (remoteContentPolicy === "ask" && blockedRemoteCount > 0) deps.onRemoteContentBlocked?.(blockedRemoteCount);
+            return { headings, blockedRemoteCount };
         },
 
         setTheme(themeName: string): void {
@@ -211,8 +239,8 @@ export function createMDViewerApi(deps: MDViewerDependencies): MDViewerApi {
             remoteContentPolicy = policy === "always" || policy === "never" ? policy : "ask";
         },
 
-        loadRemoteResources(): void {
-            restoreRemoteResources(document, document.baseURI);
+        loadRemoteResources(): Promise<void> {
+            return restoreRemoteResources(document, document.baseURI, deps.fetchRemoteImage);
         },
     };
 }

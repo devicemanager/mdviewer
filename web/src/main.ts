@@ -17,11 +17,10 @@
 // dependency, consistent with this port's "vendor libraries stay pinned
 // globals" convention for marked/Shiki/KaTeX/Mermaid/DOMPurify.
 //
-// `onScroll`/`onLinkHovered` and `setContent`'s returned `blockedRemoteCount`
-// stay unconsumed here — not an oversight, there's nothing to hand them to
-// yet: no status bar for hover text or scroll position, and no
-// remote-content prompt UI to trigger `set_remote_content_policy_always`
-// from. Toolbar itself is the same story (Milestone E, not built).
+// `onScroll`/`onLinkHovered` stay unconsumed here — not an oversight,
+// there's nothing to hand them to yet: no status bar for hover text or
+// scroll position. Blocked remote content goes to the "Load remote
+// content?" prompt (wireRemotePrompt, 2026-10-19).
 //
 // What *is* wired here: `#welcome`/`#content` toggling (appShell.ts) and
 // the in-app file browser (fileBrowser.ts) — the latter replaced a TOC
@@ -46,6 +45,7 @@
 // was open.
 
 import { createMDViewerApi, type MarkedLike } from "./mdviewerApi.js";
+import { renderRemotePrompt, attachRemotePromptHandlers, showRemotePrompt, hideRemotePrompt } from "./remotePrompt.js";
 import { attachInteractionListeners } from "./interactionListeners.js";
 import { showContent, showWelcome } from "./appShell.js";
 import { wireErrorForwarding } from "./errorForwarding.js";
@@ -131,13 +131,23 @@ declare global {
 // which the CSP rightly forbids.
 wireErrorForwarding(window, (message) => window.__TAURI__.core.invoke("log_frontend_error", { message }));
 
+/** Set by wireRemotePrompt once the UI exists; a no-op before that and on renderer.html. */
+let remoteContentBlocked: (count: number) => void = () => {};
+
 window.MDViewer = createMDViewerApi({
     marked: window.marked,
     domPurify: window.DOMPurify,
     katex: window.katex,
     mermaid: window.mermaid,
     shikiReady: window.__shikiReady,
+    // Only inside Tauri: renderer.html elsewhere has no host to fetch for it.
+    fetchRemoteImage:
+        typeof window.__TAURI__ === "undefined"
+            ? undefined
+            : (url) => window.__TAURI__.core.invoke("fetch_remote_image", { url }) as Promise<string>,
+    onRemoteContentBlocked: (count) => remoteContentBlocked(count),
 });
+
 
 function wireWelcomeContentToggle(): void {
     const welcomeEl = document.getElementById("welcome");
@@ -740,6 +750,36 @@ function wirePermissions(fileBrowser: { toggle: () => void; openTo: (path: strin
     }
 }
 
+/**
+ * Ported from `WebRendererView.Coordinator`'s `remoteContentBlocked`
+ * handler + `promptRemoteContent` — see remotePrompt.ts. "Always Allow"
+ * goes through `set_remote_content_policy_always`, the single-purpose
+ * command written for exactly this button, and updates the page's own
+ * policy too so the next render doesn't ask before Rust pushes it.
+ */
+function wireRemotePrompt(): void {
+    const promptEl = document.getElementById("remote-prompt");
+    if (!promptEl) return;
+    const load = () => {
+        hideRemotePrompt(promptEl);
+        void window.MDViewer.loadRemoteResources();
+    };
+    attachRemotePromptHandlers(promptEl, {
+        onLoad: load,
+        onDontLoad: () => hideRemotePrompt(promptEl),
+        onAlwaysAllow: () => {
+            void window.__TAURI__.core.invoke("set_remote_content_policy_always").then(() => {
+                window.MDViewer.setRemoteContentPolicy("always");
+                load();
+            });
+        },
+    });
+    remoteContentBlocked = (count) => {
+        renderRemotePrompt(promptEl, count);
+        showRemotePrompt(promptEl);
+    };
+}
+
 function wireUIShell(): void {
     wireWelcomeContentToggle();
     const renderVM = createRenderViewModel();
@@ -748,6 +788,7 @@ function wireUIShell(): void {
     wireGlobalShortcuts(search);
     const fileBrowser = wireFileBrowser();
     wirePermissions(fileBrowser);
+    wireRemotePrompt();
     wireToolbar(preferences, search, fileBrowser);
 }
 

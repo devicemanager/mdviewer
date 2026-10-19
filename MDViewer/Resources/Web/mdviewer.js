@@ -241,20 +241,34 @@
     );
     return { html, blockedCount };
   }
-  function loadRemoteResources(root, baseURI) {
+  async function loadRemoteResources(root, baseURI, fetchImage) {
+    const pending = [];
     root.querySelectorAll("img[data-mdv-remote]").forEach(function(img) {
       const remoteSrc = img.getAttribute("data-mdv-remote");
-      if (remoteSrc) {
-        try {
-          const parsed = new URL(remoteSrc, baseURI);
-          if (parsed.protocol === "http:" || parsed.protocol === "https:") {
-            img.setAttribute("src", parsed.href);
-          }
-        } catch {
-        }
-      }
       img.removeAttribute("data-mdv-remote");
+      if (!remoteSrc) return;
+      let href;
+      try {
+        const parsed = new URL(remoteSrc, baseURI);
+        if (parsed.protocol !== "http:" && parsed.protocol !== "https:") return;
+        href = parsed.href;
+      } catch {
+        return;
+      }
+      if (!fetchImage) {
+        img.setAttribute("src", href);
+        return;
+      }
+      pending.push(
+        fetchImage(href).then(
+          (src) => img.setAttribute("src", src),
+          () => {
+          }
+          // Unreachable or not an image: stays unloaded, like a broken <img>.
+        )
+      );
     });
+    await Promise.all(pending);
   }
 
   // src/localResources.ts
@@ -379,15 +393,21 @@
         html = sanitizeHtml(html, deps.domPurify);
         html = restoreMath(html, blocks, deps.katex);
         html = resolveEmoji(html);
-        const gated = gateRemoteResourcesInHTML(html, remoteContentPolicy);
+        const hostFetches = !!deps.fetchRemoteImage;
+        const gated = gateRemoteResourcesInHTML(html, hostFetches ? "ask" : remoteContentPolicy);
         const contentEl = document.getElementById("content");
         if (contentEl) {
           contentEl.innerHTML = gated.html;
           rewriteLocalResources(contentEl, localBaseURL ?? null);
           rememberMermaidSources(contentEl);
           runMermaidDiagrams(deps.mermaid);
+          if (hostFetches && remoteContentPolicy === "always") {
+            void loadRemoteResources(contentEl, document.baseURI, deps.fetchRemoteImage);
+          }
         }
-        return { headings, blockedRemoteCount: gated.blockedCount };
+        const blockedRemoteCount = remoteContentPolicy === "always" ? 0 : gated.blockedCount;
+        if (remoteContentPolicy === "ask" && blockedRemoteCount > 0) deps.onRemoteContentBlocked?.(blockedRemoteCount);
+        return { headings, blockedRemoteCount };
       },
       setTheme(themeName) {
         const link = document.getElementById("theme-css");
@@ -430,9 +450,46 @@
         remoteContentPolicy = policy === "always" || policy === "never" ? policy : "ask";
       },
       loadRemoteResources() {
-        loadRemoteResources(document, document.baseURI);
+        return loadRemoteResources(document, document.baseURI, deps.fetchRemoteImage);
       }
     };
+  }
+
+  // src/remotePrompt.ts
+  function remotePromptMessage(count) {
+    const noun = count === 1 ? "image" : "images";
+    return `This document references ${count} ${noun} hosted on the internet. Loading them reveals your IP address to those servers.`;
+  }
+  function renderRemotePrompt(root, count) {
+    root.innerHTML = `
+        <div class="permissions-overlay">
+            <div class="permissions-panel" role="alertdialog" aria-labelledby="remote-prompt-title" aria-describedby="remote-prompt-message">
+                <h2 class="permissions-title" id="remote-prompt-title">Load remote content?</h2>
+                <p class="permissions-intro" id="remote-prompt-message">${remotePromptMessage(count)}</p>
+                <div class="remote-prompt-buttons">
+                    <button type="button" class="permissions-done-btn" data-action="load">Load</button>
+                    <button type="button" class="permissions-grant-btn" data-action="dont-load">Don\u2019t Load</button>
+                    <button type="button" class="permissions-grant-btn" data-action="always-allow">Always Allow</button>
+                </div>
+            </div>
+        </div>
+    `;
+  }
+  function attachRemotePromptHandlers(root, callbacks) {
+    root.addEventListener("click", (e) => {
+      const target = e.target;
+      if (!(target instanceof Element)) return;
+      const action = target.closest("button[data-action]")?.dataset.action;
+      if (action === "load") callbacks.onLoad();
+      else if (action === "dont-load") callbacks.onDontLoad();
+      else if (action === "always-allow") callbacks.onAlwaysAllow();
+    });
+  }
+  function showRemotePrompt(root) {
+    root.hidden = false;
+  }
+  function hideRemotePrompt(root) {
+    root.hidden = true;
   }
 
   // src/interactionListeners.ts
@@ -1153,12 +1210,17 @@ https://github.com/devicemanager/mdviewer/blob/main/THIRD_PARTY_NOTICES.md`;
 
   // src/main.ts
   wireErrorForwarding(window, (message) => window.__TAURI__.core.invoke("log_frontend_error", { message }));
+  var remoteContentBlocked = () => {
+  };
   window.MDViewer = createMDViewerApi({
     marked: window.marked,
     domPurify: window.DOMPurify,
     katex: window.katex,
     mermaid: window.mermaid,
-    shikiReady: window.__shikiReady
+    shikiReady: window.__shikiReady,
+    // Only inside Tauri: renderer.html elsewhere has no host to fetch for it.
+    fetchRemoteImage: typeof window.__TAURI__ === "undefined" ? void 0 : (url) => window.__TAURI__.core.invoke("fetch_remote_image", { url }),
+    onRemoteContentBlocked: (count) => remoteContentBlocked(count)
   });
   function wireWelcomeContentToggle() {
     const welcomeEl = document.getElementById("welcome");
@@ -1475,6 +1537,28 @@ https://github.com/devicemanager/mdviewer/blob/main/THIRD_PARTY_NOTICES.md`;
       showPermissions(permsEl);
     }
   }
+  function wireRemotePrompt() {
+    const promptEl = document.getElementById("remote-prompt");
+    if (!promptEl) return;
+    const load = () => {
+      hideRemotePrompt(promptEl);
+      void window.MDViewer.loadRemoteResources();
+    };
+    attachRemotePromptHandlers(promptEl, {
+      onLoad: load,
+      onDontLoad: () => hideRemotePrompt(promptEl),
+      onAlwaysAllow: () => {
+        void window.__TAURI__.core.invoke("set_remote_content_policy_always").then(() => {
+          window.MDViewer.setRemoteContentPolicy("always");
+          load();
+        });
+      }
+    });
+    remoteContentBlocked = (count) => {
+      renderRemotePrompt(promptEl, count);
+      showRemotePrompt(promptEl);
+    };
+  }
   function wireUIShell() {
     wireWelcomeContentToggle();
     const renderVM = createRenderViewModel();
@@ -1483,6 +1567,7 @@ https://github.com/devicemanager/mdviewer/blob/main/THIRD_PARTY_NOTICES.md`;
     wireGlobalShortcuts(search);
     const fileBrowser = wireFileBrowser();
     wirePermissions(fileBrowser);
+    wireRemotePrompt();
     wireToolbar(preferences, search, fileBrowser);
   }
   if (document.readyState === "loading") {

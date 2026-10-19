@@ -898,6 +898,24 @@ body {
     filter: brightness(0.94);
 }
 
+/* "Load remote content?" (remotePrompt.ts) — 2026-10-19. Reuses the
+   permissions dialog's overlay, panel and buttons; only the container and
+   the three-button column are its own. Above #permissions (z-index 100):
+   a document can render while that dialog is up. */
+#remote-prompt[hidden] {
+    display: none;
+}
+
+#remote-prompt .permissions-overlay {
+    z-index: 110;
+}
+
+.remote-prompt-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
 /* ---- Contrast fixes in shared content styles (2026-10-17) --------------
    Found by the visual audit (web/visual/audit.visual.ts) against WCAG 2.2
    AA. Kept here, in the port's own stylesheet, rather than in
