@@ -1,13 +1,15 @@
 // Remote images, fetched here instead of by the webview (2026-10-19).
 //
-// Swift v1.2.1 lets the WebView load remote images itself: its CSP allows
-// http:/https: images unless the policy is Never, and the JS gate only
-// renames `<img src>`. Under Ask that leaves every other way a document can
-// reference an image — CSS `url()` in a style attribute or `<style>`,
-// `<video poster>`, SVG `<image href>`, `<table background>`,
+// Swift's design lets the WebView load remote images itself: a CSP that
+// allows http:/https: images unless the policy is Never, with the JS gate
+// renaming only `<img src>`. Under Ask that would leave every other way a
+// document can reference an image — CSS `url()` in a style attribute or
+// `<style>`, `<video poster>`, SVG `<image href>`, `<table background>`,
 // `<input type=image>` — loading before the user has agreed to anything
-// (found 2026-10-19 by web/e2e/remoteImages.e2e.ts; Swift has the same
-// leak). So the port's CSP keeps img-src local-only under every policy, and
+// (found 2026-10-19 by web/e2e/remoteImages.e2e.ts). Swift never actually
+// relaxes its CSP (`allowsRemoteContent` is set, never read), so v1.2.2
+// loads no remote image at all, under any policy. The port's CSP keeps
+// img-src local-only under every policy too, and
 // an `<img>` the user has allowed is fetched by this command and handed to
 // the page as a `data:` URL, which the CSP already permits. Everything that
 // isn't an `<img>` stays blocked by the CSP, even under Always.

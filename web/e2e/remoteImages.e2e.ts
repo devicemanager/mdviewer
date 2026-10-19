@@ -22,16 +22,18 @@
 // GitHub) is stood in for by `hostFetch` below, which records the URL,
 // refuses under Never like the Rust does, and returns a 1×1 PNG.
 //
-// Expected behaviour, Swift v1.2.1's (WebRendererView.swift) except where
-// noted:
+// Expected behaviour, Swift's design (WebRendererView.swift) except where
+// noted — not what the shipped Mac app does: v1.2.2 never relaxes its CSP
+// (`allowsRemoteContent` is never read), so there no remote image loads
+// under any policy, Load and Always included.
 // - Never: nothing contacted, no prompt.
 // - Ask: nothing contacted until you agree; "Load remote content?" —
 //   Load / Don't Load / Always Allow.
 // - Always: images load, no prompt.
 // - Deviation, all policies: only `<img>` images ever load. CSS url(),
 //   video posters, SVG <image> etc. stay blocked by the CSP even under
-//   Always — Swift's CSP let those through under Ask *before* consent
-//   (see remote_image.rs).
+//   Always — Swift's intended CSP would let those through under Ask
+//   *before* consent (see remote_image.rs).
 //
 // Not part of `npm test` (it launches a browser): `npm run test:e2e`.
 

@@ -168,8 +168,13 @@ These were added deliberately in 1.2.0. Carry each one across:
   is fetched by Rust (`fetch_remote_image`, `src-tauri/src/remote_image.rs`)
   and handed over as a `data:` URL, so `img-src` stays local-only under
   every policy. Do not add `http:`/`https:` to the CSP to "fix" remote
-  images — Swift's CSP does, and that lets CSS `url()`, video posters, SVG
-  `<image>` etc. load under Ask before consent (`npm run test:e2e` checks).
+  images — that was Swift's intended design (`cspAllowsRemote`), and it would
+  let CSS `url()`, video posters, SVG `<image>` etc. load under Ask before
+  consent (`npm run test:e2e` checks). Swift never actually does it: its
+  `allowsRemoteContent` flag is set but never read, so v1.2.2's static CSP
+  blocks every remote image — Load / Always Allow / Always do nothing there
+  (verified 2026-10-19 against the shipped app's own `renderer.html` and
+  `mdviewer.js`).
 - Local image access is per-folder and explicit, never whole-disk.
 
 **Known gap (2026-09-08):** the last two aren't actually enforced in the

@@ -3116,11 +3116,16 @@ port works everywhere.
     `docs/development/color-and-contrast.md`.
   - Remote images (2026-10-19, the user's "fix both"): fetched by Rust
     (`fetch_remote_image`) and shown as `data:` URLs instead of loaded by
-    the webview, so the CSP's `img-src` stays local-only. Swift's dynamic
-    CSP allows `https:` images unless the policy is Never, which under Ask
-    lets CSS `url()`, `<video poster>`, SVG `<image>`, `<table
-    background>` and `<input type=image>` load before the user answers —
-    a privacy leak in v1.2.1 itself. Consequence: only `<img>` images
+    the webview, so the CSP's `img-src` stays local-only. Swift *intends*
+    a dynamic CSP that allows `https:` images unless the policy is Never,
+    which under Ask would let CSS `url()`, `<video poster>`, SVG `<image>`,
+    `<table background>` and `<input type=image>` load before the user
+    answers. In fact `LocalSchemeHandler.allowsRemoteContent` is set and
+    never read, so the shipped Mac app (v1.2.2) keeps `renderer.html`'s
+    static CSP and **no remote image ever loads there**: it asks, but Load,
+    Always Allow and Always do nothing (verified 2026-10-19 against the
+    app's own `renderer.html`/`mdviewer.js` in WebKit — no leak, no
+    images). Swift source not touched. Consequence here: only `<img>` images
     load, even under Always. The "Load remote content?" prompt is an
     in-page dialog (`remotePrompt.ts`) with Swift's wording and buttons,
     not an NSAlert. Like Swift it asks again on every render under Ask,
