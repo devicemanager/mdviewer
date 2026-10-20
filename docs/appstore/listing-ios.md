@@ -15,9 +15,10 @@ approval", as for the Mac app. Submitted for review 2026-10-17 with build 5;
 reviewed on an iPad Air 11-inch (M3), the reviewer had no Markdown file to
 open and asked for a demo account or a demo mode. The app has no accounts,
 so build 7 adds a built-in sample document ("Open Sample Document" on the
-welcome screen), and the review notes below point to it. Next: attach build 7,
-update the notes in App Store Connect, resubmit. Not done: the optional
-subtitle change.
+welcome screen), and the review notes below point to it. **Resubmitted
+2026-10-20 with build 7** and the notes below (a new review submission; the
+rejected one was cancelled, since App Store Connect keeps a version tied to
+it). Not done: the optional subtitle change.
 
 > Only claim what the iPhone app does. Unlike the Mac app it has **no**
 > editor, **no** PDF/HTML export and **no** Quick Look — App Review checks
