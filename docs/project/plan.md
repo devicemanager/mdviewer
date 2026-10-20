@@ -3090,6 +3090,15 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
     - a Play Developer API service account (the counterpart of the ASC
       key);
     - the store listing, feature graphic and Data safety form.
+  - **Open Dependabot alert, Linux only (2026-10-20, left for later at
+    the user's request).** GHSA-wrw7-89jp-8q8g (moderate): unsound
+    `Iterator`/`DoubleEndedIterator` impls for `glib::VariantStrIter`,
+    fixed in glib 0.20.0. `src-tauri/Cargo.lock` has glib 0.18.5, pulled in
+    by gtk 0.18 through Tauri itself (`muda`, `tao`, `wry` — Tauri 2.12.4
+    is the current release), so it can't be bumped from this crate alone:
+    it needs Tauri to move to gtk-rs 0.20. glib only links into the Linux
+    build; the macOS, iOS, Android and Windows builds don't contain it.
+    Check `cargo tree -i glib` before any Linux release.
 - [ ] Manual smoke test of the golden path and edge cases on each of the 5
       platforms before calling it done, per the working agreement
 - [ ] Re-verify all security invariants per platform (custom scheme, CSP,
