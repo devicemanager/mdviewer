@@ -3,15 +3,21 @@
 Companion to `listing.md` (the Mac listing). Same App Store Connect record —
 bundle ID `org.devicemanager.mdviewer`, team `64G8P2LG44`, price **Free** —
 with iOS added as a second platform (universal purchase; the user's call,
-2026-10-17). Version **1.0.0**, build **5** (`tauri.conf.json`'s
+2026-10-17). Version **1.0.0**, build **7** (`tauri.conf.json`'s
 `version` / `bundle.iOS.bundleVersion`; bump the build number for every
 upload). iPhone only.
 
-**Status (2026-10-18):** the iOS version 1.0.0 exists in App Store Connect,
-created through the API, with build 5 attached. The en-US texts below, the
-four screenshots (6.9") and the App Review notes are filled in; release is
-"automatically after approval", as for the Mac app. Submitted for review
-2026-10-17 (Waiting for Review). Not done: the optional subtitle change.
+**Status (2026-10-20):** the iOS version 1.0.0 exists in App Store Connect,
+created through the API. The en-US texts below, the four screenshots (6.9")
+and the App Review notes are filled in; release is "automatically after
+approval", as for the Mac app. Submitted for review 2026-10-17 with build 5;
+**rejected 2026-10-19 under guideline 2.1(a), "Information Needed"**:
+reviewed on an iPad Air 11-inch (M3), the reviewer had no Markdown file to
+open and asked for a demo account or a demo mode. The app has no accounts,
+so build 7 adds a built-in sample document ("Open Sample Document" on the
+welcome screen), and the review notes below point to it. Next: attach build 7,
+update the notes in App Store Connect, resubmit. Not done: the optional
+subtitle change.
 
 > Only claim what the iPhone app does. Unlike the Mac app it has **no**
 > editor, **no** PDF/HTML export and **no** Quick Look — App Review checks
@@ -101,13 +107,20 @@ Exempt — `ITSAppUsesNonExemptEncryption = false` ships in Info.plist (via
 
 ## App Review notes (paste into "Notes")
 ```
-MDViewer is a Markdown viewer. No account or login is required.
+MDViewer is a Markdown viewer. It has no accounts, no login and no
+server, so there is no demo account: every feature works without one.
+
+Demo content: on the first screen, tap "Open Sample Document". It opens a
+document built into the app that shows every feature — formatted text,
+lists and task lists, a table, syntax-highlighted code, math (KaTeX),
+diagrams (Mermaid) and a local image.
 
 To review:
 1. On first launch, an optional prompt offers to grant a folder; you can
    skip it ("Not now").
-2. Open a .md file: tap "Open…" (second button from the top left), or
-   open any .md from the Files app via Share/"Open in" → MDViewer.
+2. Tap "Open Sample Document" (see above). To open your own .md file, tap
+   "Open File…", or "Open…" (second button from the top left), or open
+   any .md from the Files app via Share/"Open in" → MDViewer.
 3. The top-left button ("Browse files") opens the in-app browser for a
    folder you granted. Top right: Find, then Preferences — Appearance,
    Privacy and About (About lists the open-source licenses).

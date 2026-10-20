@@ -133,6 +133,9 @@
                 <p class="welcome-title">No document open</p>
                 <p class="welcome-subtitle">Open a Markdown file to get started.</p>
                 <button type="button" class="welcome-open-btn" data-action="open">Open File…</button>
+                <!-- 2026-10-20: App Review (2.1a) found nothing to open on a
+                     fresh device; this opens a built-in sample instead. -->
+                <button type="button" class="welcome-sample-btn" data-action="open-sample">Open Sample Document</button>
             </div>
 
             <!-- Same id="content" renderer.html and every already-ported

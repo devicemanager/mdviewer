@@ -171,6 +171,11 @@ function wireWelcomeContentToggle(): void {
     welcomeEl.querySelector('[data-action="open"]')?.addEventListener("click", () => {
         void window.__TAURI__.core.invoke("open_document_command");
     });
+    // Built-in sample (2026-10-20, App Review 2.1a) — see
+    // `open_sample_document` in src-tauri/src/lib.rs.
+    welcomeEl.querySelector('[data-action="open-sample"]')?.addEventListener("click", () => {
+        void window.__TAURI__.core.invoke("open_sample_document");
+    });
 }
 
 

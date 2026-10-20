@@ -1237,6 +1237,9 @@ https://github.com/devicemanager/mdviewer/blob/main/THIRD_PARTY_NOTICES.md`;
     welcomeEl.querySelector('[data-action="open"]')?.addEventListener("click", () => {
       void window.__TAURI__.core.invoke("open_document_command");
     });
+    welcomeEl.querySelector('[data-action="open-sample"]')?.addEventListener("click", () => {
+      void window.__TAURI__.core.invoke("open_sample_document");
+    });
   }
   var THEME_STORAGE_KEY = "mdviewer.themeId";
   var FONT_SIZE_STORAGE_KEY = "mdviewer.fontSize";

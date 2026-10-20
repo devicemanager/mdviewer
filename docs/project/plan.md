@@ -3054,6 +3054,22 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
     Flagged item (2) above is resolved: `011210d` moved the published
     site and `THIRD_PARTY_NOTICES.md` back to their live paths before the
     push.
+  - **iOS 1.0.0 rejected, guideline 2.1(a) (2026-10-19).** "Information
+    Needed": App Review, on an iPad Air 11-inch (M3), had no Markdown file
+    to open and asked for a demo account or demo mode. The user chose a
+    built-in sample document over a reply-only answer (2026-10-20).
+    **Deliberate parity deviation, a new feature:** the welcome screen's
+    "Open Sample Document" invokes `open_sample_document`
+    (`src-tauri/src/lib.rs`), which writes `src-tauri/sample/Welcome.md`
+    and the icon it shows (both compiled into the binary) to
+    `app_cache_dir()/sample/` and opens it through `render_file` like any
+    file. Verified: Rust test for the write, WebKit run of the real
+    `app.html` at iPad and iPhone size (button → invoke; KaTeX, both
+    Mermaid diagrams, Shiki, task list, table rendered; no sideways
+    overflow), visual audit 144/144. **Not verified:** the iOS simulator
+    (the 27.1 Simulator SDK isn't installed) and the sample's local image
+    through `mdviewer-local://` on a device — check both on build 7
+    before resubmitting. Review notes updated in `listing-ios.md`.
   - **Google Play release on hold (2026-10-18, the user's decision).**
     Android stays a port target and keeps building, but it won't be
     published yet. Reasons:

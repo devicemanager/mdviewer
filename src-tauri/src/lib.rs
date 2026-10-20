@@ -335,6 +335,7 @@ pub fn run() {
             handle_link_click,
             set_remote_content_policy_always,
             open_document_command,
+            open_sample_document,
             get_remote_content_policy,
             set_remote_content_policy,
             fetch_remote_image,
@@ -624,6 +625,37 @@ fn open_document<R: Runtime>(app: &AppHandle<R>) {
 #[tauri::command]
 async fn open_document_command<R: Runtime>(app: AppHandle<R>) {
     let _ = tauri::async_runtime::spawn_blocking(move || open_document(&app)).await;
+}
+
+/// The built-in sample document, compiled into the binary rather than
+/// shipped as a bundle resource so it needs no per-platform packaging.
+/// New, not a Swift port (2026-10-20): App Review rejected iOS 1.0.0
+/// under guideline 2.1(a) because a fresh review device has no `.md`
+/// files to open, and asked for a demo mode. The user chose this over a
+/// reply-only answer.
+const SAMPLE_DOCUMENT: &str = include_str!("../sample/Welcome.md");
+const SAMPLE_IMAGE: &[u8] = include_bytes!("../icons/128x128.png");
+
+/// Writes the sample document and the image it references into `dir`,
+/// overwriting any earlier copy, and returns the document's path. Split
+/// from `open_sample_document` so it's testable without an app handle.
+fn write_sample_document(dir: &Path) -> Result<PathBuf, String> {
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    std::fs::write(dir.join("icon.png"), SAMPLE_IMAGE).map_err(|e| e.to_string())?;
+    let path = dir.join("Welcome.md");
+    std::fs::write(&path, SAMPLE_DOCUMENT).map_err(|e| e.to_string())?;
+    Ok(path)
+}
+
+/// Opens the sample document like any other file, so it gets the same
+/// base directory (its relative image loads), file watching and
+/// last-opened restore as a real one. Written to the cache directory:
+/// the copy is disposable and rewritten on every call.
+#[tauri::command]
+fn open_sample_document<R: Runtime>(app: AppHandle<R>) -> Result<(), String> {
+    let dir = app.path().app_cache_dir().map_err(|e| e.to_string())?.join("sample");
+    let path = write_sample_document(&dir)?;
+    render_file(&app, &path)
 }
 
 /// Ported from `FolderAccessManager.requestAccess(to:)`: a Tauri command so
@@ -1743,6 +1775,22 @@ mod tests {
         // render_file stores path.parent() as-is — no canonicalization —
         // so this should be exactly `dir`, unchanged.
         assert_eq!(app.state::<DocumentBaseDir>().0.lock().unwrap().as_deref(), Some(dir.as_path()));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn write_sample_document_writes_document_and_its_image() {
+        let dir = std::env::temp_dir().join(format!("mdviewer-test-sample-{}", std::process::id()));
+        std::fs::remove_dir_all(&dir).ok();
+
+        let path = write_sample_document(&dir).unwrap();
+
+        assert_eq!(path, dir.join("Welcome.md"));
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.contains("](icon.png)"), "the sample's image reference must match the file written");
+        assert_eq!(std::fs::read(dir.join("icon.png")).unwrap(), SAMPLE_IMAGE);
+        // A second call overwrites rather than failing on existing files.
+        assert!(write_sample_document(&dir).is_ok());
         std::fs::remove_dir_all(&dir).ok();
     }
 
