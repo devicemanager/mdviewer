@@ -20,6 +20,13 @@ welcome screen), and the review notes below point to it. **Resubmitted
 rejected one was cancelled, since App Store Connect keeps a version tied to
 it). Not done: the optional subtitle change.
 
+Build 7 was **rejected 2026-10-21 under guideline 4.3(a), "Design"** (spam):
+the app icon was identical to other apps'. It was Tauri's default
+placeholder logo, which every unbranded Tauri app shares. Build 8 uses
+MDViewer's own icon, the same as the Mac app's (commit ccb1344).
+**Uploaded 2026-10-21 as build 8.** Next: test it in TestFlight, attach it to
+1.0.0, resubmit, and reply to App Review explaining the icon change.
+
 > Only claim what the iPhone app does. Unlike the Mac app it has **no**
 > editor, **no** PDF/HTML export and **no** Quick Look — App Review checks
 > metadata against the app (guideline 2.3).
