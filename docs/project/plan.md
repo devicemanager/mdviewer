@@ -3116,6 +3116,11 @@ port works everywhere.
   some stage it is replaced by the Tauri/TypeScript build rather than
   repaired. Until then its bugs are recorded here, not fixed — the Swift
   source stays untouched.
+  - **Not before iOS 1.0.0 is approved** (the user's call, 2026-10-21).
+    The Mac app moves to the same architecture as the iPhone app, but only
+    once iOS 1.0.0 (build 8, resubmitted 2026-10-21 after the 4.3(a) icon
+    rejection) has passed review — no Mac changes while that submission
+    is in flight. Both platforms share one App Store Connect record.
   - **Known bug, v1.2.2: remote images never load.** Under Ask the app
     asks "Load remote content?", but Load and Always Allow show nothing,
     and Always shows nothing either. `LocalSchemeHandler.allowsRemoteContent`
