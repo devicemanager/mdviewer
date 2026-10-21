@@ -18,7 +18,7 @@ so build 7 adds a built-in sample document ("Open Sample Document" on the
 welcome screen), and the review notes below point to it. **Resubmitted
 2026-10-20 with build 7** and the notes below (a new review submission; the
 rejected one was cancelled, since App Store Connect keeps a version tied to
-it). Not done: the optional subtitle change.
+it). The subtitle was changed 2026-10-21 (below).
 
 Build 7 was **rejected 2026-10-21 under guideline 4.3(a), "Design"** (spam):
 the app icon was identical to other apps'. It was Tauri's default
@@ -37,10 +37,11 @@ MDViewer's own icon, the same as the Mac app's (commit ccb1344).
 Name, subtitle, category and privacy policy URL belong to the app record,
 not the platform, so the iPhone listing shows the Mac's values.
 
-- **Name (≤30):** `MDViewer`
-- **Subtitle (≤30):** the Mac draft's `Markdown viewer & Quick Look`
-  promises Quick Look, which iPhone lacks. Use one that fits both:
-  `Markdown, math & diagrams` (25).
+- **Name (≤30):** `MDQuickView` in App Store Connect (the home-screen name
+  is still `MDViewer`, from `productName` in `tauri.conf.json`)
+- **Subtitle (≤30):** `Markdown reader, Mac & iPhone` (29), set 2026-10-21 via
+  the API. It replaced `Quick Look for Finder`, which promised Quick Look
+  and Finder to iPhone users; takes effect when 1.0.0 is approved.
 - **Category:** Productivity (primary), Developer Tools (secondary)
 - **Privacy Policy URL:** see "Before submitting" below — the URL moves on
   the next push.
@@ -77,9 +78,9 @@ READING
 • The toolbar fades away while you read and comes back with a tap
 
 PRIVATE BY DESIGN
-• No accounts, analytics, tracking or ads — nothing leaves your iPhone
+• No accounts, analytics, tracking or ads — your documents never leave your iPhone
 • Only reads the files and folders you choose
-• Remote images in documents are not loaded
+• Remote images load only if you allow them (Ask, Always or Never)
 
 MDViewer is open source (MIT). It is a fork of the original MDViewer by
 Masanori Sakai.
