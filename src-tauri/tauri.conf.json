@@ -31,7 +31,7 @@
       "icons/icon.ico"
     ],
     "iOS": {
-      "bundleVersion": "7"
+      "bundleVersion": "8"
     },
     "fileAssociations": [
       {

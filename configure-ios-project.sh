@@ -2,7 +2,7 @@
 #
 # configure-ios-project.sh — Reapply the hand-edits to the generated iOS project.
 #
-# `src-tauri/gen/` is gitignored (it is generated output), but six things in
+# `src-tauri/gen/` is gitignored (it is generated output), but seven things in
 # there are NOT reproducible from tracked config, and losing them fails in
 # confusing ways:
 #
@@ -49,6 +49,15 @@
 #      have no USB/Xcode console, so the log is written there and shared off
 #      the phone from Files. Without this key the log is still written, just
 #      unreachable.
+#
+#   6. No alpha channel in the app icons
+#      `tauri icon` / `tauri ios init` write the AppIcon set as RGBA PNGs
+#      even when every pixel is opaque, and App Store Connect rejects a
+#      1024px marketing icon that has an alpha channel at all. The icons
+#      themselves come from the tracked src-tauri/icons/app-icon-source.png
+#      (regenerate with `npm run tauri icon src-tauri/icons/app-icon-source.png`).
+#      Not Tauri's default logo: App Review rejected build 7 under 4.3(a)
+#      (2026-10-21) because that icon is shared by every unbranded Tauri app.
 #
 # Run this once after `tauri ios init`, and again any time the generated
 # project is recreated. Idempotent — safe to re-run at any point.
@@ -247,6 +256,20 @@ else
     echo "Info.plist: added UIFileSharingEnabled"
 fi
 plutil -lint "$INFO_PLIST" >/dev/null
+
+# ---- 6. Opaque app icons ----------------------------------------------------
+# Flatten onto the icon's own dark edge colour, so this is a no-op visually
+# for the (already opaque) source and still safe if a future one isn't.
+APPICONSET="$GEN_APPLE/Assets.xcassets/AppIcon.appiconset"
+command -v magick >/dev/null || { echo "error: magick not found (brew install imagemagick)" >&2; exit 1; }
+for icon in "$APPICONSET"/*.png; do
+    magick "$icon" -background 'rgb(58,61,66)' -alpha remove -alpha off -define png:color-type=2 "$icon"
+done
+if sips -g hasAlpha "$APPICONSET"/*.png | grep -q "hasAlpha: yes"; then
+    echo "error: an AppIcon PNG still has an alpha channel" >&2
+    exit 1
+fi
+echo "AppIcon.appiconset: alpha channel stripped from all icons"
 
 echo
 echo "iOS project configured. Build an ad-hoc IPA with:"
