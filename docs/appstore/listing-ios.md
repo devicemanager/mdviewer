@@ -24,8 +24,11 @@ Build 7 was **rejected 2026-10-21 under guideline 4.3(a), "Design"** (spam):
 the app icon was identical to other apps'. It was Tauri's default
 placeholder logo, which every unbranded Tauri app shares. Build 8 uses
 MDViewer's own icon, the same as the Mac app's (commit ccb1344).
-**Uploaded 2026-10-21 as build 8.** Next: test it in TestFlight, attach it to
-1.0.0, resubmit, and reply to App Review explaining the icon change.
+**Uploaded 2026-10-21 as build 8**, icon checked in TestFlight.
+**Resubmitted 2026-10-22 with build 8** — through the same review
+submission this time (its "Resubmit to App Review"), not a new one; it
+sat at Unresolved Issues with the version Ready for Review until that
+button was pressed.
 
 > Only claim what the iPhone app does. Unlike the Mac app it has **no**
 > editor, **no** PDF/HTML export and **no** Quick Look — App Review checks
