@@ -29,7 +29,7 @@ MDViewer's own icon, the same as the Mac app's (commit ccb1344).
 submission this time (its "Resubmit to App Review"), not a new one; it
 sat at Unresolved Issues with the version Ready for Review until that
 button was pressed. **Approved 2026-10-24** (release: automatically
-after approval).
+after approval). **Live on the App Store 2026-10-24.**
 
 > Only claim what the iPhone app does. Unlike the Mac app it has **no**
 > editor, **no** PDF/HTML export and **no** Quick Look — App Review checks
