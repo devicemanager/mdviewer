@@ -2,6 +2,10 @@
 
 A lightweight, native macOS Markdown viewer built for developers.
 
+[![Download on the App Store](docs/app-store-badge.svg)](https://apps.apple.com/app/id6791987378)
+
+Available for Mac and iPhone.
+
 ![Screenshot](docs/screenshot.png)
 
 ## Overview
