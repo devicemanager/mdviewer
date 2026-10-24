@@ -1,0 +1,17 @@
+[package]
+name = "tauri-plugin-android-documents"
+version = "0.1.0"
+edition = "2021"
+publish = false
+description = "MDViewer's Android document helpers (content:// display names; SAF folder access next)"
+license = "MIT"
+# Required by tauri-plugin's build step: it is how the app's tauri-build
+# finds this crate's Android project and adds it to gen/android.
+links = "tauri-plugin-android-documents"
+
+[dependencies]
+tauri = { version = "2" }
+serde = { version = "1.0.229", features = ["derive"] }
+
+[build-dependencies]
+tauri-plugin = { version = "2.6.3", features = ["build"] }
