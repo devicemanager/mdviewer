@@ -3121,6 +3121,7 @@ port works everywhere.
     once iOS 1.0.0 (build 8, resubmitted 2026-10-21 after the 4.3(a) icon
     rejection) has passed review — no Mac changes while that submission
     is in flight. Both platforms share one App Store Connect record.
+    **iOS 1.0.0 approved 2026-10-24 — this is now unblocked.**
   - **Known bug, v1.2.2: remote images never load.** Under Ask the app
     asks "Load remote content?", but Load and Always Allow show nothing,
     and Always shows nothing either. `LocalSchemeHandler.allowsRemoteContent`
