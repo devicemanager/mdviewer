@@ -70,6 +70,18 @@ objc2-ui-kit = { version = "0.3.2", features = [
     "UIWindow",
 ] }
 
+# Android-only: reads the `content://` URIs Android hands over for a
+# document — tapped in Files, "Open with…", a share, or the Open button's
+# picker — through the platform's ContentResolver (its own Kotlin
+# `getFileDescriptor`, read directly in the crate source). Android never
+# gives an app a plain path for those, so `to_file_path()` fails on all of
+# them. Rust-side use only: no capability grants its JS commands, so the
+# page gets no new filesystem surface. Pinned to exactly the 2.5.2 that
+# tauri-plugin-dialog already pulls into every build (it re-exports this
+# crate's `FilePath`), so this adds no new code, only direct access to it.
+[target.'cfg(target_os = "android")'.dependencies]
+tauri-plugin-fs = "=2.5.2"
+
 [dev-dependencies]
 # "test" enables tauri::test's MockRuntime — headless app/window testing
 # with no real GUI, no visible screen, no file dialogs. Cargo unions this
