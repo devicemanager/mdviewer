@@ -7,6 +7,10 @@ use tauri::{AppHandle, Manager, Runtime};
 use tauri_plugin_dialog::DialogExt;
 use tauri_plugin_opener::OpenerExt;
 
+// Compiled everywhere so its pure name handling is unit-tested on the
+// host; only Android calls into it.
+#[cfg_attr(not(target_os = "android"), allow(dead_code))]
+mod android_content;
 mod debug_log;
 mod remote_image;
 mod scoped_bookmarks;
@@ -182,6 +186,18 @@ fn take_and_render_pending<R: Runtime>(app: &AppHandle<R>) -> bool {
 /// `AndroidManifest.xml`'s own comment on this same feature.
 fn render_opened_document<R: Runtime>(app: &AppHandle<R>, url_str: &str) {
     debug_log::log(&format!("render_opened_document: {url_str}"));
+    // Files, "Open with…" and shares on Android deliver a `content://`
+    // URI, never a path — read it into a cached copy instead.
+    #[cfg(target_os = "android")]
+    if android_content::is_content_uri(url_str) {
+        match android_content::copy_to_cache(app, url_str) {
+            Ok(path) => {
+                let _ = render_file(app, &path);
+            }
+            Err(e) => debug_log::log(&format!("render_opened_document: content read failed: {e}")),
+        }
+        return;
+    }
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     let _scope = match scoped_bookmarks::access_url(url_str) {
         Ok(scope) => Some(scope),
@@ -577,6 +593,17 @@ fn open_document<R: Runtime>(app: &AppHandle<R>) {
     else {
         return; // User cancelled.
     };
+    // Android's picker returns a `content://` URI, which has no path —
+    // same cached-copy route as `render_opened_document`.
+    #[cfg(target_os = "android")]
+    if let tauri_plugin_dialog::FilePath::Url(url) = &file_path {
+        if android_content::is_content_uri(url.as_str()) {
+            if let Ok(path) = android_content::copy_to_cache(app, url.as_str()) {
+                let _ = render_file(app, &path);
+            }
+            return;
+        }
+    }
     let Ok(path) = file_path.into_path() else { return };
     let _ = render_file(app, &path);
 }
