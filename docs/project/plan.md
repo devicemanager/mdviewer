@@ -3083,7 +3083,16 @@ Target platforms: macOS, Windows, Linux, Android, iOS.
     Revisit once it's clear how the iPhone version is adopted. Still
     needed for a release:
     - Storage Access Framework file opening: `content://` URIs,
-      "Open with…" for `.md`, and the folder picker;
+      "Open with…" for `.md`, and the folder picker. **Single files done
+      2026-10-24** (emulator, API 35): tapping a `.md` in Files (cold and
+      warm), "Open with…" and the Open button's picker all render, via a
+      cached copy (`android_content.rs`, the iOS Inbox model) with the
+      real file name from our own in-repo plugin
+      (`src-tauri/plugins/android-documents`, Kotlin
+      `OpenableColumns.DISPLAY_NAME`). Still open: folder access (SAF
+      tree URI, persisted permission, listing) in that same plugin;
+      Browse files lists the cached copies until then. Real-device check
+      pending — a friend's phone, debug APK sent privately;
     - an AAB release build with an upload keystore (`release` has no
       `signingConfig` yet; see the Android packaging note above);
     - a `versionCode` and Play's current target-SDK minimum;

@@ -81,6 +81,10 @@ objc2-ui-kit = { version = "0.3.2", features = [
 # crate's `FilePath`), so this adds no new code, only direct access to it.
 [target.'cfg(target_os = "android")'.dependencies]
 tauri-plugin-fs = "=2.5.2"
+# Our own, in-repo (plugins/android-documents): a `content://` document's
+# display name via ContentResolver, so picked files keep their real names.
+# Its Kotlin lives in that crate, not in the gitignored gen/android.
+tauri-plugin-android-documents = { path = "plugins/android-documents" }
 
 [dev-dependencies]
 # "test" enables tauri::test's MockRuntime — headless app/window testing

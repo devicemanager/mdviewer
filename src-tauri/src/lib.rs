@@ -408,7 +408,9 @@ pub fn run() {
     // Android's `content://` documents are read through this plugin's
     // ContentResolver bridge — see `android_content` and Cargo.toml.
     #[cfg(target_os = "android")]
-    let builder = builder.plugin(tauri_plugin_fs::init());
+    let builder = builder
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_android_documents::init());
 
     let builder = builder.register_uri_scheme_protocol("mdviewer-local", |ctx, request| {
         handle_local_scheme_request(ctx.app_handle(), request.uri().path())
