@@ -1002,24 +1002,21 @@ fn render_file<R: Runtime>(app: &AppHandle<R>, path: &Path) -> Result<(), String
 /// do itself. A Tauri command so `interactionListeners.ts`'s
 /// `onLinkClicked` callback can call it via `invoke` once wired.
 ///
-/// **Preserved limitation, not fixed here**: only matches an absolute
-/// `file://` URL. Confirmed by reading `mdviewer.js` directly (2026-09-08,
-/// not assumed) that it sets no `<base>` element, so a *relative*
-/// markdown link (`[other](other.md)`) resolves its `.href` against the
-/// page's own origin (`tauri://localhost/other.md` on desktop, `http://
-/// tauri.localhost/other.md` on Android — never a real filesystem path),
-/// which never matches `file://` here, exactly as it never matches
-/// Swift's own `url.scheme == "file"` check either. Relative document-to-
-/// document links do not actually work as navigation in either version;
-/// only an absolute `file://` URL a document author wrote explicitly
-/// would. A real, shared limitation worth flagging, not something to
-/// silently fix beyond parity.
+/// Relative document links: the renderer rewrites a relative
+/// `[other](other.md)` link against `LOCAL_BASE_URL`, like a relative image,
+/// so its `.href` arrives as `mdviewer-local://localhost/other.md` and is
+/// resolved against the open document's directory with the same access
+/// checks as images (`resolve_local_path`). Before that rewrite, the link
+/// resolved against the page's own origin (`tauri://localhost/other.md`),
+/// never matched `file://`, and was silently ignored — in Swift as well.
 ///
 /// The scheme-dispatch decision itself lives in `classify_link`, split
 /// out purely for testability — see its own doc comment.
 #[tauri::command]
 fn handle_link_click<R: Runtime>(app: AppHandle<R>, href: String) {
-    match classify_link(&href) {
+    let base_dir = app.state::<DocumentBaseDir>().0.lock().unwrap().clone();
+    let granted = app.state::<GrantedFolders>().0.lock().unwrap().clone();
+    match classify_link(&href, base_dir.as_deref(), &granted) {
         LinkAction::OpenLocalDocument(path) => {
             let _ = render_file(&app, &path);
         }
@@ -1044,20 +1041,29 @@ enum LinkAction {
 /// launching a browser/mail client. Testing this pure function instead
 /// covers the scheme dispatch and the markdown-extension check without
 /// ever touching the OS.
-fn classify_link(href: &str) -> LinkAction {
+fn classify_link(href: &str, base_dir: Option<&Path>, granted_folders: &[PathBuf]) -> LinkAction {
     let Ok(url) = url::Url::parse(href) else { return LinkAction::Ignore };
+    let is_markdown = Path::new(url.path())
+        .extension()
+        .and_then(|ext| ext.to_str())
+        .is_some_and(|ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown"));
     match url.scheme() {
         "file" => {
-            let is_markdown = Path::new(url.path())
-                .extension()
-                .and_then(|ext| ext.to_str())
-                .is_some_and(|ext| ext.eq_ignore_ascii_case("md") || ext.eq_ignore_ascii_case("markdown"));
             if !is_markdown {
                 return LinkAction::Ignore;
             }
             match url.to_file_path() {
                 Ok(path) => LinkAction::OpenLocalDocument(path),
                 Err(()) => LinkAction::Ignore,
+            }
+        }
+        // A relative link the renderer rewrote against LOCAL_BASE_URL —
+        // resolved with the same access checks as a relative image.
+        "mdviewer-local" if url.host_str() == Some("localhost") => {
+            match (is_markdown, base_dir) {
+                (true, Some(base_dir)) => resolve_local_path(base_dir, granted_folders, url.path())
+                    .map_or(LinkAction::Ignore, LinkAction::OpenLocalDocument),
+                _ => LinkAction::Ignore,
             }
         }
         "http" | "https" | "mailto" => LinkAction::OpenExternal(href.to_string()),
@@ -2554,7 +2560,7 @@ mod tests {
     #[test]
     fn classify_link_a_local_markdown_file_opens_it() {
         assert_eq!(
-            classify_link("file:///Users/me/docs/other.md"),
+            classify_link("file:///Users/me/docs/other.md", None, &[]),
             LinkAction::OpenLocalDocument(PathBuf::from("/Users/me/docs/other.md"))
         );
     }
@@ -2562,7 +2568,7 @@ mod tests {
     #[test]
     fn classify_link_markdown_extension_is_case_insensitive() {
         assert_eq!(
-            classify_link("file:///Users/me/docs/OTHER.MD"),
+            classify_link("file:///Users/me/docs/OTHER.MD", None, &[]),
             LinkAction::OpenLocalDocument(PathBuf::from("/Users/me/docs/OTHER.MD"))
         );
     }
@@ -2570,20 +2576,20 @@ mod tests {
     #[test]
     fn classify_link_accepts_the_full_markdown_extension_too() {
         assert_eq!(
-            classify_link("file:///Users/me/docs/other.markdown"),
+            classify_link("file:///Users/me/docs/other.markdown", None, &[]),
             LinkAction::OpenLocalDocument(PathBuf::from("/Users/me/docs/other.markdown"))
         );
     }
 
     #[test]
     fn classify_link_a_non_markdown_local_file_is_ignored() {
-        assert_eq!(classify_link("file:///Users/me/docs/image.png"), LinkAction::Ignore);
+        assert_eq!(classify_link("file:///Users/me/docs/image.png", None, &[]), LinkAction::Ignore);
     }
 
     #[test]
     fn classify_link_https_opens_externally() {
         assert_eq!(
-            classify_link("https://example.com/page"),
+            classify_link("https://example.com/page", None, &[]),
             LinkAction::OpenExternal("https://example.com/page".to_string())
         );
     }
@@ -2591,7 +2597,7 @@ mod tests {
     #[test]
     fn classify_link_http_opens_externally() {
         assert_eq!(
-            classify_link("http://example.com"),
+            classify_link("http://example.com", None, &[]),
             LinkAction::OpenExternal("http://example.com".to_string())
         );
     }
@@ -2599,28 +2605,84 @@ mod tests {
     #[test]
     fn classify_link_mailto_opens_externally() {
         assert_eq!(
-            classify_link("mailto:demo@example.com"),
+            classify_link("mailto:demo@example.com", None, &[]),
             LinkAction::OpenExternal("mailto:demo@example.com".to_string())
         );
     }
 
     #[test]
     fn classify_link_a_relative_markdown_link_resolved_to_the_page_origin_is_ignored() {
-        // Documents the real, shared limitation (see handle_link_click's
-        // doc comment): a relative `[other](other.md)` link resolves its
-        // `.href` against the page's own origin, never `file://`, so it's
-        // ignored here exactly as it is in Swift.
-        assert_eq!(classify_link("tauri://localhost/other.md"), LinkAction::Ignore);
+        // A link the renderer did not rewrite against LOCAL_BASE_URL
+        // (resolved against the page origin) is still not a real path.
+        assert_eq!(classify_link("tauri://localhost/other.md", None, &[]), LinkAction::Ignore);
+    }
+
+    #[test]
+    fn classify_link_a_relative_markdown_link_rewritten_to_the_local_base_opens_the_sibling_document() {
+        let dir = temp_dir_for("link-sibling");
+        std::fs::write(dir.join("other.md"), b"# other").unwrap();
+
+        let action = classify_link("mdviewer-local://localhost/other.md#section", Some(&dir), &[]);
+
+        assert_eq!(action, LinkAction::OpenLocalDocument(dir.canonicalize().unwrap().join("other.md")));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn classify_link_a_relative_markdown_link_in_a_subfolder_with_spaces_opens_it() {
+        let dir = temp_dir_for("link-nested");
+        std::fs::create_dir_all(dir.join("my docs")).unwrap();
+        std::fs::write(dir.join("my docs/other.md"), b"# other").unwrap();
+
+        let action = classify_link("mdviewer-local://localhost/./my%20docs/other.md", Some(&dir), &[]);
+
+        assert_eq!(action, LinkAction::OpenLocalDocument(dir.canonicalize().unwrap().join("my docs/other.md")));
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn classify_link_a_relative_link_escaping_the_document_folder_is_ignored() {
+        let dir = temp_dir_for("link-traversal");
+        let outside = std::env::temp_dir().join(format!("mdviewer-link-outside-{}.md", std::process::id()));
+        std::fs::write(&outside, b"# outside").unwrap();
+        let href = format!("mdviewer-local://localhost/../{}", outside.file_name().unwrap().to_str().unwrap());
+
+        assert_eq!(classify_link(&href, Some(&dir), &[]), LinkAction::Ignore);
+        std::fs::remove_file(&outside).ok();
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn classify_link_a_relative_non_markdown_link_is_ignored() {
+        let dir = temp_dir_for("link-non-md");
+        std::fs::write(dir.join("image.png"), b"fake png").unwrap();
+
+        assert_eq!(classify_link("mdviewer-local://localhost/image.png", Some(&dir), &[]), LinkAction::Ignore);
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn classify_link_a_relative_link_with_no_document_open_is_ignored() {
+        assert_eq!(classify_link("mdviewer-local://localhost/other.md", None, &[]), LinkAction::Ignore);
+    }
+
+    #[test]
+    fn classify_link_a_local_scheme_link_to_another_host_is_ignored() {
+        let dir = temp_dir_for("link-bundle-host");
+        std::fs::write(dir.join("other.md"), b"# other").unwrap();
+
+        assert_eq!(classify_link("mdviewer-local://bundle/other.md", Some(&dir), &[]), LinkAction::Ignore);
+        std::fs::remove_dir_all(&dir).ok();
     }
 
     #[test]
     fn classify_link_an_unknown_scheme_is_ignored() {
-        assert_eq!(classify_link("javascript:alert(1)"), LinkAction::Ignore);
+        assert_eq!(classify_link("javascript:alert(1)", None, &[]), LinkAction::Ignore);
     }
 
     #[test]
     fn classify_link_an_unparseable_string_is_ignored() {
-        assert_eq!(classify_link("not a url"), LinkAction::Ignore);
+        assert_eq!(classify_link("not a url", None, &[]), LinkAction::Ignore);
     }
 
     // MARK: - handle_link_click (headless, via tauri::test::mock_app — the

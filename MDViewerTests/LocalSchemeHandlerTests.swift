@@ -130,4 +130,69 @@ final class LocalSchemeHandlerTests: XCTestCase {
         let traversed = bundleDir.appendingPathComponent("../../../etc/passwd")
         XCTAssertFalse(LocalSchemeHandler.isPath(traversed, within: bundleDir))
     }
+
+    // MARK: - localMarkdownDocumentURL(for:) — relative document links
+
+    func test_localMarkdownDocumentURL_relativeMarkdownLink_resolvesUnderBaseDirectory() {
+        let handler = LocalSchemeHandler()
+        handler.baseDirectory = baseDir
+
+        let resolved = handler.localMarkdownDocumentURL(for: URL(string: "mdviewer-local://localhost/other.md#section")!)
+
+        XCTAssertEqual(resolved?.standardizedFileURL.path, baseDir.appendingPathComponent("other.md").standardizedFileURL.path)
+    }
+
+    func test_localMarkdownDocumentURL_percentEncodedNestedLink_resolvesDecodedPath() {
+        let handler = LocalSchemeHandler()
+        handler.baseDirectory = baseDir
+
+        let resolved = handler.localMarkdownDocumentURL(for: URL(string: "mdviewer-local://localhost/./my%20docs/Other.MARKDOWN")!)
+
+        XCTAssertEqual(
+            resolved?.standardizedFileURL.path,
+            baseDir.appendingPathComponent("my docs/Other.MARKDOWN").standardizedFileURL.path
+        )
+    }
+
+    func test_localMarkdownDocumentURL_absoluteFileMarkdownLink_isReturnedUnchanged() {
+        let handler = LocalSchemeHandler()
+        let url = URL(fileURLWithPath: "/Users/me/docs/other.md")
+
+        XCTAssertEqual(handler.localMarkdownDocumentURL(for: url), url)
+    }
+
+    func test_localMarkdownDocumentURL_traversalOutsideBaseDirectory_returnsNil() {
+        let handler = LocalSchemeHandler()
+        handler.baseDirectory = baseDir
+
+        XCTAssertNil(handler.localMarkdownDocumentURL(for: URL(string: "mdviewer-local://localhost/../Secret/other.md")!))
+    }
+
+    func test_localMarkdownDocumentURL_nonMarkdownRelativeLink_returnsNil() {
+        let handler = LocalSchemeHandler()
+        handler.baseDirectory = baseDir
+
+        XCTAssertNil(handler.localMarkdownDocumentURL(for: URL(string: "mdviewer-local://localhost/image.png")!))
+    }
+
+    func test_localMarkdownDocumentURL_withoutBaseDirectory_doesNotFallBackToBundle() {
+        let handler = LocalSchemeHandler()
+        handler.bundleResourceDirectory = bundleDir
+
+        XCTAssertNil(handler.localMarkdownDocumentURL(for: URL(string: "mdviewer-local://localhost/other.md")!))
+    }
+
+    func test_localMarkdownDocumentURL_bundleHostLink_returnsNil() {
+        let handler = LocalSchemeHandler()
+        handler.baseDirectory = baseDir
+
+        XCTAssertNil(handler.localMarkdownDocumentURL(for: URL(string: "mdviewer-local://bundle/other.md")!))
+    }
+
+    func test_localMarkdownDocumentURL_externalLink_returnsNil() {
+        let handler = LocalSchemeHandler()
+        handler.baseDirectory = baseDir
+
+        XCTAssertNil(handler.localMarkdownDocumentURL(for: URL(string: "https://example.com/other.md")!))
+    }
 }

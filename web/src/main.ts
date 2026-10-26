@@ -47,6 +47,7 @@
 import { createMDViewerApi, type MarkedLike } from "./mdviewerApi.js";
 import { renderRemotePrompt, attachRemotePromptHandlers, showRemotePrompt, hideRemotePrompt } from "./remotePrompt.js";
 import { attachInteractionListeners } from "./interactionListeners.js";
+import { linkClickHandler, type LinkBridgeHost } from "./linkBridge.js";
 import { showContent, showWelcome } from "./appShell.js";
 import { wireErrorForwarding } from "./errorForwarding.js";
 import { updateAboutVersion } from "./aboutPanel.js";
@@ -807,7 +808,5 @@ if (document.readyState === "loading") {
 }
 
 attachInteractionListeners({
-    onLinkClicked: (href) => {
-        void window.__TAURI__.core.invoke("handle_link_click", { href });
-    },
+    onLinkClicked: linkClickHandler(window as unknown as LinkBridgeHost),
 });

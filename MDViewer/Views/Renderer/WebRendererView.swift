@@ -97,10 +97,8 @@ struct WebRendererView: NSViewRepresentable {
                 guard let urlString = message.body as? String,
                       let url = URL(string: urlString) else { break }
                 Task { @MainActor in
-                    if url.scheme == "file",
-                       ["md", "markdown"].contains(url.pathExtension.lowercased())
-                    {
-                        NotificationCenter.default.post(name: .openLocalDocument, object: url)
+                    if let document = self.schemeHandler.localMarkdownDocumentURL(for: url) {
+                        NotificationCenter.default.post(name: .openLocalDocument, object: document)
                     } else if let scheme = url.scheme?.lowercased(),
                               ["http", "https", "mailto"].contains(scheme)
                     {
@@ -172,8 +170,8 @@ struct WebRendererView: NSViewRepresentable {
         ) -> WKWebView? {
             guard let url = navigationAction.request.url else { return nil }
             Task { @MainActor in
-                if url.scheme == "file", ["md", "markdown"].contains(url.pathExtension.lowercased()) {
-                    NotificationCenter.default.post(name: .openLocalDocument, object: url)
+                if let document = self.schemeHandler.localMarkdownDocumentURL(for: url) {
+                    NotificationCenter.default.post(name: .openLocalDocument, object: document)
                 } else if let scheme = url.scheme, ["http", "https", "mailto"].contains(scheme) {
                     NSWorkspace.shared.open(url)
                 }
@@ -211,10 +209,8 @@ struct WebRendererView: NSViewRepresentable {
             }
 
             // Local Markdown file → open in MDViewer
-            if url.scheme == "file",
-               ["md", "markdown"].contains(url.pathExtension.lowercased())
-            {
-                NotificationCenter.default.post(name: .openLocalDocument, object: url)
+            if let document = schemeHandler.localMarkdownDocumentURL(for: url) {
+                NotificationCenter.default.post(name: .openLocalDocument, object: document)
                 decisionHandler(.cancel)
                 return
             }
