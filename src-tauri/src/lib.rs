@@ -822,6 +822,23 @@ fn grant_folder_access<R: Runtime>(app: &AppHandle<R>, path: &Path) -> bool {
     true
 }
 
+/// The directory every persisted value in this file lives in. Under
+/// `cargo test` this always fails, so no test can read or write the
+/// developer's real config: `tauri::test::mock_app()`'s `app_config_dir()`
+/// does resolve (to the bare `~/Library/Application Support/` on macOS,
+/// its empty identifier adding no subfolder), and `render_file`-based
+/// tests used to leave `last_opened_document.txt` and
+/// `granted_folder_bookmarks.json` there — which then made
+/// `restore_last_opened_document_with_nothing_recorded_does_not_panic`
+/// depend on test scheduling. Persistence logic is tested through the
+/// path-injected `*_from`/`*_to` functions instead.
+fn app_config_dir<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
+    if cfg!(test) {
+        return Err("app_config_dir is unavailable under cargo test".to_string());
+    }
+    app.path().app_config_dir().map_err(|e| e.to_string())
+}
+
 /// The on-disk store's filename — same directory/convention as
 /// `remote_content_policy.txt`/`last_opened_document.txt`
 /// (`app.path().app_config_dir()`). Unlike those two, this holds more than
@@ -832,10 +849,7 @@ fn grant_folder_access<R: Runtime>(app: &AppHandle<R>, path: &Path) -> bool {
 const GRANTED_FOLDER_BOOKMARKS_FILE: &str = "granted_folder_bookmarks.json";
 
 fn granted_folder_bookmarks_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    app.path()
-        .app_config_dir()
-        .map(|dir| dir.join(GRANTED_FOLDER_BOOKMARKS_FILE))
-        .map_err(|e| e.to_string())
+    app_config_dir(app).map(|dir| dir.join(GRANTED_FOLDER_BOOKMARKS_FILE))
 }
 
 /// A missing or corrupt store both read back as empty — same reasoning as
@@ -1519,10 +1533,7 @@ fn mime_type_for(path: &Path) -> &'static str {
 const REMOTE_CONTENT_POLICY_FILE: &str = "remote_content_policy.txt";
 
 fn remote_content_policy_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    app.path()
-        .app_config_dir()
-        .map(|dir| dir.join(REMOTE_CONTENT_POLICY_FILE))
-        .map_err(|e| e.to_string())
+    app_config_dir(app).map(|dir| dir.join(REMOTE_CONTENT_POLICY_FILE))
 }
 
 /// Matches `RemoteContentPolicy.current` — defaults to `"ask"` if unset,
@@ -1637,10 +1648,7 @@ async fn fetch_remote_image<R: Runtime>(app: AppHandle<R>, url: String) -> Resul
 const LAST_OPENED_DOCUMENT_FILE: &str = "last_opened_document.txt";
 
 fn last_opened_document_path<R: Runtime>(app: &AppHandle<R>) -> Result<PathBuf, String> {
-    app.path()
-        .app_config_dir()
-        .map(|dir| dir.join(LAST_OPENED_DOCUMENT_FILE))
-        .map_err(|e| e.to_string())
+    app_config_dir(app).map(|dir| dir.join(LAST_OPENED_DOCUMENT_FILE))
 }
 
 /// Pure core of the write side — path injected so tests never touch the
@@ -2487,9 +2495,9 @@ mod tests {
     }
 
     // MARK: - granted-folder bookmark persistence (read/write core; real
-    // temp files, never the actual system app_config_dir() — confirmed
-    // empirically (see the read_last_opened_document_from block below) that
-    // app_config_dir() fails to resolve under mock_app(), so
+    // temp files, never the actual system app_config_dir() — this file's
+    // own app_config_dir() always fails under cargo test (see its doc
+    // comment), so
     // bookmark_granted_folder's/restore_granted_folders' own file I/O never
     // actually fires through any mock_app()-based test in this file,
     // including grant_folder_access's own tests above — same constraint
@@ -2824,8 +2832,8 @@ mod tests {
     }
 
     // MARK: - read_last_opened_document_from / write_last_opened_document_to
-    // (real temp files — never the actual system app_config_dir(); confirmed
-    // empirically that app_config_dir() fails to resolve under mock_app(),
+    // (real temp files — never the actual system app_config_dir(); this
+    // file's own app_config_dir() always fails under cargo test,
     // so record_last_opened_document's write never fires during any test
     // here, same as remote_content_policy's read side)
 
@@ -2887,7 +2895,7 @@ mod tests {
             .build()
             .unwrap();
 
-        // app_config_dir() fails under mock_app(), so this always hits
+        // app_config_dir() fails under cargo test, so this always hits
         // the early-return path — asserting only that it's safe to call,
         // matching the same untested-thin-wrapper treatment as
         // set_remote_content_policy_always's real AppHandle path.
