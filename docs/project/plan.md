@@ -196,6 +196,11 @@ Strict behaviour parity with the shipped Swift v1.2.1 app, per
       document author wrote explicitly would. Preserved as-is, not
       silently fixed beyond parity; covered by its own test
       (`classify_link_a_relative_markdown_link_resolved_to_the_page_origin_is_ignored`).
+      **Since fixed in both versions**: `localResources.ts` now rewrites
+      relative `<a href>` against `mdviewer-local://localhost/` like
+      images, and `classify_link` / Swift's
+      `LocalSchemeHandler.localMarkdownDocumentURL(for:)` resolve that
+      against the document directory with the same traversal checks.
 
       `set_remote_content_policy_always` (the other genuinely-Rust
       piece): persists to a plain text file in

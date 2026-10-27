@@ -113,13 +113,16 @@ final class FolderAccessManager {
     /// Prompt the user to authorise `directory` (or an ancestor) so its local
     /// resources become readable. Persists the grant. Returns whether access is
     /// now held.
-    func requestAccess(to directory: URL) -> Bool {
+    func requestAccess(
+        to directory: URL,
+        message: String = "Grant access to this folder so the document's local images can be displayed."
+    ) -> Bool {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.directoryURL = directory
-        panel.message = "Grant access to this folder so the document's local images can be displayed."
+        panel.message = message
         panel.prompt = "Grant Access"
         guard panel.runModal() == .OK, let url = panel.url,
               url.startAccessingSecurityScopedResource()

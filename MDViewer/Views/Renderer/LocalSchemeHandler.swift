@@ -145,6 +145,23 @@ final class LocalSchemeHandler: NSObject, WKURLSchemeHandler {
         return bundleDir.appendingPathComponent(normalizedPath, isDirectory: false)
     }
     
+    /// The local Markdown document a clicked link points to, or nil if the link
+    /// should not open in-app. Accepts an absolute `file://` Markdown URL, or a
+    /// relative link the renderer rewrote to `mdviewer-local://localhost/...`,
+    /// which resolves against `baseDirectory` only (never the bundle) with the
+    /// same traversal guard as relative images.
+    func localMarkdownDocumentURL(for url: URL) -> URL? {
+        guard ["md", "markdown"].contains(url.pathExtension.lowercased()) else { return nil }
+        switch url.scheme?.lowercased() {
+        case "file":
+            return url
+        case "mdviewer-local" where url.host == "localhost" && baseDirectory != nil:
+            return resolveRelativePath(for: url.path)
+        default:
+            return nil
+        }
+    }
+
     func resolveRelativePath(for path: String) -> URL? {
         // If we're using base directory
         if let dir = baseDirectory {

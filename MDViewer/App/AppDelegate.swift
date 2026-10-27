@@ -127,7 +127,30 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func handleOpenLocalDocument(_ notification: Notification) {
         guard let url = notification.object as? URL else { return }
-        openDocumentInNewTab(url: url)
+        MainActor.assumeIsolated {
+            if ensureReadAccess(to: url) {
+                openDocumentInNewTab(url: url)
+            }
+        }
+    }
+
+    /// A linked document next to the open one is not covered by the sandbox's
+    /// user-selected grant. Reuse a persisted folder grant, or ask for one,
+    /// before loading it.
+    @MainActor
+    private func ensureReadAccess(to url: URL) -> Bool {
+        if FileManager.default.isReadableFile(atPath: url.path) { return true }
+        let directory = url.deletingLastPathComponent()
+        let access = FolderAccessManager.shared
+        if access.useAccessIfAvailable(for: directory),
+           FileManager.default.isReadableFile(atPath: url.path)
+        {
+            return true
+        }
+        return access.requestAccess(
+            to: directory,
+            message: "Grant access to this folder so linked documents in it can be opened."
+        )
     }
 
     private func openDocumentInNewTab(url: URL) {

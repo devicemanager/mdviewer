@@ -45,3 +45,38 @@ describe("rewriteLocalResources", () => {
         expect(imgSrc(`<img src="images/a.png">`, null)).toBe("images/a.png");
     });
 });
+
+function linkHref(html: string, base: string | null): string | null {
+    const root = document.createElement("div");
+    root.innerHTML = html;
+    rewriteLocalResources(root, base);
+    return root.querySelector("a")!.getAttribute("href");
+}
+
+describe("rewriteLocalResources — relative document links", () => {
+    it("rewrites a relative Markdown link against the base", () => {
+        expect(linkHref(`<a href="other.md">x</a>`, BASE)).toBe(`${BASE}other.md`);
+    });
+
+    it("rewrites a ./-prefixed and nested relative link", () => {
+        expect(linkHref(`<a href="./docs/my file.md">x</a>`, BASE)).toBe(
+            `${BASE}./docs/my%20file.md`,
+        );
+    });
+
+    it("keeps a fragment unencoded after the path", () => {
+        expect(linkHref(`<a href="other.md#section-2">x</a>`, BASE)).toBe(
+            `${BASE}other.md#section-2`,
+        );
+    });
+
+    it("leaves fragment-only, absolute and mailto links untouched", () => {
+        for (const href of ["#top", "https://example.com/a.md", "mailto:a@b.c", "file:///tmp/a.md"]) {
+            expect(linkHref(`<a href="${href}">x</a>`, BASE)).toBe(href);
+        }
+    });
+
+    it("is a no-op for links when the base is not yet known", () => {
+        expect(linkHref(`<a href="other.md">x</a>`, null)).toBe("other.md");
+    });
+});

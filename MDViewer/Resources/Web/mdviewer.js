@@ -288,6 +288,18 @@
       const path = encoded.startsWith("/") ? encoded.slice(1) : encoded;
       img.setAttribute("src", localBaseURL + path);
     });
+    root.querySelectorAll("a[href]").forEach(function(link) {
+      const href = link.getAttribute("href");
+      if (!href || isAbsolute(href)) {
+        return;
+      }
+      const suffixIndex = href.search(/[?#]/);
+      const pathPart = suffixIndex === -1 ? href : href.slice(0, suffixIndex);
+      const suffix = suffixIndex === -1 ? "" : href.slice(suffixIndex);
+      const encoded = pathPart.split("/").map(encodeURIComponent).join("/");
+      const path = encoded.startsWith("/") ? encoded.slice(1) : encoded;
+      link.setAttribute("href", localBaseURL + path + suffix);
+    });
   }
 
   // src/mermaid.ts
@@ -528,6 +540,21 @@
       e.preventDefault();
       callbacks.onLinkClicked?.(link.href);
     });
+  }
+
+  // src/linkBridge.ts
+  function linkClickHandler(host) {
+    const tauri = host.__TAURI__;
+    if (tauri) {
+      return (href) => {
+        void tauri.core.invoke("handle_link_click", { href });
+      };
+    }
+    const swift = host.webkit?.messageHandlers?.linkClicked;
+    if (swift) {
+      return (href) => swift.postMessage(href);
+    }
+    return void 0;
   }
 
   // src/appShell.ts
@@ -1579,8 +1606,6 @@ https://github.com/devicemanager/mdviewer/blob/main/THIRD_PARTY_NOTICES.md`;
     wireUIShell();
   }
   attachInteractionListeners({
-    onLinkClicked: (href) => {
-      void window.__TAURI__.core.invoke("handle_link_click", { href });
-    }
+    onLinkClicked: linkClickHandler(window)
   });
 })();
